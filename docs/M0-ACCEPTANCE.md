@@ -76,3 +76,4 @@
 - **新增 UI 点击音效**：任务 `fmvmcgl2765b582`，原始 2.5s，截 0.19–0.57s 为 0.38s，+22dB，峰值 -4.3 dBFS；所有按钮 onClick 已接入 `AudioDirector.playClick()`。
 - **Android 复测**：新包冷启动 23s（模拟器），`audio.bgm.title` 88s 正常播放，`audio.sfx.click` 已缓存；签名与 minSdk 不变。
 - **制作名单更新**：策划/程序 `universe-st`，美术 `seedance 模型`，代码 `deepseek 模型`；删除 UI 框架与剧情蓝本两行。
+- **M0.9 开幕剧情接入**：「开始游戏」→ 开幕剧情（5 张配图 / 逐字文案 / 流星 / 白闪 / 震屏 / 红脉冲 / 日期卡）→ 占位页；新增 `cutscene.prologue` bundle 与标题页预取。验收见 [PROLOGUE-ACCEPTANCE.md](PROLOGUE-ACCEPTANCE.md)。

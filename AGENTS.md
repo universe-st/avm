@@ -2,7 +2,7 @@
 
 ## 0. 当前阶段
 
-M0 初始框架。已交付：竖屏开始界面、资源管理与预加载框架、标题 BGM、文档、Android 调试包。**不要**在没有计划的情况下接战斗/剧情。
+M0.9。已交付：竖屏开始界面、资源管理与预加载框架、标题 BGM、开幕剧情（文字/配图/实时动画）、文档、Android 调试包。**不要**在没有计划的情况下接第一章/战斗。
 
 ## 1. 命令
 
@@ -29,18 +29,20 @@ pnpm android:release
 8. vendor 的 phaser-mvvm 可以改，但每次改动写进 `vendor/phaser-mvvm/PATCHES.md`，并跑框架单测。
 9. 字体/文案不要写死到 canvas 纹理；中文长句用 Label 的换行能力。
 10. 新依赖先确认许可证；AI 素材必须登记 `docs/ASSET-CREDITS.md`。
+11. 剧情长文文案以 `src/story/` 为唯一真值；场景里不硬编码台词。过场时间线写成无 Phaser 的纯逻辑并补单测（参考 `prologue-player.ts`）。
 
 ## 3. 代码风格
 
 - TypeScript strict；`verbatimModuleSyntax`；类型导入用 `import type`。
-- 文件位置：`app/` 决策与胶水、`resource/` 资源、`audio/` 音频、`scenes/` 场景、`ui/` 视觉辅助、`theme/` 令牌。
-- UI 优先 Compose DSL（`Panel/Column/Row/Text/Button/Slider`），少用 `this.add.*` 工厂。
+- 文件位置：`app/` 决策与胶水、`resource/` 资源、`audio/` 音频、`scenes/` 场景、`ui/` 视觉辅助、`story/` 剧情数据与纯时间线、`theme/` 令牌。
+- UI 优先 Compose DSL（`Panel/Column/Row/Text/Button/Slider`），少用 `this.add.*` 工厂。过场/电影化画面可以用原生层，但控制层（跳过/继续）仍放 Compose，保证焦点与安全区。
 - 纯逻辑抽到无 Phaser 依赖的模块（如 `resource/plan.ts`）并写单测。
 
 ## 4. 验证
 
 - **默认不启动 Android 模拟器**：除非用户主动要求，否则测试验收无需启动模拟器调试 Android 端。
 - 改 UI：`pnpm dev`，用浏览器在 **390×844** 与 **1200×648** 两个视口各看一眼；检查控制台 0 error。
+- 改开幕/过场：完整走一遍「开始 → 全部 cue → 点击继续 → 占位页」，再测「跳过」「返回键」和 `prefers-reduced-motion`。
 - 改资源：`pnpm assets:check`；确认 `public/assets` 下没有未引用文件。
 - 改 Android：`pnpm android:debug` 出调试包即可；只有用户主动要求时才装模拟器/真机，验「启动到标题、点击开始、返回键」。
 - 改 vendor：`pnpm --filter @phaser-mvvm/phaser test`（在 vendor 包内）或至少 `pnpm typecheck`。
