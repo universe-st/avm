@@ -39,9 +39,10 @@ pnpm android:release
 
 ## 4. 验证
 
+- **默认不启动 Android 模拟器**：除非用户主动要求，否则测试验收无需启动模拟器调试 Android 端。
 - 改 UI：`pnpm dev`，用浏览器在 **390×844** 与 **1200×648** 两个视口各看一眼；检查控制台 0 error。
 - 改资源：`pnpm assets:check`；确认 `public/assets` 下没有未引用文件。
-- 改 Android：`pnpm android:debug`，装模拟器，确认启动到标题、点击开始、返回键。
+- 改 Android：`pnpm android:debug` 出调试包即可；只有用户主动要求时才装模拟器/真机，验「启动到标题、点击开始、返回键」。
 - 改 vendor：`pnpm --filter @phaser-mvvm/phaser test`（在 vendor 包内）或至少 `pnpm typecheck`。
 
 ## 5. 已知坑
