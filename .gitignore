@@ -1,0 +1,54 @@
+# ===== 依赖 =====
+node_modules/
+.pnpm-store/
+vendor/**/node_modules/
+
+# ===== 构建产物（pnpm build / pnpm test）=====
+dist/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# ===== 日志与临时文件 =====
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.tmp/
+tmp/
+
+# ===== 环境变量 =====
+.env
+.env.*
+!.env.example
+
+# ===== Cordova 生成物（由 tools/*.mjs 生成，不入库）=====
+cordova/www/
+cordova/platforms/
+cordova/plugins/
+cordova/build.json
+*.apk
+*.aab
+
+# ===== 签名与密钥：绝不入库 =====
+cordova/keys/
+*.keystore
+*.jks
+*.p12
+keystore.properties
+*.pem
+*.mobileprovision
+
+# ===== 本地参考资料（小说原文，不随仓库分发）=====
+reference/
+
+# ===== 系统与编辑器 =====
+.DS_Store
+._*
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*~

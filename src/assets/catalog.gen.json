@@ -1,0 +1,26 @@
+{
+  "assets/audio/bgm/title.mp3": {
+    "bytes": 1409089,
+    "mtimeMs": 1792843174325
+  },
+  "assets/audio/sfx/ui_click.mp3": {
+    "bytes": 7149,
+    "mtimeMs": 1792843100336
+  },
+  "assets/img/ch00/bg.png": {
+    "bytes": 20708,
+    "mtimeMs": 1792839029269
+  },
+  "assets/img/core/white.png": {
+    "bytes": 79,
+    "mtimeMs": 1792839029269
+  },
+  "assets/img/title/logo_mark.png": {
+    "bytes": 6679,
+    "mtimeMs": 1792839029250
+  },
+  "assets/img/title/title_bg.webp": {
+    "bytes": 368908,
+    "mtimeMs": 1792840038498
+  }
+}

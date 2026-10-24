@@ -1,0 +1,34 @@
+{
+  "name": "assassins-vs-miners",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "《刺客大战矿工》—— 竖屏回合制 RPG（Phaser 4 + phaser-mvvm）",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "assets:scan": "node tools/scan-assets.mjs",
+    "assets:check": "node tools/check-assets.mjs",
+    "check": "pnpm typecheck && pnpm test && pnpm assets:check",
+    "android:sync": "node tools/sync-cordova.mjs",
+    "android:debug": "node tools/build-android.mjs --debug",
+    "android:release": "node tools/build-android.mjs --release"
+  },
+  "dependencies": {
+    "@phaser-mvvm/core": "workspace:*",
+    "@phaser-mvvm/layout": "workspace:*",
+    "@phaser-mvvm/phaser": "workspace:*",
+    "@phaser-mvvm/widgets": "workspace:*",
+    "phaser": "4.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.7",
+    "vitest": "^5.0.0"
+  }
+}

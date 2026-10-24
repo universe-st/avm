@@ -1,0 +1,8 @@
+packages:
+  - 'vendor/phaser-mvvm/packages/*'
+
+allowBuilds:
+  esbuild: true
+
+onlyBuiltDependencies:
+  - esbuild

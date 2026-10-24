@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#05060a" />
+    <title>刺客大战矿工 · Assassins vs. Miners</title>
+    <script>
+      // 只在 Cordova WebView 中加载原生桥接；纯 Web 构建没有 cordova.js。
+      // 必须同步执行：Cordova 的 backbutton 订阅包装要在主模块注册监听之前就绪。
+      if (window._cordovaNative) {
+        document.write('<script src="cordova.js"><\/script>');
+      }
+    </script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: radial-gradient(circle at 50% 18%, #121526 0%, #05060a 62%, #020307 100%);
+        overflow: hidden;
+        -webkit-tap-highlight-color: transparent;
+        overscroll-behavior: none;
+      }
+      #game {
+        width: 100%;
+        height: 100%;
+      }
+      #game canvas {
+        display: block;
+        touch-action: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,26 @@
+<?xml version='1.0' encoding='utf-8'?>
+<widget id="com.universest.avm" version="0.1.0" android-versionCode="1" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+    <name>Assassins vs Miners</name>
+    <description>《刺客大战矿工》—— 竖屏回合制 RPG。潜入梦域，解离矿工。</description>
+    <author email="dev@universest.com" href="https://universest.com">Universest</author>
+    <content src="index.html" />
+    <allow-intent href="http://*/*" />
+    <allow-intent href="https://*/*" />
+
+    <!-- 画面 -->
+    <preference name="Fullscreen" value="true" />
+    <preference name="Orientation" value="portrait" />
+    <preference name="BackgroundColor" value="#05060a" />
+    <preference name="SplashScreenDelay" value="0" />
+    <preference name="LoadUrlTimeoutValue" value="120000" />
+    <preference name="AutoHideSplashScreen" value="true" />
+    <preference name="StatusBarOverlaysWebView" value="true" />
+    <preference name="StatusBarBackgroundColor" value="#05060a" />
+    <preference name="StatusBarStyle" value="lightcontent" />
+
+    <!-- Android -->
+    <preference name="android-minSdkVersion" value="21" />
+    <preference name="android-targetSdkVersion" value="36" />
+    <preference name="android-compileSdkVersion" value="36" />
+    <preference name="AndroidInsecureFileMode" value="false" />
+</widget>

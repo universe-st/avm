@@ -1,0 +1,25 @@
+{
+  "name": "com.universest.avm",
+  "displayName": "Assassins vs Miners",
+  "version": "0.1.0",
+  "description": "《刺客大战矿工》Cordova Android 工程（由 apps/web 构建产物驱动）",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"no direct tests; use the root pnpm check\""
+  },
+  "keywords": [
+    "cordova",
+    "phaser",
+    "game"
+  ],
+  "author": "Universest",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "cordova-android": "^15.1.0"
+  },
+  "cordova": {
+    "platforms": [
+      "android"
+    ]
+  }
+}
