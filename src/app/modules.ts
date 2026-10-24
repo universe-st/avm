@@ -1,6 +1,6 @@
 import type { BundleId, LoadShow } from '../assets/types';
 
-export type ModuleId = 'title' | 'placeholder';
+export type ModuleId = 'title' | 'prologue' | 'placeholder';
 
 export interface GameModule {
   readonly id: ModuleId;
@@ -29,5 +29,11 @@ export const MODULES: Record<ModuleId, GameModule> = {
     requires: ['ch.00'],
     prefetch: ['ui'],
     gate: { showProgress: 'auto', title: '正在载入序章' },
+  },
+  prologue: {
+    id: 'prologue',
+    sceneKey: 'prologue',
+    requires: ['core', 'cutscene.prologue'],
+    gate: { showProgress: 'auto', title: '正在开启序章' },
   },
 };

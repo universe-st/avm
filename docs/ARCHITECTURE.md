@@ -3,13 +3,15 @@
 ## 1. 分层
 
 ```
-scenes / ui
+scenes / ui / story
    │
    ├─ app/            viewport、settings、modules、director（场景门禁）
    │
    ├─ resource/       AssetService（队列/权重/进度/失败） + LoaderScene（加载 UI）
    │        │
    │        └─ assets/bundles.ts（唯一资源清单） + catalog.gen.json（字节数）
+   │
+   ├─ story/          无 Phaser 的剧情数据与时间线（prologue.ts / prologue-player.ts）
    │
    ├─ audio/          AudioDirector（BGM/SFX/解锁/持久化）
    │
@@ -36,13 +38,29 @@ TitleScene（UIScene）
   ├─ 背景封面图（cover）+ 渐变压暗
   ├─ content(): 版本/设置、标题、三个按钮、版权
   ├─ audioDirector.attach + playTitleBgm
-  └─ 开始游戏 → enterModule(this, 'placeholder')
+  ├─ 800ms 后静默 prefetch(cutscene.prologue)
+  └─ 开始游戏 → enterModule(this, 'prologue')
+
+PrologueScene（UIScene）
+  ├─ 原生层：CinematicBackdrop / scrim / SparkField / MeteorSweep / WarOverlay / TitleCard
+  ├─ Compose 层：右上角「跳过」
+  ├─ ProloguePlayer 每帧 tick(delta)：打字 → 停留 → 淡出 → 下一 cue
+  └─ 完成/跳过 → enterModule(this, 'placeholder')；返回键 → enterModule(this, 'title')
 
 PlaceholderScene（UIScene）
   └─ 返回标题 → enterModule(this, 'title')
 ```
 
 `enterModule` 必须传当前场景，内部用 `from.scene.start()`。用全局 `game.scene.start()` 不会停旧场景，会留下重叠的 UIRoot。
+
+### 2.1 开幕剧情播放器
+
+开幕剧情刻意分成两层：
+
+- **纯逻辑**：`src/story/prologue.ts` 是文案/配图/节奏的唯一真值；`src/story/prologue-player.ts` 是 `typing → holding → leaving → awaiting-continue` 状态机，不 import Phaser，单测覆盖「补全、推进、最后确认、离开中忽略输入」。
+- **表现**：`PrologueScene` 每帧把 `delta` 钳制到 100ms 后喂给 player；`src/ui/cinematic.ts` 提供双缓冲背景、渐变压暗、星尘、流星、震屏/白闪、战争红点与日期卡。文字用原生 `Text`（固定文本框 + `setResolution`），不把长句烘焙进图片。
+
+场景内不出现 `this.load`；5 张图由 `cutscene.prologue` bundle 在进入前加载，标题页会提前静默预取。
 
 ## 3. 视口与设备分辨率
 
@@ -114,6 +132,7 @@ LoaderScene 用 Phaser 原生对象（Rectangle/Graphics/Text）画进度，**�
 
 ## 8. 已知边界
 
-- 预取只登记、未真正触发（M0 只有两屏）；foreground 抢占逻辑等预取启用后再补。
-- 缓存释放 API 已留，M0 不真正卸载纹理。
+- 标题页已触发一次 `cutscene.prologue` 预取；C/D 类的章节调度器与缓存淘汰仍未接入。
+- 缓存释放 API 已留，当前不真正卸载纹理。
+- 开幕正文是 Phaser Text，未接 DOM a11y 镜像；跳过按钮与「点击继续」提示可键盘/读屏访问。
 - a11y 镜像与输入桥沿用框架默认；尚未做游戏内无障碍适配。

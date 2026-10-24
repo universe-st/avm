@@ -33,7 +33,7 @@ export class PlaceholderScene extends UIScene {
         Text('序章 · 权力之梦', { size: 'xl', align: 'center' });
         Text('开发中', { size: 'lg', tone: 'muted', align: 'center' });
         Text(
-          '第一章《天子》的梦域入口已预留。\nM1 将接入序章剧情、锚点与第一场战斗。',
+          '开幕剧情已播放。\n第一章《天子》的梦域入口待接入；M1 将接锚点与第一场战斗。',
           { size: 'sm', tone: 'muted', align: 'center' },
         );
         Button('返回标题', {

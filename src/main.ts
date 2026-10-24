@@ -5,6 +5,7 @@ import { planViewport, setViewportPlan } from './app/viewport';
 import { applyTheme } from './theme/theme';
 import { BootScene } from './scenes/boot-scene';
 import { PlaceholderScene } from './scenes/placeholder-scene';
+import { PrologueScene } from './scenes/prologue-scene';
 import { TitleScene } from './scenes/title-scene';
 import { LoaderScene } from './resource/loader-scene';
 
@@ -58,7 +59,7 @@ const game = new Phaser.Game({
       },
     ],
   },
-  scene: [BootScene, LoaderScene, TitleScene, PlaceholderScene],
+  scene: [BootScene, LoaderScene, TitleScene, PrologueScene, PlaceholderScene],
 });
 
 // Cordova：隐藏状态栏 + 硬件返回键接入框架的 back 链。

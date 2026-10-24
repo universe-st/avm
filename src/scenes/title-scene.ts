@@ -13,6 +13,7 @@ import { settings } from '../app/settings';
 import { enterModule } from '../app/director';
 import { applyCamera, getViewportPlan } from '../app/viewport';
 import { audioDirector } from '../audio/audio-director';
+import { assetService } from '../resource/asset-service';
 import { addCoverImage, addScrims } from '../ui/background';
 
 const BGM_KEY = 'audio.bgm.title';
@@ -38,6 +39,20 @@ export class TitleScene extends UIScene {
     };
     this.input.once('pointerdown', unlock);
     this.input.keyboard?.once('keydown', unlock);
+
+    this.prefetchPrologue();
+  }
+
+  /**
+   * 标题页空闲时预热开幕配图，让「开始游戏」尽量不显示加载页。
+   * 弱网/省流量模式跳过；失败静默，真正进入时还会再试。
+   */
+  private prefetchPrologue(): void {
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+    if (connection?.saveData === true) return;
+    this.time.delayedCall(800, () => {
+      assetService.prefetch(['cutscene.prologue']);
+    });
   }
 
   protected content(): void {
@@ -98,7 +113,7 @@ export class TitleScene extends UIScene {
             size: 'lg',
             onClick: () => {
               audioDirector.playClick();
-              void enterModule(this, 'placeholder');
+              void enterModule(this, 'prologue');
             },
           });
           Button('继续游戏', { variant: 'secondary', size: 'lg', disabled: true });
