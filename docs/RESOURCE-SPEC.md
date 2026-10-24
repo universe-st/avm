@@ -28,9 +28,10 @@ interface AssetDef {
 | `core` | 基础纹理（白像素） | 2 MB | 冷启动 |
 | `title` | 标题主视觉、徽记、标题 BGM | 6 MB | 进入标题（与 core 合并批次） |
 | `ui` | 设置弹窗/通用 UI（M0 为空，用主题绘制） | 1 MB | 首次打开设置 |
-| `ch.00` | 序章占位背景 | 2 MB | 点击开始 |
+| `ch.00` | 序章占位背景 | 2 MB | 开幕剧情结束/跳过后 |
+| `cutscene.prologue` | 开幕剧情 5 张配图 | 6 MB | 标题页空闲预取 / 点击开始 |
 
-后续：`ch.NN`（单章 ≤ 8 MB）、`battle.common`（≤ 3 MB）、`battle.<id>`（≤ 5 MB）、`cutscene.<id>`。
+后续：`ch.NN`（单章 ≤ 8 MB）、`battle.common`（≤ 3 MB）、`battle.<id>`（≤ 5 MB）、`cutscene.<id>`（单段 ≤ 8 MB）。
 
 ## 3. 进度契约
 
@@ -62,7 +63,7 @@ UI 只认 `LoadState`（`src/assets/types.ts`）：
 | C 环节预取 | 进入场景后空闲 | 500ms / idle | 不显示 | 无硬指标 |
 | D 章节前瞻 | 当前章稳定后 | 空闲 | 不显示 | 下一章 ≤ 30s |
 
-**M0 已实现**：A、B、`show: 'never'` 的 `prefetch()` API；C/D 的调度器在 M1 接入章节时启用。
+**已实现**：A、B、`show: 'never'` 的 `prefetch()` API；标题页稳定 800ms 后静默预取 `cutscene.prologue`（`navigator.connection.saveData` 为真时跳过），让「开始游戏」尽量不显示加载页。C/D 的章节调度器在接入章节时启用。
 
 ## 5. 十二条硬规则
 
@@ -90,7 +91,7 @@ UI 只认 `LoadState`（`src/assets/types.ts`）：
 
 | 类别 | 规范 |
 | --- | --- |
-| 图像 | 2× 设计；WebP（含 alpha）优先，PNG 回退；单图 ≤ 2048；小图打图集，留 1px extrude + 2px padding |
+| 图像 | 2× 设计；WebP（含 alpha）优先，PNG 回退；单边 ≤ 2048；小图打图集，留 1px extrude + 2px padding。全屏过场图用 1080×1920（1.5× 设计）优先保证显存；标题主视觉 1440×2560 是已存在的例外 |
 | 音频 | BGM 60–120s 可循环，-16 LUFS；SFX ≤ 2s；MP3 128k（BGM）/96k（SFX） |
 | 字体 | WOFF2 子集；首屏前 `document.fonts.ready` 等待 |
 | 数据 | JSON UTF-8 无 BOM |

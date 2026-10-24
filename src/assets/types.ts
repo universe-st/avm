@@ -1,7 +1,7 @@
 /** 资源类型：M0 只需要图、音频、JSON；图集/序列帧后续加。 */
 export type AssetKind = 'image' | 'audio' | 'json';
 
-export type BundleId = 'core' | 'title' | 'ui' | 'ch.00';
+export type BundleId = 'core' | 'title' | 'ui' | 'ch.00' | 'cutscene.prologue';
 
 export interface AssetDef {
   /** 全局唯一；Phaser cache 的 key。 */

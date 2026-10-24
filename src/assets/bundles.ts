@@ -71,6 +71,43 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
       },
     ],
   },
+  'cutscene.prologue': {
+    id: 'cutscene.prologue',
+    budgetKB: 6144,
+    dependsOn: ['core'],
+    assets: [
+      {
+        key: 'img.prologue.sky',
+        kind: 'image',
+        url: 'assets/img/prologue/01_night_sky.webp',
+        label: '深夜天幕',
+      },
+      {
+        key: 'img.prologue.dream',
+        kind: 'image',
+        url: 'assets/img/prologue/02_dream_root.webp',
+        label: '梦的本源',
+      },
+      {
+        key: 'img.prologue.disaster',
+        kind: 'image',
+        url: 'assets/img/prologue/03_dreamfall.webp',
+        label: '梦坠',
+      },
+      {
+        key: 'img.prologue.war',
+        kind: 'image',
+        url: 'assets/img/prologue/04_hidden_war.webp',
+        label: '无声的战争',
+      },
+      {
+        key: 'img.prologue.school',
+        kind: 'image',
+        url: 'assets/img/prologue/05_qunying_school.webp',
+        label: '群英高中',
+      },
+    ],
+  },
 };
 
 /** 按依赖顺序展开成扁平的资源列表（去重，保持首次出现顺序）。 */

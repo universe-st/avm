@@ -41,17 +41,39 @@
 | `public/assets/img/core/white.png` | Pillow 绘制 | 1×1 白纹理，资源框架自检用 |
 | `public/assets/img/ch00/bg.png` | Pillow 绘制 | 序章占位背景；M1 换正式场景图 |
 
-## 5. 字体
+## 5. 开幕剧情配图（5 张）
+
+- 文件：`public/assets/img/prologue/01_night_sky.webp`、`02_dream_root.webp`、`03_dreamfall.webp`、`04_hidden_war.webp`、`05_qunying_school.webp`
+- 来源：游戏素材大师 · 图片生成（火山方舟 `doubao-seedream-5-0-flash-260915`）
+- 任务与原始件：
+  | 图 | jobId | 原始件 |
+  | --- | --- | --- |
+  | 深夜天幕 | `imvmh0kec47db75` | `assets-src/prologue/01_night_sky.png` |
+  | 梦的本源 | `imvmh22g1783dbc` | `assets-src/prologue/02_dream_root.png` |
+  | 梦坠地球 | `imvmh22ghe4c80f` | `assets-src/prologue/03_dreamfall.png` |
+  | 无声的战争 | `imvmh22goaf93e4` | `assets-src/prologue/04_hidden_war.png` |
+  | 群英高中 | `imvmh22gubffd56` | `assets-src/prologue/05_qunying_school.png` |
+- 生成：每张 `size: 2K`、`count: 1`、`watermark: false`；「深夜天幕」首次下载失败，重跑 1 次成功；其余一次成功
+- 提示词要点：竖屏 9:16；国风 HD-2D 像素 + 电影级体积光/景深/移轴；冷蓝/纯白/墨黑为主，朱红只用于危险；中央竖向安全区；无文字/水印/logo/明显人脸。逐张画面：
+  1. 深夜县城上空、银河、楼群剪影、无流星（流星由程序叠加）
+  2. 白色梦境、半透明人影、胸口光丝与微型星座、水面倒影
+  3. 近地轨道、地球弧面被白色裂隙贯穿、流星雨、裂隙渗朱红光
+  4. 县城夜晚街道、楼宇/行人剪影的暗红电子眼、校服学生背影
+  5. 清晨群英高中校门、红横幅（无字）、晨雾暖光、校服学生
+- 后期：1584×2816 → 中心裁 9:16 → 1080×1920 → UnsharpMask(半径 1.1，55%，阈值 2) → 对比度 1.025 → WebP q88；总体积约 1.1 MB
+- 复核：上架前按火山方舟商用条款复核，商店页注明「AI 生成美术」
+
+## 6. 字体
 
 - 当前：系统字体（PingFang SC / Noto Sans CJK / 微软雅黑），未随包分发。
 - 计划：方舟像素字体（Ark Pixel，OFL 1.1）用于标题/数字；思源黑体（Source Han Sans，OFL）子集用于正文。引入时把 OFL 文本放到 `docs/licenses/`。
 
-## 6. 剧情蓝本
+## 7. 剧情蓝本
 
 - 《刺客与矿工》：用户提供的原创小说（61.5 万字，未完结），仅作为本项目改编蓝本，不在仓库外分发。
 - 仓库内 `reference/` 为本地参考，不参与构建、不随 APK 打包。
 
-## 7. 第三方代码
+## 8. 第三方代码
 
 - Phaser 4.2.1 — MIT
 - phaser-mvvm 1.0.0 — MIT（源码内置，见 `vendor/phaser-mvvm/LICENSE` 与 `UPSTREAM.md`）
