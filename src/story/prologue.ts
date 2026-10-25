@@ -3,6 +3,9 @@
  *
  * 这个文件刻意不依赖 Phaser，便于在 Node 里单测「文案是否与用户原文一致」
  * 和「逐字/停顿时间」。场景只消费这里的数据与纯函数。
+ *
+ * 2026-10-25：按用户要求删掉开场「深夜天幕，一颗流星划过」的舞台提示小字幕，
+ * 第一句直接从「你，有做过梦吗？」开始；夜空与流星仍由 `meteor` 动画保留。
  */
 
 /** 开幕剧情使用的配图 key，必须与 `cutscene.prologue` bundle 一致。 */
@@ -23,14 +26,14 @@ export interface PrologueCue {
   readonly image: PrologueImageKey;
   /** 已按 720 设计宽手工断行；拼接后必须与用户原文一致。 */
   readonly lines: readonly string[];
-  /** 只出现在第一 cue 的舞台提示，以无括号小字幕呈现。 */
-  readonly caption?: string;
   readonly kind?: PrologueCueKind;
   readonly tone?: PrologueTone;
   /** 主文字字号；默认 38。长句用 34 保证不溢出。 */
   readonly size?: number;
-  /** 打字完成后的停留时间；默认 DEFAULT_HOLD_MS。 */
+  /** 打字完成后的停留时间（自动模式）。默认 DEFAULT_HOLD_MS。 */
   readonly holdMs?: number;
+  /** 进入这一 cue 时扫过一道流星（只在夜空开场用）。 */
+  readonly meteor?: boolean;
 }
 
 /** 每字 55ms：中文阅读节奏，约 18 字/秒。 */
@@ -41,30 +44,24 @@ export const DEFAULT_HOLD_MS = 1200;
 
 export const PROLOGUE_CUES: readonly PrologueCue[] = [
   {
-    id: 'sky-meteor',
-    image: 'img.prologue.sky',
-    lines: [],
-    caption: '深夜天幕，一颗流星划过',
-    holdMs: 2600,
-  },
-  {
     id: 'sky-question',
     image: 'img.prologue.sky',
     lines: ['你，有做过梦吗？'],
     tone: 'gold',
-    holdMs: 1100,
+    holdMs: 1400,
+    meteor: true,
   },
   {
     id: 'sky-dream',
     image: 'img.prologue.sky',
     lines: ['梦，无可捉摸，虚无缥缈。'],
-    holdMs: 1200,
+    holdMs: 1400,
   },
   {
     id: 'dream-root',
     image: 'img.prologue.dream',
     lines: ['它根植于人的内心，', '人却从未真正了解过它。'],
-    holdMs: 1500,
+    holdMs: 1600,
   },
   {
     id: 'dreamfall-disaster',
@@ -75,19 +72,19 @@ export const PROLOGUE_CUES: readonly PrologueCue[] = [
       '他们未曾好好准备的战争。',
     ],
     size: 34,
-    holdMs: 1700,
+    holdMs: 1800,
   },
   {
     id: 'hidden-war',
     image: 'img.prologue.war',
     lines: ['而大多数人都不知道，', '这场战争，早就已经开始了。'],
-    holdMs: 1700,
+    holdMs: 1800,
   },
   {
     id: 'school-beginning',
     image: 'img.prologue.school',
     lines: ['我们的故事，从一所学校开始。'],
-    holdMs: 1400,
+    holdMs: 1500,
   },
   {
     id: 'school-card',
@@ -138,7 +135,7 @@ export function holdMs(cue: PrologueCue): number {
   return Number.isFinite(value) ? Math.max(0, value) : DEFAULT_HOLD_MS;
 }
 
-/** 整段剧情的大致时长（含每个 cue 的淡出空档），用于文档与验收。 */
+/** 自动模式下整段剧情的大致时长（含每个 cue 的淡出空档），用于文档与验收。 */
 export function totalMs(cues: readonly PrologueCue[] = PROLOGUE_CUES): number {
   return cues.reduce((sum, cue) => sum + revealMs(cue) + holdMs(cue) + EXIT_MS, 0);
 }

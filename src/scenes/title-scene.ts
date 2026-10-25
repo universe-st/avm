@@ -10,17 +10,16 @@ import {
   Text,
 } from '@phaser-mvvm/widgets/compose';
 import { settings } from '../app/settings';
+import { SCENE_KEYS } from '../app/scene-keys';
 import { enterModule } from '../app/director';
 import { applyCamera, getViewportPlan } from '../app/viewport';
 import { audioDirector } from '../audio/audio-director';
-import { assetService } from '../resource/asset-service';
+import { bgmManager } from '../audio/bgm-manager';
 import { addCoverImage, addScrims } from '../ui/background';
-
-const BGM_KEY = 'audio.bgm.title';
 
 export class TitleScene extends UIScene {
   constructor() {
-    super('title');
+    super(SCENE_KEYS.title);
   }
 
   override create(): void {
@@ -31,28 +30,15 @@ export class TitleScene extends UIScene {
     this.cameras.main.fadeIn(520, 5, 6, 10);
 
     audioDirector.attach(this);
-    audioDirector.playTitleBgm(BGM_KEY);
+    // 场景 → 曲子的映射在 bgm-manager.ts；BgmManager 自己处理首次手势前的补播。
+    bgmManager.enterScene(this);
 
     const unlock = (): void => {
       audioDirector.unlock();
-      audioDirector.playTitleBgm(BGM_KEY);
+      bgmManager.unlock();
     };
     this.input.once('pointerdown', unlock);
     this.input.keyboard?.once('keydown', unlock);
-
-    this.prefetchPrologue();
-  }
-
-  /**
-   * 标题页空闲时预热开幕配图，让「开始游戏」尽量不显示加载页。
-   * 弱网/省流量模式跳过；失败静默，真正进入时还会再试。
-   */
-  private prefetchPrologue(): void {
-    const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
-    if (connection?.saveData === true) return;
-    this.time.delayedCall(800, () => {
-      assetService.prefetch(['cutscene.prologue']);
-    });
   }
 
   protected content(): void {
@@ -159,7 +145,7 @@ export class TitleScene extends UIScene {
             width: 520,
             trackThickness: 4,
             knobRadius: 8,
-            onValueChange: (value) => audioDirector.setBgmVolume(value / 100),
+            onValueChange: (value) => bgmManager.setBgmVolume(value / 100),
           });
 
           Text(() => `音效音量  ${Math.round(settings.sfx * 100)}%`, {
@@ -183,7 +169,7 @@ export class TitleScene extends UIScene {
               size: 'md',
               onClick: () => {
                 audioDirector.playClick();
-                audioDirector.setMuted(!settings.muted);
+                bgmManager.setMuted(!settings.muted);
               },
             });
             Button('恢复默认', {
@@ -194,7 +180,7 @@ export class TitleScene extends UIScene {
                 settings.bgm = 0.6;
                 settings.sfx = 0.8;
                 settings.muted = false;
-                audioDirector.syncVolume();
+                bgmManager.syncVolume();
               },
             });
           });

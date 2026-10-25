@@ -519,12 +519,12 @@ export class TitleCard {
   private readonly date: Phaser.GameObjects.Text;
   private readonly school: Phaser.GameObjects.Text;
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, options: { depth?: number } = {}) {
     this.scene = scene;
     const plan = getViewportPlan();
     this.container = scene.add
       .container(plan.designWidth / 2, plan.designHeight * 0.7)
-      .setDepth(12)
+      .setDepth(options.depth ?? 12)
       .setAlpha(0)
       .setVisible(false);
 

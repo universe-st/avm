@@ -1,0 +1,40 @@
+{
+  "character": "周全",
+  "version": "qchibi-3head-2026-10-25",
+  "cell": [
+    256,
+    256
+  ],
+  "columns": 8,
+  "rows": 8,
+  "rowOrder": [
+    "back",
+    "upRight",
+    "right",
+    "downRight",
+    "front",
+    "downLeft",
+    "left",
+    "upLeft"
+  ],
+  "directions": [
+    "front",
+    "downLeft",
+    "left",
+    "upLeft",
+    "back",
+    "upRight",
+    "right",
+    "downRight"
+  ],
+  "frameCount": 8,
+  "fps": 8,
+  "notes": "由游戏素材大师 sprite 项目 pmvnrpn64691ee5 产出；sheet 与 walk-*.png 已抠像透明；frames 为抠像后 768→256 统一并集裁切；static 为八方向静态帧（同比例）。行序按罗盘顺时针 N→NE→E→SE→S→SW→W→NW。",
+  "source": {
+    "spriteProject": "pmvnrpn64691ee5",
+    "baseImage": "assets-src/character/ch01/q/zhou-qchibi.png",
+    "jobs": [
+      "imvnrkym706329e"
+    ]
+  }
+}

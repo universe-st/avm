@@ -1,9 +1,12 @@
 import Phaser from 'phaser';
+import { SCENE_KEYS } from '../app/scene-keys';
+import { ref } from '@phaser-mvvm/core';
 import { UIScene, prefersReducedMotion } from '@phaser-mvvm/phaser';
 import { Button, Column, Row } from '@phaser-mvvm/widgets/compose';
 import { enterModule } from '../app/director';
 import { applyCamera, getViewportPlan } from '../app/viewport';
 import { audioDirector } from '../audio/audio-director';
+import { bgmManager } from '../audio/bgm-manager';
 import {
   PROLOGUE_CUES,
   cueText,
@@ -12,7 +15,7 @@ import {
 import { ProloguePlayer, type PrologueEvent } from '../story/prologue-player';
 import {
   CinematicBackdrop,
-  MUTED,
+  INK,
   MeteorSweep,
   PAPER,
   GOLD,
@@ -29,8 +32,11 @@ import {
 /**
  * 开幕剧情。
  *
- * 原生 Phaser 层负责画面/文字/光效；UIScene 只挂一个右上角「跳过」。
+ * 原生 Phaser 层负责画面/文字/光效；UIScene 只挂右上角两个图标按钮：自动播放开关与跳过。
  * 时间线在 `ProloguePlayer` 里，场景每帧把 delta 喂进去。
+ *
+ * 默认手动：逐字打字时给每个字配一声提示音，打完一句停住，等玩家点一下再继续；
+ * 右上角「自动」可以切回按 holdMs 自动播放（最后一张日期卡仍然等点击）。
  */
 export class PrologueScene extends UIScene {
   private player: ProloguePlayer | null = null;
@@ -40,19 +46,20 @@ export class PrologueScene extends UIScene {
   private war: WarOverlay | null = null;
   private card: TitleCard | null = null;
   private mainText: Phaser.GameObjects.Text | null = null;
-  private caption: Phaser.GameObjects.Text | null = null;
   private hint: Phaser.GameObjects.Text | null = null;
   private startTimer: Phaser.Time.TimerEvent | null = null;
   private hintTween: Phaser.Tweens.Tween | null = null;
-  private captionTween: Phaser.Tweens.Tween | null = null;
   private cueImageKey: string | null = null;
   private currentCueIndex = -1;
+  private lastTypedCount = 0;
+  private autoIcon: Phaser.GameObjects.Image | null = null;
   private started = false;
   private leaving = false;
+  private readonly autoMode = ref(false);
   private readonly reduced = prefersReducedMotion();
 
   constructor() {
-    super('prologue');
+    super(SCENE_KEYS.prologue);
   }
 
   override create(): void {
@@ -84,15 +91,8 @@ export class PrologueScene extends UIScene {
       depth: 10,
       alpha: 0,
     });
-    this.caption = makeSceneText(this, w / 2, h * 0.15, '', {
-      size: 22,
-      color: MUTED,
-      letterSpacing: 4,
-      depth: 10,
-      alpha: 0,
-    });
     this.hint = makeSceneText(this, w / 2, h - 118, '', {
-      size: 26,
+      size: 24,
       color: GOLD,
       depth: 10,
       alpha: 0,
@@ -100,6 +100,7 @@ export class PrologueScene extends UIScene {
 
     super.create();
     audioDirector.attach(this);
+    bgmManager.enterScene(this);
     this.cameras.main.fadeIn(this.reduced ? 220 : 600, 5, 6, 10);
 
     this.input.on('pointerdown', this.onPointerDown, this);
@@ -119,14 +120,40 @@ export class PrologueScene extends UIScene {
     if (!this.started || this.leaving) return;
     if (!this.player) return;
     this.handleEvents(this.player.tick(clamped));
+    this.syncHint();
   }
 
   protected content(): void {
     Column({ width: 'fill', height: 'fill', padding: 24 }, () => {
-      Row({ width: 'fill', justifyContent: 'end', alignItems: 'center' }, () => {
-        Button('跳过', {
+      Row({ width: 'fill', gap: 10, justifyContent: 'end', alignItems: 'center' }, () => {
+        // 图标按钮：可见文字为空，读屏名与选中状态由 label/toggle 提供。
+        this.autoIcon = this.add
+          .image(0, 0, 'img.ui.icon.auto')
+          .setOrigin(0, 0)
+          .setDisplaySize(28, 28)
+          .setTint(PAPER);
+        Button('', {
+          icon: this.autoIcon,
+          label: '自动播放',
+          variant: () => (this.autoMode.value ? 'primary' : 'ghost'),
+          size: 'sm',
+          width: 56,
+          toggle: true,
+          value: this.autoMode,
+          onValueChange: (next) => this.applyAutoMode(next),
+        });
+
+        const skipIcon = this.add
+          .image(0, 0, 'img.ui.icon.skip')
+          .setOrigin(0, 0)
+          .setDisplaySize(28, 28)
+          .setTint(PAPER);
+        Button('', {
+          icon: skipIcon,
+          label: '跳过剧情',
           variant: 'ghost',
           size: 'sm',
+          width: 56,
           onClick: () => this.skip(),
         });
       });
@@ -147,19 +174,20 @@ export class PrologueScene extends UIScene {
     this.war = null;
     this.card = null;
     this.mainText = null;
-    this.caption = null;
     this.hint = null;
     this.startTimer = null;
     this.hintTween = null;
-    this.captionTween = null;
     this.cueImageKey = null;
     this.currentCueIndex = -1;
+    this.lastTypedCount = 0;
+    this.autoIcon = null;
+    this.autoMode.value = false;
     this.started = false;
     this.leaving = false;
   }
 
   private startSequence(): void {
-    this.player = new ProloguePlayer(PROLOGUE_CUES);
+    this.player = new ProloguePlayer(PROLOGUE_CUES, { auto: this.autoMode.value });
     this.started = true;
     this.handleEvents(this.player.start());
   }
@@ -181,10 +209,11 @@ export class PrologueScene extends UIScene {
           this.showContinue();
           break;
         case 'complete':
-          this.finish('placeholder');
+          this.finish('ch01Dorm');
           break;
       }
     }
+    this.syncHint();
   }
 
   private enterCue(index: number): void {
@@ -195,6 +224,7 @@ export class PrologueScene extends UIScene {
     const imageChanged = this.cueImageKey !== cue.image;
     this.currentCueIndex = index;
     this.cueImageKey = cue.image;
+    this.lastTypedCount = 0;
 
     if (imageChanged) {
       this.backdrop?.show(cue.image, this.reduced ? 220 : 900);
@@ -210,15 +240,10 @@ export class PrologueScene extends UIScene {
       this.war?.stop();
     }
 
-    if (cue.caption) {
-      this.showCaption(cue.caption);
-    } else {
-      this.hideCaption(0);
-    }
-
     if (cue.kind === 'card') {
       this.hideMainText(0);
       this.card?.show(cue.lines);
+      this.hideContinue();
       return;
     }
 
@@ -227,7 +252,7 @@ export class PrologueScene extends UIScene {
     this.configureMainText(cue);
     this.fadeIn(this.mainText, 420);
 
-    if (cue.id === 'sky-meteor') {
+    if (cue.meteor) {
       this.meteor?.play();
     }
   }
@@ -239,6 +264,19 @@ export class PrologueScene extends UIScene {
     if (this.mainText && this.mainText.text !== text) {
       this.mainText.setText(text);
     }
+    this.blipFor(event.typedCount);
+  }
+
+  /**
+   * 逐字提示音：每冒出一个字响一声。
+   *
+   * 点击「补全整句」时 typedCount 会一次跳很多字，跳过配声，免得变成一串爆音；
+   * 自然打完最后一个字仍然响一下（一次只跳 1–2 个字）。
+   */
+  private blipFor(typedCount: number): void {
+    const gained = typedCount - this.lastTypedCount;
+    if (gained > 0 && gained <= 2) audioDirector.playTypeBlip();
+    this.lastTypedCount = typedCount;
   }
 
   private leaveCue(): void {
@@ -248,7 +286,6 @@ export class PrologueScene extends UIScene {
     } else {
       this.hideMainText(260);
     }
-    this.hideCaption(260);
     this.war?.stop();
 
     if (this.meteor) {
@@ -264,32 +301,6 @@ export class PrologueScene extends UIScene {
     text.setColor(cue.tone === 'gold' ? '#d8b76a' : '#f2efe6');
     text.setText('');
     text.setAlpha(0);
-  }
-
-  private showCaption(caption: string): void {
-    const text = this.caption;
-    if (!text) return;
-    this.captionTween?.stop();
-    text.setText(caption).setAlpha(0);
-    this.captionTween = this.tweens.add({
-      targets: text,
-      alpha: 0.9,
-      duration: this.reduced ? 180 : 600,
-      ease: 'Sine.easeOut',
-    });
-  }
-
-  private hideCaption(duration: number): void {
-    const text = this.caption;
-    this.captionTween?.stop();
-    this.captionTween = null;
-    if (!text) return;
-    this.tweens.add({
-      targets: text,
-      alpha: 0,
-      duration: this.reduced ? Math.min(160, duration) : duration,
-      ease: 'Sine.easeInOut',
-    });
   }
 
   private hideMainText(duration: number): void {
@@ -312,11 +323,17 @@ export class PrologueScene extends UIScene {
     });
   }
 
+  /** 等玩家点击时显示呼吸提示；自动模式与打字过程中藏起来。 */
+  private syncHint(): void {
+    const phase = this.player?.state.phase;
+    if (phase === 'waiting' || phase === 'awaiting-continue') this.showContinue();
+    else this.hideContinue();
+  }
+
   private showContinue(): void {
     const text = this.hint;
-    if (!text) return;
+    if (!text || this.hintTween) return;
     text.setText('点击继续').setAlpha(0.65);
-    this.hintTween?.stop();
     this.hintTween = this.tweens.add({
       targets: text,
       alpha: 1,
@@ -328,7 +345,8 @@ export class PrologueScene extends UIScene {
   }
 
   private hideContinue(): void {
-    this.hintTween?.stop();
+    if (!this.hintTween) return;
+    this.hintTween.stop();
     this.hintTween = null;
     this.hint?.setAlpha(0);
   }
@@ -340,8 +358,8 @@ export class PrologueScene extends UIScene {
     if (this.leaving || !this.started) return;
     if (currentlyOver.length > 0) return;
     const plan = getViewportPlan();
-    // Compose 按钮的命中区偶尔不在 currentlyOver 里；右上角整块都当作「跳过」。
-    if (pointer.worldX > plan.designWidth - 200 && pointer.worldY < 150) return;
+    // Compose 按钮的命中区偶尔不在 currentlyOver 里；右上角整块都留给「自动」「跳过」。
+    if (pointer.worldX > plan.designWidth - 280 && pointer.worldY < 150) return;
     this.advance();
   }
 
@@ -354,15 +372,30 @@ export class PrologueScene extends UIScene {
   private advance(): void {
     if (!this.player || this.leaving) return;
     this.handleEvents(this.player.requestAdvance());
+    this.syncHint();
+  }
+
+  /** 右上角「自动」：切换自动/手动，当前这句按新节奏继续。 */
+  private applyAutoMode(next: boolean): void {
+    if (this.leaving) return;
+    audioDirector.playClick();
+    this.player?.setAuto(next);
+    this.syncAutoIcon(next);
+    this.syncHint();
+  }
+
+  /** 自动开启时按钮是鎏金底，图标要换成墨色才看得清。 */
+  private syncAutoIcon(auto: boolean): void {
+    this.autoIcon?.setTint(auto ? INK : PAPER);
   }
 
   private skip(): void {
     if (this.leaving) return;
     audioDirector.playClick();
-    this.finish('placeholder');
+    this.finish('ch01Dorm');
   }
 
-  private finish(destination: 'title' | 'placeholder'): void {
+  private finish(destination: 'title' | 'ch01Dorm'): void {
     if (this.leaving) return;
     this.leaving = true;
     this.started = false;
@@ -382,8 +415,9 @@ export class PrologueScene extends UIScene {
     this.startTimer?.remove();
     this.startTimer = null;
     this.hintTween?.stop();
-    this.captionTween?.stop();
+    this.hintTween = null;
     this.war?.stop();
+    this.autoIcon = null;
     this.player = null;
     this.started = false;
     this.leaving = false;

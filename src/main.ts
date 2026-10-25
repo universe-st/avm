@@ -1,13 +1,21 @@
 import Phaser from 'phaser';
 import { MVVMPlugin, installFactories } from '@phaser-mvvm/phaser';
 import { installWidgetFactories } from '@phaser-mvvm/widgets';
-import { planViewport, setViewportPlan } from './app/viewport';
+import { planViewport, setViewportPlan, type ViewportPlan } from './app/viewport';
+import { SCENE_KEYS } from './app/scene-keys';
 import { applyTheme } from './theme/theme';
+import { UI_ROOT_DEPTH } from './render/layers';
 import { BootScene } from './scenes/boot-scene';
+import { CgStageScene } from './scenes/cg-stage-scene';
+import { BattleSandboxScene } from './scenes/battle-sandbox-scene';
+import { BattleCh01Scene } from './scenes/battle-ch01-scene';
+import { Ch01DormScene } from './scenes/ch01-dorm-scene';
 import { PlaceholderScene } from './scenes/placeholder-scene';
 import { PrologueScene } from './scenes/prologue-scene';
 import { TitleScene } from './scenes/title-scene';
 import { LoaderScene } from './resource/loader-scene';
+import { assetService } from './resource/asset-service';
+import { installStageConsole, type StageConsoleApi } from './dev/stage-runner';
 
 const plan = planViewport();
 setViewportPlan(plan);
@@ -21,6 +29,7 @@ MVVMPlugin.configure({
   textResolution: plan.scale,
   safeArea: true,
   themeBackground: false,
+  depth: UI_ROOT_DEPTH,
   transition: { enter: 220, exit: 160 },
 });
 
@@ -59,7 +68,19 @@ const game = new Phaser.Game({
       },
     ],
   },
-  scene: [BootScene, LoaderScene, TitleScene, PrologueScene, PlaceholderScene],
+  // 新增内容场景时三处同步：本列表、`scene-keys.ts`、`dev/stage-catalog.ts`；
+  // 舞台目录单测会检查「内容 scene key 必须有入口」。
+  scene: [
+    BootScene,
+    LoaderScene,
+    TitleScene,
+    PrologueScene,
+    PlaceholderScene,
+    Ch01DormScene,
+    BattleCh01Scene,
+    CgStageScene,
+    BattleSandboxScene,
+  ],
 });
 
 // Cordova：隐藏状态栏 + 硬件返回键接入框架的 back 链。
@@ -81,7 +102,7 @@ const installBackButton = (): void => {
     (event) => {
       const active = game.scene
         .getScenes(true)
-        .find((scene) => scene.scene.key !== 'loader') as
+        .find((scene) => scene.scene.key !== SCENE_KEYS.loader) as
         | (Phaser.Scene & { mvvm?: MVVMPlugin })
         | undefined;
       if (!active?.mvvm) return;
@@ -101,7 +122,29 @@ document.addEventListener('deviceready', () => {
   hideStatusBar();
 });
 
-// 调试/自动化用：真实 game 实例与本次运行的视口计划。
-(window as unknown as { __AVM__: unknown }).__AVM__ = { game, plan };
+// 调试/自动化后门：真实 game 实例、本次视口计划、舞台预览 API。
+// 用法见 docs/STAGE-PREVIEW.md，例如 __AVM__.stages.go('cg.prologue.disaster')。
+export interface AvmDebugApi {
+  readonly game: Phaser.Game;
+  readonly plan: ViewportPlan;
+  readonly stages: StageConsoleApi;
+  /** 资源验收：当前场景持有的 bundle 与真实存在的 cache key。 */
+  readonly assets: {
+    readonly bundles: () => readonly string[];
+    readonly keys: () => readonly string[];
+  };
+}
 
-export { game };
+const stageConsole = installStageConsole(game);
+const debugApi: AvmDebugApi = {
+  game,
+  plan,
+  stages: stageConsole,
+  assets: {
+    bundles: () => assetService.loadedBundleIds(),
+    keys: () => assetService.loadedAssetKeys(),
+  },
+};
+(window as unknown as { __AVM__: AvmDebugApi }).__AVM__ = debugApi;
+
+export { game, debugApi };

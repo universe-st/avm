@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { ref, type Ref } from '@phaser-mvvm/core';
-import { collectAssets } from '../assets/bundles';
+import { collectAssets, expandBundleIds, persistentBundleIds } from '../assets/bundles';
 import type { AssetDef, BundleId, LoadOptions, LoadState } from '../assets/types';
 import catalogJson from '../assets/catalog.gen.json';
 import {
@@ -12,8 +12,15 @@ import {
   weightOf,
   type Catalog,
 } from './plan';
+import { planRelease, type ReleasePlan } from './scope';
 
 const CATALOG = catalogJson as Catalog;
+
+/** 加载页最短可见时长：场景门禁默认 520ms，其余沿用旧的 420ms。 */
+function holdMsOf(options: LoadOptions): number {
+  if (options.holdMs !== undefined) return Math.max(0, options.holdMs);
+  return (options.show ?? 'auto') === 'always' ? 520 : 420;
+}
 
 const IDLE: LoadState = {
   phase: 'idle',
@@ -28,6 +35,7 @@ const IDLE: LoadState = {
   bytesTotal: 0,
   startedAt: 0,
   show: 'auto',
+  holdMs: 0,
   error: null,
 };
 
@@ -39,6 +47,9 @@ type Listener = (state: LoadState) => void;
  * - 只允许一个批次在跑；`ensure()` 串行排队，避免两个场景同时抢 Phaser cache。
  * - 进度按权重算（`plan.ts`），不直接用 Phaser 的文件计数。
  * - 已加载的资源按 cache 命中跳过，重复请求直接完成。
+ * - 常驻 bundle（`persistent: true`）每个批次自动带上，永不释放。
+ * - 场景切换完成后调用 `releaseExcept()`：释放不属于新场景的 bundle，
+ *   同时清掉引用被删纹理的动画，保证「每个场景自己管自己的资源」。
  * - 失败：可选资源降级，必填资源 reject 并把错误写进 state。
  */
 export class AssetService {
@@ -73,9 +84,10 @@ export class AssetService {
     return () => this.listeners.delete(listener);
   }
 
-  /** 加载一组 bundle；返回时资源已就绪（可选资源失败除外）。 */
+  /** 加载一组 bundle（含依赖与常驻包）；返回时资源已就绪（可选资源失败除外）。 */
   ensure(bundleIds: readonly BundleId[], options: LoadOptions = {}): Promise<void> {
-    const run = (): Promise<void> => this.runBatch(bundleIds, options);
+    const expanded = expandBundleIds([...bundleIds, ...persistentBundleIds()]);
+    const run = (): Promise<void> => this.runBatch(expanded, options);
     const next = this.queue.then(run, run);
     this.queue = next.then(
       () => undefined,
@@ -84,26 +96,77 @@ export class AssetService {
     return next;
   }
 
-  /** 空闲预取：不显示 UI，失败静默（预取失败不该打断玩家）。 */
-  prefetch(bundleIds: readonly BundleId[]): void {
-    this.ensure(bundleIds, { show: 'never' }).catch(() => {
-      // 预取失败下次还会再试。
-    });
+  /**
+   * 释放不在 `keep` 闭包里的所有已加载 bundle；常驻包始终保留。
+   *
+   * 在目标场景 `create` 之后调用（旧场景已经 shutdown），避免删掉仍被旧场景
+   * 引用的纹理。音频 cache 的删除不影响已经播放中的 Sound 实例。
+   */
+  releaseExcept(keep: readonly BundleId[]): Promise<ReleasePlan> {
+    const run = (): ReleasePlan => this.performRelease(keep);
+    const next = this.queue.then(run, run);
+    this.queue = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    return next;
   }
 
-  /** M0 只登记引用，不真正卸载；章节淘汰在 M1 接入。 */
-  retain(bundleId: BundleId): void {
-    this.loadedBundles.add(bundleId);
+  /** 当前已加载的 bundle（含依赖闭包），调试/验收用。 */
+  loadedBundleIds(): readonly BundleId[] {
+    return [...this.loadedBundles];
   }
 
-  release(_bundleIds: readonly BundleId[]): void {
-    // 有意留空：M0 资源常驻，避免误删正在使用的纹理。
+  /** 当前 cache 里真实存在的资源 key，调试/验收用。 */
+  loadedAssetKeys(): readonly string[] {
+    const assets = collectAssets(this.loadedBundleIds());
+    return assets.filter((asset) => this.isLoaded(asset)).map((asset) => asset.key);
   }
 
   private setState(patch: Partial<LoadState>): void {
     const next = { ...this.state.value, ...patch };
     this.state.value = next;
     for (const listener of this.listeners) listener(next);
+  }
+
+  private performRelease(keep: readonly BundleId[]): ReleasePlan {
+    const host = this.host;
+    if (!host) return { bundles: [], assets: [] };
+
+    const plan = planRelease(this.loadedBundles, keep);
+    if (plan.bundles.length === 0) return plan;
+
+    for (const bundleId of plan.bundles) this.loadedBundles.delete(bundleId);
+    for (const asset of plan.assets) this.removeAsset(host, asset);
+
+    if (import.meta.env.DEV) {
+      const keys = plan.assets.map((asset) => asset.key);
+      console.info(
+        `[assets] 释放 bundle：${plan.bundles.join(', ')}` +
+          (keys.length > 0 ? `（${keys.length} 个资源）` : ''),
+      );
+    }
+    return plan;
+  }
+
+  private removeAsset(host: Phaser.Scene, asset: AssetDef): void {
+    switch (asset.kind) {
+      case 'audio':
+        host.cache.audio.remove(asset.key);
+        return;
+      case 'json':
+        host.cache.json.remove(asset.key);
+        return;
+      default: {
+        if (!host.textures.exists(asset.key)) return;
+        // 动画帧引用的是纹理 Frame；先删动画再删纹理，否则重进场景时
+        // `anims.exists()` 会认为旧动画还在，播到已销毁的 Frame 上。
+        for (const animKey of host.anims.getAnimsFromTexture(asset.key)) {
+          host.anims.remove(animKey);
+        }
+        host.textures.remove(asset.key);
+      }
+    }
   }
 
   private isLoaded(asset: AssetDef): boolean {
@@ -129,17 +192,36 @@ export class AssetService {
 
     const all = collectAssets(bundleIds);
     const pending = missingAssets(all, (asset) => this.isLoaded(asset));
+    const holdMs = holdMsOf(options);
+    const show = options.show ?? 'auto';
+    const startedAt = performance.now();
 
     if (pending.length === 0) {
       for (const id of bundleIds) this.loadedBundles.add(id);
+      // 先发 loading 再发 ready：即使缓存全命中，show: 'always' 也会先亮起加载页，
+      // 让「进新场景」始终有一次可见的转场，而不是直接闪进目标画面。
+      this.setState({
+        ...IDLE,
+        phase: 'loading',
+        bundles: bundleIds,
+        progress: 1,
+        total: 0,
+        label: options.label ?? '',
+        startedAt,
+        show,
+        holdMs,
+      });
       this.setState({
         ...IDLE,
         phase: 'ready',
         bundles: bundleIds,
         progress: 1,
+        currentLabel: '资源已就绪',
         total: 0,
-        startedAt: performance.now(),
-        show: options.show ?? 'auto',
+        label: options.label ?? '',
+        startedAt,
+        show,
+        holdMs,
       });
       return;
     }
@@ -161,8 +243,9 @@ export class AssetService {
       label: options.label ?? '',
       total: pending.length,
       bytesTotal,
-      startedAt: performance.now(),
-      show: options.show ?? 'auto',
+      startedAt,
+      show,
+      holdMs,
     });
 
     await new Promise<void>((resolve, reject) => {

@@ -1,0 +1,166 @@
+{
+  "name": "ch01.dorm.q",
+  "grid": {
+    "tileWidth": 32,
+    "tileHeight": 32
+  },
+  "cols": 50,
+  "rows": 54,
+  "characterWidthTiles": 4,
+  "characterWidthPx": 128,
+  "walls": {
+    "thicknessTiles": 3
+  },
+  "door": {
+    "r": 51,
+    "c": 22,
+    "w": 6,
+    "h": 3
+  },
+  "assets": [
+    {
+      "id": "floor",
+      "file": "floor.png",
+      "r": 3,
+      "c": 3,
+      "w": 44,
+      "h": 48,
+      "pass": true
+    },
+    {
+      "id": "wall-north",
+      "file": "wall-north.png",
+      "r": 0,
+      "c": 0,
+      "w": 50,
+      "h": 3,
+      "pass": false
+    },
+    {
+      "id": "wall-south",
+      "file": "wall-south.png",
+      "r": 51,
+      "c": 0,
+      "w": 50,
+      "h": 3,
+      "pass": false
+    },
+    {
+      "id": "wall-west",
+      "file": "wall-west.png",
+      "r": 3,
+      "c": 0,
+      "w": 3,
+      "h": 48,
+      "pass": false
+    },
+    {
+      "id": "wall-east",
+      "file": "wall-east.png",
+      "r": 3,
+      "c": 47,
+      "w": 3,
+      "h": 48,
+      "pass": false
+    },
+    {
+      "id": "bed-zheng",
+      "file": "bed.png",
+      "r": 5,
+      "c": 5,
+      "w": 9,
+      "h": 22,
+      "pass": false,
+      "frames": 1
+    },
+    {
+      "id": "bed-2",
+      "file": "bed.png",
+      "r": 5,
+      "c": 36,
+      "w": 9,
+      "h": 22,
+      "pass": false
+    },
+    {
+      "id": "bed-3",
+      "file": "bed.png",
+      "r": 28,
+      "c": 5,
+      "w": 9,
+      "h": 22,
+      "pass": false
+    },
+    {
+      "id": "bed-4",
+      "file": "bed.png",
+      "r": 28,
+      "c": 36,
+      "w": 9,
+      "h": 22,
+      "pass": false
+    },
+    {
+      "id": "table",
+      "file": "table.png",
+      "r": 23,
+      "c": 21,
+      "w": 9,
+      "h": 6,
+      "pass": false
+    }
+  ],
+  "markers": [
+    {
+      "kind": "spawn",
+      "r": 50,
+      "c": 24
+    },
+    {
+      "kind": "exit",
+      "r": 52,
+      "c": 24
+    },
+    {
+      "kind": "event",
+      "r": 14,
+      "c": 9,
+      "note": "郑卿睡床"
+    },
+    {
+      "kind": "custom",
+      "r": 25,
+      "c": 25,
+      "note": "书桌"
+    }
+  ],
+  "passGrid": "pass-grid.json",
+  "source": {
+    "mapProject": "mmvnsvgbrfc5e10",
+    "jobs": [
+      "imvnsvlra40638e",
+      "imvnswmiq8ba46f",
+      "imvnt1htlf8910e",
+      "imvnt3tb8e8e4ff",
+      "imvnt73c4107a75"
+    ]
+  },
+  "runtimeSwap": {
+    "base": "bed.png",
+    "sleeping": "bed-zheng-anim.png",
+    "at": {
+      "r": 5,
+      "c": 5
+    },
+    "note": "剧情切换：同一锚点整块替换，非地图编辑器素材"
+  },
+  "storyOverlay": {
+    "asset": "bed-zheng-anim.png",
+    "r": 5,
+    "c": 5,
+    "frames": 4,
+    "fps": 3,
+    "note": "只在剧情状态显示，基础地图为四张空床"
+  },
+  "characterHeightPx": 371
+}

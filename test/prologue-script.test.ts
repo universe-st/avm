@@ -30,9 +30,18 @@ describe('prologue script', () => {
     expect(spoken).toContain('20x5年9月7日');
   });
 
-  it('shows the stage direction as one small caption', () => {
-    const captions = PROLOGUE_CUES.filter((item) => item.caption).map((item) => item.caption);
-    expect(captions).toEqual(['深夜天幕，一颗流星划过']);
+  it('opens straight on the first line, without the stage-direction caption', () => {
+    const first = PROLOGUE_CUES[0];
+    expect(first?.id).toBe('sky-question');
+    expect(first?.lines).toEqual(['你，有做过梦吗？']);
+    // 2026-10-25：开场「深夜天幕，一颗流星划过」的字样已删除，不再有 caption。
+    expect(PROLOGUE_CUES.some((item) => 'caption' in item)).toBe(false);
+  });
+
+  it('keeps the meteor sweep on the opening cue', () => {
+    const meteorCues = PROLOGUE_CUES.filter((item) => item.meteor);
+    expect(meteorCues).toHaveLength(1);
+    expect(meteorCues[0]?.image).toBe('img.prologue.sky');
   });
 
   it('uses only keys that the cutscene.prologue bundle declares', () => {
@@ -89,7 +98,7 @@ describe('prologue timing', () => {
     expect(holdMs({ ...item, holdMs: 0 })).toBe(0);
   });
 
-  it('is a 20–30 second opening', () => {
+  it('is a 20–30 second opening in auto mode', () => {
     const total = totalMs();
     expect(total).toBeGreaterThan(20_000);
     expect(total).toBeLessThan(30_000);

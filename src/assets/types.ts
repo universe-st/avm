@@ -1,7 +1,15 @@
 /** 资源类型：M0 只需要图、音频、JSON；图集/序列帧后续加。 */
 export type AssetKind = 'image' | 'audio' | 'json';
 
-export type BundleId = 'core' | 'title' | 'ui' | 'ch.00' | 'cutscene.prologue';
+export type BundleId =
+  | 'core'
+  | 'title'
+  | 'ui'
+  | 'ch.00'
+  | 'cutscene.prologue'
+  | 'ch.01'
+  | 'battle.common'
+  | 'battle.ch01';
 
 export interface AssetDef {
   /** 全局唯一；Phaser cache 的 key。 */
@@ -24,6 +32,11 @@ export interface BundleDef {
   readonly dependsOn?: readonly BundleId[];
   /** CI 体积门禁（KB）。 */
   readonly budgetKB?: number;
+  /**
+   * 常驻包：所有场景都可假设它已就绪，切换场景时永不释放。
+   * 只给真正的全局资源用（基础纹理、点击音、通用 UI），章节/剧情/战斗包不要标。
+   */
+  readonly persistent?: boolean;
 }
 
 export type LoadShow = 'auto' | 'always' | 'never';
@@ -33,6 +46,8 @@ export interface LoadOptions {
   readonly show?: LoadShow;
   /** 加载页副标题（例如「正在进入梦域」）。 */
   readonly label?: string;
+  /** 加载页最短可见时长（毫秒）；省略时 always=520、auto=420。 */
+  readonly holdMs?: number;
 }
 
 export interface LoadState {
@@ -49,5 +64,7 @@ export interface LoadState {
   readonly bytesTotal: number;
   readonly startedAt: number;
   readonly show: LoadShow;
+  /** 加载页最短可见时长（毫秒）；0 表示用 LoaderScene 的默认值。 */
+  readonly holdMs: number;
   readonly error: string | null;
 }

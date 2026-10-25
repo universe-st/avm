@@ -2,19 +2,25 @@ import { describe, expect, it } from 'vitest';
 import { EXIT_MS, TYPE_MS, type PrologueCue } from '../src/story/prologue';
 import { ProloguePlayer } from '../src/story/prologue-player';
 
-const cue = (id: string, lines: readonly string[], hold = 0): PrologueCue => ({
+const cue = (
+  id: string,
+  lines: readonly string[],
+  hold = 0,
+  extra: Partial<PrologueCue> = {},
+): PrologueCue => ({
   id,
   image: 'img.prologue.sky',
   lines,
   holdMs: hold,
+  ...extra,
 });
 
 const eventTypes = (events: readonly { type: string }[]): string[] =>
   events.map((event) => event.type);
 
-describe('ProloguePlayer', () => {
+describe('ProloguePlayer（手动模式，默认）', () => {
   it('starts with an enter event and a type event', () => {
-    const player = new ProloguePlayer([cue('a', ['你好'])]);
+    const player = new ProloguePlayer([cue('a', ['你好']), cue('b', ['再见'])]);
     const events = player.start();
     expect(eventTypes(events)).toEqual(['enter', 'type']);
     expect(player.state).toMatchObject({
@@ -22,12 +28,14 @@ describe('ProloguePlayer', () => {
       phase: 'typing',
       typedCount: 0,
       totalChars: 2,
+      auto: false,
     });
     expect(player.start()).toEqual([]);
+    expect(player.isAuto).toBe(false);
   });
 
-  it('types one codepoint per TYPE_MS and starts holding when done', () => {
-    const player = new ProloguePlayer([cue('a', ['你好'])]);
+  it('types one codepoint per TYPE_MS, then stops and waits for a click', () => {
+    const player = new ProloguePlayer([cue('a', ['你好']), cue('b', ['再见'])]);
     player.start();
 
     const first = player.tick(TYPE_MS);
@@ -44,10 +52,15 @@ describe('ProloguePlayer', () => {
     if (secondType?.type !== 'type') throw new Error('expected type event');
     expect(secondType.text).toBe('你好');
     expect(secondType.done).toBe(true);
-    expect(player.state.phase).toBe('holding');
+    expect(player.state.phase).toBe('waiting');
+
+    // 手动模式不按 holdMs 自动过：没有点击就一直停在这一句。
+    expect(player.tick(30_000)).toEqual([]);
+    expect(player.state.phase).toBe('waiting');
+    expect(player.state.cueIndex).toBe(0);
   });
 
-  it('reveals the current line on the first advance, then moves on', () => {
+  it('reveals the current line on the first click, then moves on with the second', () => {
     const player = new ProloguePlayer([cue('a', ['你好']), cue('b', ['再见'])]);
     player.start();
 
@@ -57,7 +70,7 @@ describe('ProloguePlayer', () => {
     if (typeEvent?.type !== 'type') throw new Error('expected type event');
     expect(typeEvent.done).toBe(true);
     expect(typeEvent.text).toBe('你好');
-    expect(player.state.phase).toBe('holding');
+    expect(player.state.phase).toBe('waiting');
 
     const leave = player.requestAdvance();
     expect(eventTypes(leave)).toEqual(['leave']);
@@ -72,19 +85,12 @@ describe('ProloguePlayer', () => {
     expect(player.state.phase).toBe('typing');
   });
 
-  it('auto-advances after holdMs and waits on the last cue', () => {
-    const player = new ProloguePlayer([cue('a', ['好'], 0)]);
-    const start = player.start();
-    expect(eventTypes(start)).toEqual(['enter', 'type']);
+  it('waits on the last cue for confirmation', () => {
+    const player = new ProloguePlayer([cue('a', ['好'])]);
+    expect(eventTypes(player.start())).toEqual(['enter', 'type']);
 
-    // 第一个 tick 打完 1 个字，进入 holding
     const done = player.tick(TYPE_MS);
-    expect(eventTypes(done)).toEqual(['type']);
-    expect(player.state.phase).toBe('holding');
-
-    // holdMs=0：下一帧进入等待确认
-    const awaitEvent = player.tick(1);
-    expect(eventTypes(awaitEvent)).toEqual(['await-continue']);
+    expect(eventTypes(done)).toEqual(['type', 'await-continue']);
     expect(player.state.phase).toBe('awaiting-continue');
     expect(player.tick(1000)).toEqual([]);
 
@@ -93,22 +99,92 @@ describe('ProloguePlayer', () => {
     expect(player.requestAdvance()).toEqual([]);
     expect(player.tick(1000)).toEqual([]);
   });
+});
 
-  it('handles a caption-only cue (zero characters) without getting stuck', () => {
-    const player = new ProloguePlayer([cue('caption', [], 500), cue('next', ['下一句'])]);
-    const start = player.start();
-    expect(eventTypes(start)).toEqual(['enter', 'type']);
+describe('ProloguePlayer（自动模式）', () => {
+  it('advances by itself after holdMs', () => {
+    const player = new ProloguePlayer([cue('a', ['好'], 100), cue('b', ['再见'])], {
+      auto: true,
+    });
+    expect(eventTypes(player.start())).toEqual(['enter', 'type']);
+    expect(player.state.auto).toBe(true);
+
+    const done = player.tick(TYPE_MS);
+    expect(eventTypes(done)).toEqual(['type']);
     expect(player.state.phase).toBe('holding');
-    const typeEvent = start[1];
-    if (typeEvent?.type !== 'type') throw new Error('expected type event');
-    expect(typeEvent.done).toBe(true);
-    expect(typeEvent.text).toBe('');
 
-    const leave = player.requestAdvance();
-    expect(eventTypes(leave)).toEqual(['leave']);
+    expect(player.tick(99)).toEqual([]);
+    expect(eventTypes(player.tick(1))).toEqual(['leave']);
+    expect(player.state.phase).toBe('leaving');
+
     const next = player.tick(EXIT_MS);
     expect(eventTypes(next)).toEqual(['enter', 'type']);
     expect(player.state.cueIndex).toBe(1);
+  });
+
+  it('never auto-plays past the final card', () => {
+    const player = new ProloguePlayer([cue('a', ['好'], 100)], { auto: true });
+    player.start();
+    const done = player.tick(TYPE_MS);
+    expect(eventTypes(done)).toEqual(['type', 'await-continue']);
+    expect(player.state.phase).toBe('awaiting-continue');
+
+    // 即使自动模式也不会自己溜进占位页
+    expect(player.tick(60_000)).toEqual([]);
+    expect(player.state.phase).toBe('awaiting-continue');
+  });
+
+  it('switches between auto and manual without losing the current line', () => {
+    const player = new ProloguePlayer([cue('a', ['好'], 100), cue('b', ['再见'])], {
+      auto: true,
+    });
+    player.start();
+    player.tick(TYPE_MS);
+    expect(player.state.phase).toBe('holding');
+
+    player.setAuto(false);
+    expect(player.state.phase).toBe('waiting');
+    expect(player.tick(30_000)).toEqual([]);
+
+    player.setAuto(true);
+    expect(player.state.phase).toBe('holding');
+    expect(eventTypes(player.tick(100))).toEqual(['leave']);
+
+    // 重复设置同一个模式是空操作
+    expect(player.setAuto(true)).toEqual([]);
+    expect(player.state.phase).toBe('leaving');
+  });
+});
+
+describe('ProloguePlayer（特殊 cue）', () => {
+  it('types the date card instantly and waits for a click', () => {
+    const player = new ProloguePlayer([
+      cue('a', ['你好']),
+      cue('card', ['日期'], 0, { kind: 'card' }),
+    ]);
+    player.start();
+    player.requestAdvance();
+    player.requestAdvance();
+    const next = player.tick(EXIT_MS);
+
+    expect(eventTypes(next)).toEqual(['enter', 'type', 'await-continue']);
+    expect(player.state.cueIndex).toBe(1);
+    expect(player.state.phase).toBe('awaiting-continue');
+    expect(player.state.typedCount).toBe(2);
+    const typeEvent = next[1];
+    if (typeEvent?.type !== 'type') throw new Error('expected type event');
+    expect(typeEvent.done).toBe(true);
+    expect(typeEvent.text).toBe('日期');
+  });
+
+  it('lets a zero-character beat pass by itself even in manual mode', () => {
+    const player = new ProloguePlayer([cue('beat', [], 300), cue('next', ['下一句'])]);
+    const start = player.start();
+    expect(eventTypes(start)).toEqual(['enter', 'type']);
+    expect(player.state.phase).toBe('holding');
+
+    expect(player.tick(299)).toEqual([]);
+    expect(eventTypes(player.tick(1))).toEqual(['leave']);
   });
 
   it('ignores zero or negative deltas', () => {

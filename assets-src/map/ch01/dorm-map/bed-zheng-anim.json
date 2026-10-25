@@ -1,0 +1,27 @@
+{
+  "frameWidth": 288,
+  "frameHeight": 704,
+  "frames": 4,
+  "fps": 3,
+  "loop": true,
+  "sheet": "bed-zheng-anim.png",
+  "anchor": "bottom-center",
+  "pivot": {
+    "x": 0.5,
+    "y": 1.0
+  },
+  "footprint": {
+    "cols": 9,
+    "rows": 22,
+    "tile": 32
+  },
+  "swap": {
+    "base": "bed.png",
+    "sleeping": "bed-zheng-anim.png",
+    "at": {
+      "r": 5,
+      "c": 5
+    },
+    "note": "剧情切换：同一锚点整块替换，非地图编辑器素材"
+  }
+}

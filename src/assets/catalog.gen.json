@@ -1,19 +1,219 @@
 {
+  "assets/.DS_Store": {
+    "bytes": 6148,
+    "mtimeMs": 1792905739084
+  },
+  "assets/audio/bgm/ch01_dorm.mp3": {
+    "bytes": 1281273,
+    "mtimeMs": 1792891870489
+  },
+  "assets/audio/bgm/ch01_dream.mp3": {
+    "bytes": 640941,
+    "mtimeMs": 1792886910801
+  },
+  "assets/audio/bgm/prologue.mp3": {
+    "bytes": 986845,
+    "mtimeMs": 1792884477824
+  },
   "assets/audio/bgm/title.mp3": {
     "bytes": 1409089,
     "mtimeMs": 1792843174325
+  },
+  "assets/audio/sfx/ch01_metal.mp3": {
+    "bytes": 6627,
+    "mtimeMs": 1792886910856
+  },
+  "assets/audio/sfx/ch01_phone.mp3": {
+    "bytes": 10076,
+    "mtimeMs": 1792886910883
+  },
+  "assets/audio/sfx/ch01_punch.mp3": {
+    "bytes": 3493,
+    "mtimeMs": 1792886910830
+  },
+  "assets/audio/sfx/ch01_snore.mp3": {
+    "bytes": 96592,
+    "mtimeMs": 1792894829368
+  },
+  "assets/audio/sfx/type_blip_1.wav": {
+    "bytes": 1366,
+    "mtimeMs": 1792883131348
+  },
+  "assets/audio/sfx/type_blip_2.wav": {
+    "bytes": 1366,
+    "mtimeMs": 1792883131349
+  },
+  "assets/audio/sfx/type_blip_3.wav": {
+    "bytes": 1366,
+    "mtimeMs": 1792883131350
   },
   "assets/audio/sfx/ui_click.mp3": {
     "bytes": 7149,
     "mtimeMs": 1792843100336
   },
+  "assets/img/.DS_Store": {
+    "bytes": 8196,
+    "mtimeMs": 1792905774976
+  },
+  "assets/img/battle/.DS_Store": {
+    "bytes": 6148,
+    "mtimeMs": 1792905774975
+  },
+  "assets/img/battle/ch01/dream_hall.webp": {
+    "bytes": 316102,
+    "mtimeMs": 1792888243972
+  },
+  "assets/img/cg/.DS_Store": {
+    "bytes": 6148,
+    "mtimeMs": 1792905774974
+  },
+  "assets/img/cg/ch01/phone.webp": {
+    "bytes": 135344,
+    "mtimeMs": 1792891975607
+  },
+  "assets/img/cg/ch01/wake.webp": {
+    "bytes": 178038,
+    "mtimeMs": 1792891975858
+  },
+  "assets/img/cg/ch01/xiaobai.webp": {
+    "bytes": 124512,
+    "mtimeMs": 1792891976082
+  },
   "assets/img/ch00/bg.png": {
     "bytes": 20708,
     "mtimeMs": 1792839029269
   },
+  "assets/img/character/ch01/miner.png": {
+    "bytes": 35653,
+    "mtimeMs": 1792892581679
+  },
+  "assets/img/character/ch01/q/zhou_q_down.png": {
+    "bytes": 68452,
+    "mtimeMs": 1792933584575
+  },
+  "assets/img/character/ch01/q/zhou_q_down_left.png": {
+    "bytes": 63049,
+    "mtimeMs": 1792934861837
+  },
+  "assets/img/character/ch01/q/zhou_q_down_right.png": {
+    "bytes": 63073,
+    "mtimeMs": 1792934861985
+  },
+  "assets/img/character/ch01/q/zhou_q_left.png": {
+    "bytes": 48765,
+    "mtimeMs": 1792933584583
+  },
+  "assets/img/character/ch01/q/zhou_q_right.png": {
+    "bytes": 52337,
+    "mtimeMs": 1792933584590
+  },
+  "assets/img/character/ch01/q/zhou_q_up.png": {
+    "bytes": 52916,
+    "mtimeMs": 1792933584579
+  },
+  "assets/img/character/ch01/q/zhou_q_up_left.png": {
+    "bytes": 51024,
+    "mtimeMs": 1792934862066
+  },
+  "assets/img/character/ch01/q/zhou_q_up_right.png": {
+    "bytes": 51155,
+    "mtimeMs": 1792934862133
+  },
+  "assets/img/character/ch01/q/zhou_q_walk_down.png": {
+    "bytes": 520662,
+    "mtimeMs": 1792933180801
+  },
+  "assets/img/character/ch01/q/zhou_q_walk_down_left.png": {
+    "bytes": 496048,
+    "mtimeMs": 1792934861981
+  },
+  "assets/img/character/ch01/q/zhou_q_walk_down_right.png": {
+    "bytes": 496698,
+    "mtimeMs": 1792934862062
+  },
+  "assets/img/character/ch01/q/zhou_q_walk_left.png": {
+    "bytes": 418070,
+    "mtimeMs": 1792933180918
+  },
+  "assets/img/character/ch01/q/zhou_q_walk_right.png": {
+    "bytes": 401428,
+    "mtimeMs": 1792933180976
+  },
+  "assets/img/character/ch01/q/zhou_q_walk_up.png": {
+    "bytes": 447621,
+    "mtimeMs": 1792933180858
+  },
+  "assets/img/character/ch01/q/zhou_q_walk_up_left.png": {
+    "bytes": 390553,
+    "mtimeMs": 1792934862129
+  },
+  "assets/img/character/ch01/q/zhou_q_walk_up_right.png": {
+    "bytes": 392272,
+    "mtimeMs": 1792934862220
+  },
+  "assets/img/character/ch01/xiaobai.png": {
+    "bytes": 14040,
+    "mtimeMs": 1792892581673
+  },
+  "assets/img/character/ch01/zheng.png": {
+    "bytes": 8291,
+    "mtimeMs": 1792892581681
+  },
+  "assets/img/character/ch01/zhou_down.png": {
+    "bytes": 6377,
+    "mtimeMs": 1792892582657
+  },
+  "assets/img/character/ch01/zhou_left.png": {
+    "bytes": 4707,
+    "mtimeMs": 1792892582661
+  },
+  "assets/img/character/ch01/zhou_right.png": {
+    "bytes": 5414,
+    "mtimeMs": 1792892582663
+  },
+  "assets/img/character/ch01/zhou_sit.png": {
+    "bytes": 21962,
+    "mtimeMs": 1792895610513
+  },
+  "assets/img/character/ch01/zhou_up.png": {
+    "bytes": 5998,
+    "mtimeMs": 1792892582659
+  },
+  "assets/img/character/ch01/zhou_walk_down.png": {
+    "bytes": 21694,
+    "mtimeMs": 1792893621532
+  },
+  "assets/img/character/ch01/zhou_walk_left.png": {
+    "bytes": 23060,
+    "mtimeMs": 1792893624153
+  },
+  "assets/img/character/ch01/zhou_walk_right.png": {
+    "bytes": 25943,
+    "mtimeMs": 1792893625468
+  },
+  "assets/img/character/ch01/zhou_walk_up.png": {
+    "bytes": 21411,
+    "mtimeMs": 1792893622835
+  },
   "assets/img/core/white.png": {
     "bytes": 79,
     "mtimeMs": 1792839029269
+  },
+  "assets/img/map/ch01/bed_zheng.png": {
+    "bytes": 868884,
+    "mtimeMs": 1792933634594
+  },
+  "assets/img/map/ch01/chair.png": {
+    "bytes": 42161,
+    "mtimeMs": 1792894765792
+  },
+  "assets/img/map/ch01/dorm_q.png": {
+    "bytes": 2809335,
+    "mtimeMs": 1792933171890
+  },
+  "assets/img/map/ch01/dorm_room.png": {
+    "bytes": 68328,
+    "mtimeMs": 1792894765574
   },
   "assets/img/prologue/01_night_sky.webp": {
     "bytes": 222848,
@@ -42,5 +242,13 @@
   "assets/img/title/title_bg.webp": {
     "bytes": 368908,
     "mtimeMs": 1792840038498
+  },
+  "assets/img/ui/icon_auto.png": {
+    "bytes": 976,
+    "mtimeMs": 1792883469405
+  },
+  "assets/img/ui/icon_skip.png": {
+    "bytes": 665,
+    "mtimeMs": 1792883469406
   }
 }

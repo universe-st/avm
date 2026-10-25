@@ -43,6 +43,17 @@ keystore.properties
 # ===== 本地参考资料（小说原文，不随仓库分发）=====
 reference/
 
+# ===== Python 工具缓存（tools/*.py）=====
+__pycache__/
+*.pyc
+
+# ===== 素材管线打包中间件（解包后的目录已入库，zip 只是分发副本）=====
+assets-src/**/*.zip
+
+# ===== DSH 本地运行状态（只把项目级 skills 入库）=====
+.dsh/*
+!.dsh/skills/
+
 # ===== 系统与编辑器 =====
 .DS_Store
 ._*

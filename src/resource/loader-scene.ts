@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { SCENE_KEYS } from '../app/scene-keys';
 import { applyCamera, getViewportPlan } from '../app/viewport';
 import type { LoadState } from '../assets/types';
 import { assetService } from './asset-service';
@@ -30,7 +31,7 @@ export class LoaderScene extends Phaser.Scene {
   private unsubscribe: (() => void) | null = null;
 
   constructor() {
-    super('loader');
+    super(SCENE_KEYS.loader);
   }
 
   create(): void {
@@ -139,7 +140,7 @@ export class LoaderScene extends Phaser.Scene {
     }
     if (state.phase === 'error') {
       this.renderProgress(state);
-      this.showNow();
+      this.showNow(true);
       this.statusText.setText(state.error ?? '资源加载失败');
       this.statusText.setColor('#e05a4e');
       this.percentText.setText('—');
@@ -147,7 +148,7 @@ export class LoaderScene extends Phaser.Scene {
     }
     if (state.phase === 'ready') {
       this.renderProgress(state);
-      this.scheduleHide();
+      this.scheduleHide(state);
     }
   }
 
@@ -162,38 +163,50 @@ export class LoaderScene extends Phaser.Scene {
 
   private maybeShow(state: LoadState): void {
     if (state.show === 'never') return;
+    // 新批次开始时取消「准备淡出」，否则加载页会在加载中途消失。
+    this.pendingHide?.remove();
+    this.pendingHide = null;
+    if (state.show === 'always') {
+      // 场景门禁：同步亮起，先盖住旧场景，再让新场景在遮罩后面 create。
+      this.showNow(true);
+      return;
+    }
     if (this.overlayVisible || this.pendingShow) return;
-    const delay = state.show === 'always' ? 0 : 120;
+    const delay = 120;
     this.pendingShow = this.time.delayedCall(delay, () => {
       this.pendingShow = null;
-      this.showNow();
+      this.showNow(false);
     });
   }
 
-  private showNow(): void {
+  private showNow(instant: boolean): void {
     this.pendingShow?.remove();
     this.pendingShow = null;
     this.pendingHide?.remove();
     this.pendingHide = null;
     this.tweens.killTweensOf(this.overlay);
 
-    if (!this.overlayVisible) {
-      this.overlayVisible = true;
-      this.overlay.setVisible(true).setAlpha(0);
-      this.backdrop.setInteractive();
-      this.shownAt = performance.now();
-      this.tweens.add({ targets: this.overlay, alpha: 1, duration: 150 });
+    if (this.overlayVisible) {
+      this.overlay.setVisible(true).setAlpha(1);
+      return;
     }
+
+    this.overlayVisible = true;
+    this.overlay.setVisible(true).setAlpha(instant ? 1 : 0);
+    this.backdrop.setInteractive();
+    this.shownAt = performance.now();
+    if (!instant) this.tweens.add({ targets: this.overlay, alpha: 1, duration: 150 });
   }
 
-  private scheduleHide(): void {
-    // 加载在 120ms 的「延迟显示」窗口内就完成了：把待显示的定时器取消，不要闪一下。
+  private scheduleHide(state: LoadState): void {
+    // 加载在「延迟显示」窗口内就完成了：把待显示的定时器取消，不要闪一下。
     this.pendingShow?.remove();
     this.pendingShow = null;
     if (!this.overlayVisible) return;
     this.pendingHide?.remove();
+    const minVisible = state.holdMs > 0 ? state.holdMs : 420;
     const elapsed = performance.now() - this.shownAt;
-    const wait = Math.max(0, 420 - elapsed) + 120;
+    const wait = Math.max(0, minVisible - elapsed) + 120;
     this.pendingHide = this.time.delayedCall(wait, () => {
       this.pendingHide = null;
       this.hideNow();

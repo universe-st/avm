@@ -3,99 +3,69 @@ import { settings } from '../app/settings';
 
 type Sound = Phaser.Sound.BaseSound;
 
-interface PlayBgmOptions {
-  readonly fadeIn?: number;
-  readonly loop?: boolean;
-}
+/** 逐字提示音：三段音高轮流出现，避免同一频率连续敲击的机械感。 */
+const TYPE_BLIP_KEYS = ['audio.sfx.type1', 'audio.sfx.type2', 'audio.sfx.type3'] as const;
 
 /**
- * 音频总线：BGM 跨场景不重启、音量持久化、首触解锁、后台暂停。
+ * 音效总线（BGM 在 `bgm-manager.ts`）。
  *
- * Phaser 的 SoundManager 是 game 级的，这里只是对它的一层薄封装 + 当前曲目状态。
+ * 负责 SFX、逐字提示音、WebAudio 首触解锁与后台暂停；音乐音量/曲目由 BgmManager 管。
+ * Phaser 的 SoundManager 是 game 级的，这里只是对它的一层薄封装。
  */
 export class AudioDirector {
   private scene: Phaser.Scene | null = null;
-  private currentKey: string | null = null;
-  private current: Sound | null = null;
-  private fade: Phaser.Tweens.Tween | null = null;
-  private unlockHooked = false;
   private suspended = false;
   private visibilityHooked = false;
+  /** 逐字提示音按 key 复用 Sound，避免每个字都 new 一个音频对象。 */
+  private blips = new Map<string, Sound>();
+  private blipCursor = 0;
 
   attach(scene: Phaser.Scene): void {
+    // 上一个场景的逐字音池已经没用了；Phaser 的 Sound 是 game 级的，不主动销毁会一直留着。
+    this.releaseBlips();
     this.scene = scene;
     this.hookLifecycle(scene);
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      if (this.scene === scene) this.releaseBlips();
+    });
   }
 
-  /** 浏览器策略允许时直接播；被拦截就等第一次用户手势。 */
-  playTitleBgm(key: string): void {
-    this.playBgm(key, { fadeIn: 1200 });
-    const manager = this.scene?.sound;
-    if (!manager) return;
-    const locked = (manager as unknown as { locked?: boolean }).locked === true;
-    if (locked && !this.unlockHooked) {
-      this.unlockHooked = true;
-      manager.once('unlocked', () => {
-        this.unlockHooked = false;
-        this.playBgm(key, { fadeIn: 900 });
-      });
-    }
-  }
-
-  /** 用户第一次点击/触摸时调用：解锁 WebAudio，并补播当前 BGM。 */
+  /** 用户第一次点击/触摸时调用：解锁 WebAudio（BGM 会自己监听 unlocked 事件补播）。 */
   unlock(): void {
     const manager = this.scene?.sound;
     if (!manager) return;
     (manager as unknown as { unlock?: () => void }).unlock?.();
-    if (this.currentKey && !this.current?.isPlaying) {
-      this.playBgm(this.currentKey, { fadeIn: 600 });
-    }
-  }
-
-  playBgm(key: string, options: PlayBgmOptions = {}): void {
-    const scene = this.scene;
-    if (!scene || !scene.cache.audio.exists(key)) return;
-    if (this.currentKey === key && this.current?.isPlaying) return;
-
-    this.stopBgm(260);
-    const sound = scene.sound.add(key, {
-      loop: options.loop ?? true,
-      volume: 0,
-    });
-    sound.play();
-    this.current = sound;
-    this.currentKey = key;
-    this.fadeTo(this.bgmTarget(), options.fadeIn ?? 900);
-  }
-
-  stopBgm(fadeOut = 400): void {
-    const sound = this.current;
-    const scene = this.scene;
-    this.current = null;
-    this.currentKey = null;
-    if (!sound || !scene) return;
-    this.fade?.stop();
-    this.fade = null;
-    if (fadeOut <= 0) {
-      sound.stop();
-      sound.destroy();
-      return;
-    }
-    this.fade = scene.tweens.add({
-      targets: sound as unknown as object,
-      volume: 0,
-      duration: fadeOut,
-      onComplete: () => {
-        sound.stop();
-        sound.destroy();
-      },
-    });
   }
 
   /** 所有按钮的默认点击音。 */
   playClick(): void {
     this.unlock();
     this.playSfx('audio.sfx.click');
+  }
+
+  /**
+   * 逐字提示音。
+   *
+   * 打字机每冒出一个字调用一次；三段音高轮流，复用 Sound 实例（逐字频率约 18/s，
+   * 每次 add + destroy 会明显增加 GC 与音频节点开销）。
+   */
+  playTypeBlip(): void {
+    const scene = this.scene;
+    if (!scene || settings.muted) return;
+    // 还没被用户手势解锁时播也听不到，只会刷 AudioContext autoplay 警告。
+    if (scene.sound.locked) return;
+    this.blipCursor = (this.blipCursor + 1) % TYPE_BLIP_KEYS.length;
+    const key = TYPE_BLIP_KEYS[this.blipCursor];
+    if (!key || !scene.cache.audio.exists(key)) return;
+
+    let sound = this.blips.get(key);
+    if (!sound) {
+      sound = scene.sound.add(key, { volume: 0 });
+      this.blips.set(key, sound);
+    }
+    // BaseSound 的 volume 是 WebAudioSound 的访问器；类型里没暴露，运行时可用。
+    (sound as unknown as { volume: number }).volume = Math.min(1, Math.max(0, settings.sfx * 0.9));
+    sound.play();
   }
 
   playSfx(key: string): void {
@@ -108,39 +78,16 @@ export class AudioDirector {
     sound.once('complete', () => sound.destroy());
   }
 
-  setBgmVolume(value: number): void {
-    settings.bgm = Math.min(1, Math.max(0, value));
-    this.fadeTo(this.bgmTarget(), 120);
-  }
-
   setSfxVolume(value: number): void {
     settings.sfx = Math.min(1, Math.max(0, value));
   }
 
-  setMuted(muted: boolean): void {
-    settings.muted = muted;
-    this.fadeTo(this.bgmTarget(), 160);
-  }
-
-  /** 设置被外部改动后（例如设置弹窗），把当前曲目音量拉回目标值。 */
-  syncVolume(): void {
-    this.fadeTo(this.bgmTarget(), 120);
-  }
-
-  private bgmTarget(): number {
-    return settings.muted ? 0 : settings.bgm;
-  }
-
-  private fadeTo(volume: number, duration: number): void {
-    const scene = this.scene;
-    const sound = this.current;
-    if (!scene || !sound) return;
-    this.fade?.stop();
-    this.fade = scene.tweens.add({
-      targets: sound as unknown as object,
-      volume,
-      duration,
-    });
+  private releaseBlips(): void {
+    for (const sound of this.blips.values()) {
+      sound.stop();
+      sound.destroy();
+    }
+    this.blips.clear();
   }
 
   private hookLifecycle(scene: Phaser.Scene): void {
