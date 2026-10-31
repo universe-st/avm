@@ -19,12 +19,19 @@ import { audioDirector } from '../audio/audio-director';
 import { bgmManager } from '../audio/bgm-manager';
 import { addCoverImage, addScrims } from '../ui/background';
 import { addEmbers, addVignette } from '../ui/fx-kit';
+import { isStageLaunchContext } from '../dev/stage-types';
 
 export class TitleScene extends UIScene {
   private fx: Phaser.GameObjects.GameObject[] = [];
+  /** 舞台预览启动的标题：继续游戏时要带 preview，避免写真实进度。 */
+  private preview = false;
 
   constructor() {
     super(SCENE_KEYS.title);
+  }
+
+  init(data: unknown): void {
+    this.preview = isStageLaunchContext(data) && data.preview === true;
   }
 
   override create(): void {
@@ -151,7 +158,10 @@ export class TitleScene extends UIScene {
               if (!progress) return;
               audioDirector.playClick();
               const destination = continueDestination(progress.checkpoint);
-              void enterModule(this, destination.module, destination.data);
+              void enterModule(this, destination.module, {
+                ...destination.data,
+                ...(this.preview ? { preview: true } : {}),
+              });
             },
           });
           Text(
