@@ -296,6 +296,7 @@ export class TitleScene extends UIScene {
               });
             }
           });
+          Text('动效设置在下一次进入场景时生效', { size: 'xs', tone: 'muted' });
 
           Divider({});
           Row({ width: 'fill', justifyContent: 'end' }, () => {
