@@ -733,6 +733,7 @@ export class Ch01DormScene extends UIScene {
      */
     this.dialogue = new DialoguePlayer(lines, {
       pageChars: DIALOGUE_PAGE_CHARS,
+      balanceLines: true,
       typeMs: Math.round(DIALOGUE_TYPE_MS * textSpeedFactor(settings.textSpeed)),
     });
     this.dialogueVisible.value = true;

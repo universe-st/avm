@@ -1,5 +1,6 @@
 import {
   DIALOGUE_TYPE_MS,
+  balanceDialogueLine,
   charsOf,
   maskDialogueText,
   type DialogueLine,
@@ -96,6 +97,8 @@ export class DialoguePlayer {
   private readonly typeMs: number;
   /** 每页最多显示的字符数；`0` = 不分页（一整句一页）。 */
   private readonly pageChars: number;
+  /** 是否在显示层按标点折行，避免第二行只剩标点。 */
+  private readonly balanceLines: boolean;
   private lineIndex = -1;
   private pageIndex = 0;
   private pages: readonly string[] = [];
@@ -104,7 +107,10 @@ export class DialoguePlayer {
   private accumulator = 0;
   private started = false;
 
-  constructor(lines: readonly DialogueLine[], options: { typeMs?: number; pageChars?: number } = {}) {
+  constructor(
+    lines: readonly DialogueLine[],
+    options: { typeMs?: number; pageChars?: number; balanceLines?: boolean } = {},
+  ) {
     this.lines = lines;
     // `typeMs: 0` 是显式「整句立即显示」；省略或负数才回退默认值。
     this.typeMs =
@@ -116,6 +122,7 @@ export class DialoguePlayer {
     this.pageChars = Number.isFinite(options.pageChars) && (options.pageChars ?? 0) > 0
       ? Math.trunc(options.pageChars as number)
       : 0;
+    this.balanceLines = options.balanceLines === true;
   }
 
   get state(): DialogueState {
@@ -208,7 +215,9 @@ export class DialoguePlayer {
       return [{ type: 'complete' }];
     }
 
-    this.pages = paginateText(line.text, this.pageChars);
+    this.pages = paginateText(line.text, this.pageChars).map((page) =>
+      this.balanceLines ? balanceDialogueLine(page) : page,
+    );
     this.pageIndex = 0;
     const total = charsOf(this.pageText).length;
     const instant = this.typeMs <= 0;

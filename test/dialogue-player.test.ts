@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { DIALOGUE_TYPE_MS, maskDialogueText, type DialogueLine } from '../src/story/dialogue';
+import {
+  DIALOGUE_TYPE_MS,
+  balanceDialogueLine,
+  maskDialogueText,
+  type DialogueLine,
+} from '../src/story/dialogue';
 import { DialoguePlayer, paginateText } from '../src/story/dialogue-player';
 
 const lines: readonly DialogueLine[] = [
@@ -166,6 +171,22 @@ describe('DialoguePlayer', () => {
       expect(masked.split('\n')).toHaveLength(2);
       expect(Array.from(masked)).toHaveLength(Array.from(full).length);
     }
+  });
+
+  it('balanceDialogueLine 在标点处折行，避免第二行只剩标点', () => {
+    const text = '精神体会被强制踢出梦域。你会在此处醒来';
+    const balanced = balanceDialogueLine(text);
+    const lines = balanced.split('\n');
+    expect(lines).toHaveLength(2);
+    expect(lines[0]?.endsWith('。')).toBe(true);
+    expect((lines[1] ?? '').length).toBeGreaterThan(1);
+    expect(lines.join('')).toBe(text);
+
+    expect(balanceDialogueLine('短句。')).toBe('短句。');
+    expect(balanceDialogueLine('第一行\n第二行')).toBe('第一行\n第二行');
+    // 没有标点也能硬折，且不丢字
+    const long = '一二三四五六七八九十一二三四五六七八九十';
+    expect(balanceDialogueLine(long).split('\n').join('')).toBe(long);
   });
 
   it('typeMs=0 立即显示整句，但仍要手动推进与分页', () => {

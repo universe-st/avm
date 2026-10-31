@@ -101,3 +101,37 @@ export function speakerLabel(speaker?: string): string {
   const name = (speaker ?? '').trim();
   return name === '旁白' ? '' : name;
 }
+
+
+/**
+ * 把一行过长的对话按标点折成两行，避免最后一行只剩一个「。」。
+ *
+ * 面板宽 628、字号 34，一行约 18 个汉字；Phaser 的自动换行会在任意字处断，
+ * 21 字的句子常把句号单独挤到第二行。这里在接近 18 字的标点后手动换行，
+ * 第二行至少带走一个词。**只在显式开启时使用**，不改变 `paginateText` 的字数语义。
+ */
+export function balanceDialogueLine(text: string, maxChars = 18): string {
+  const chars = charsOf(text);
+  if (chars.length <= maxChars || text.includes('\n')) return text;
+  const BREAKS = new Set(['。', '！', '？', '；', '，', '、', '…', '—']);
+  let cut = -1;
+  let best = Number.POSITIVE_INFINITY;
+  const limit = Math.min(chars.length - 1, maxChars + 6);
+  for (let index = 1; index <= limit; index += 1) {
+    if (!BREAKS.has(chars[index - 1] as string)) continue;
+    const distance = Math.abs(index - maxChars);
+    if (distance < best) {
+      best = distance;
+      cut = index;
+    }
+  }
+  if (cut <= 0 || cut >= chars.length) cut = Math.min(maxChars, chars.length - 1);
+  const head = chars.slice(0, cut);
+  const tail = chars.slice(cut);
+  // 不让第二行以标点开头（避头尾）：把尾部的标点挪回第一行。
+  while (tail.length > 0 && BREAKS.has(tail[0] as string)) {
+    head.push(tail.shift() as string);
+  }
+  if (head.length === 0 || tail.length === 0) return text;
+  return `${head.join('')}\n${tail.join('')}`;
+}
