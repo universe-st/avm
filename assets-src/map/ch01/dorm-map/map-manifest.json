@@ -146,6 +146,22 @@
       "note": "郑卿交互点（枕头左侧床沿）"
     }
   ],
+  "blockers": [
+    {
+      "r": 31,
+      "c": 3,
+      "w": 2,
+      "h": 3,
+      "note": "西墙行李箱堆（compose-dorm-map.py 的 suitcase-stack）：画在可走走廊上，因此碰撞也封掉。"
+    },
+    {
+      "r": 27,
+      "c": 28,
+      "w": 2,
+      "h": 2,
+      "note": "东墙单人行李箱（suitcase-east）：同理封掉 4 格。"
+    }
+  ],
   "passGrid": "pass-grid.json",
   "source": {
     "mapProject": "mmvnsvgbrfc5e10",

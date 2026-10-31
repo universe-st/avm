@@ -54,6 +54,14 @@ def build_grid(manifest: dict) -> list[list[int]]:
             for c in range(door["c"], door["c"] + door["w"]):
                 if 0 <= r < rows and 0 <= c < cols:
                     grid[r][c] = 1
+
+    # 程序化叠加的「有体积道具」（行李箱等）：画在可走走廊上，碰撞必须跟着封掉。
+    # 它们不是整图素材，所以单独用 blockers 描述，避免把图块拼装顺序卷进碰撞真值。
+    for blocker in manifest.get("blockers", []):
+        for r in range(blocker["r"], blocker["r"] + blocker["h"]):
+            for c in range(blocker["c"], blocker["c"] + blocker["w"]):
+                if 0 <= r < rows and 0 <= c < cols:
+                    grid[r][c] = 0
     return grid
 
 

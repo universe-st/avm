@@ -6,7 +6,7 @@ import {
 } from '../assets/keys';
 import type { Facing, MapPoint, RoomDef } from '../map/types';
 import { tileCenter } from '../map/core/room';
-import { characterDepth } from '../render/layers';
+import { LAYERS, characterDepth } from '../render/layers';
 import { setLinearTextures, setPixelTextures } from '../ui/pixel';
 
 // 20 帧 × 65ms ≈ 一个 1.3s 的步态循环；旧的 8 帧 @95ms 只有 760ms，看着像抖。
@@ -41,6 +41,8 @@ export interface PlayerActorOptions {
 export class PlayerActor {
   private readonly scene: Phaser.Scene;
   private readonly sprite: Phaser.GameObjects.Image | null;
+  /** 脚底接触阴影：贴在角色下面、地图家具上面，role 的「脚踩地面」全靠它。 */
+  private readonly shadow: Phaser.GameObjects.Ellipse | null;
   private feetPoint: MapPoint;
   private facingValue: Facing;
   private walking = false;
@@ -90,6 +92,16 @@ export class PlayerActor {
     }
 
     const staticKey = this.staticKeys[this.facingValue];
+    this.shadow = scene.add
+      .ellipse(
+        this.feetPoint.x,
+        this.feetPoint.y + 2,
+        Math.max(34, 52 * this.spriteScale),
+        Math.max(10, 15 * this.spriteScale),
+        0x000000,
+        0.3,
+      )
+      .setDepth(LAYERS.props - 1);
     this.sprite = scene.textures.exists(staticKey)
       ? scene.add
           .image(this.feetPoint.x, this.feetPoint.y, staticKey)
@@ -158,10 +170,12 @@ export class PlayerActor {
     const sittingOffset = this.sitting ? this.sittingOffsetY : 0;
     this.sprite.setPosition(this.feetPoint.x, this.feetPoint.y + sittingOffset);
     this.sprite.setDepth(characterDepth(this.feetPoint.y));
+    this.shadow?.setPosition(this.feetPoint.x, this.feetPoint.y + sittingOffset + 2);
   }
 
   destroy(): void {
     this.sprite?.destroy();
+    this.shadow?.destroy();
     this.walking = false;
     this.sitting = false;
   }

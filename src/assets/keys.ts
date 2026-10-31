@@ -133,7 +133,9 @@ export const CH01_ASSET_KEYS = {
   },
   battle: {
     dreamHall: 'img.battle.ch01.dream_hall',
-    /** 战斗背景：梦域金殿地图（2026-10-31 从旧 9:16 立绘迁到可演出地图）。 */
+    /** 战斗专用舞台图（720×1280）：聚光、前景台阶、暗角，不是宫殿全景。 */
+    minerHall: 'img.battle.ch01.miner_hall',
+    /** 梦域金殿地图：过场场景与战斗共用素材源。 */
     palaceHall: 'img.map.palace.hall',
   },
   audio: {
@@ -144,6 +146,11 @@ export const CH01_ASSET_KEYS = {
     metal: 'audio.sfx.ch01_metal',
     phone: 'audio.sfx.ch01_phone',
     snore: 'audio.sfx.ch01_snore',
+    /** 寝室午后环境音（蝉鸣/操场/吊扇）；循环，音量压得很低。 */
+    ambienceDay: 'audio.sfx.ch01_ambience_day',
+    /** 木地板脚步 A/B，交替播放避免机械感。 */
+    stepWoodA: 'audio.sfx.ch01_step_wood_a',
+    stepWoodB: 'audio.sfx.ch01_step_wood_b',
   },
 } as const;
 

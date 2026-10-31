@@ -1,0 +1,102 @@
+{
+  "note": "compose-dorm-map.py 产出的道具占格。r/c/w/h 为格坐标（tile 32 px），px 为像素矩形。pass=true 表示可行走装饰；pass=false 的道具压在 pass-grid 可走格上（贴墙摆放），当前版本不改碰撞。",
+  "grid": {
+    "tile": 32,
+    "cols": 33,
+    "rows": 54
+  },
+  "props": [
+    {
+      "id": "rug-corridor",
+      "asset": "assets-src/map/ch01/room-props/rug.png",
+      "r": 27,
+      "c": 12,
+      "w": 8,
+      "h": 6,
+      "px": [
+        384,
+        864,
+        256,
+        192
+      ],
+      "pass": true,
+      "note": "中段横向走廊的地毯，纯平面装饰，不参与碰撞（照旧可走）。"
+    },
+    {
+      "id": "suitcase-stack",
+      "asset": "assets-src/map/ch01/room-props/boxes.png",
+      "r": 31,
+      "c": 3,
+      "w": 2,
+      "h": 3,
+      "px": [
+        96,
+        992,
+        64,
+        96
+      ],
+      "pass": false,
+      "blocks": [
+        [
+          31,
+          3
+        ],
+        [
+          31,
+          4
+        ],
+        [
+          32,
+          3
+        ],
+        [
+          32,
+          4
+        ],
+        [
+          33,
+          3
+        ],
+        [
+          33,
+          4
+        ]
+      ],
+      "note": "西墙墙角、下排左床床头；这三行两列在 pass-grid 里仍是可走格（1），所以贴墙站着能被穿过去 —— 见报告「挡路风险」。"
+    },
+    {
+      "id": "suitcase-east",
+      "asset": "assets-src/map/ch01/room-props/boxes.png",
+      "r": 27,
+      "c": 28,
+      "w": 2,
+      "h": 2,
+      "px": [
+        896,
+        864,
+        64,
+        64
+      ],
+      "pass": false,
+      "blocks": [
+        [
+          27,
+          28
+        ],
+        [
+          27,
+          29
+        ],
+        [
+          28,
+          28
+        ],
+        [
+          28,
+          29
+        ]
+      ],
+      "note": "东墙边、上排右床床尾；同上，四格在 pass-grid 里可走。"
+    }
+  ]
+}

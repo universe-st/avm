@@ -845,6 +845,31 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         tags: ['sfx'],
       },
       {
+        key: 'audio.sfx.ch01_ambience_day',
+        kind: 'audio',
+        url: 'assets/audio/sfx/ch01_ambience_day.mp3',
+        // 环境音失败不阻断探索。
+        required: false,
+        label: '寝室午后环境音（蝉鸣/操场/吊扇）',
+        tags: ['sfx', 'ambience'],
+      },
+      {
+        key: 'audio.sfx.ch01_step_wood_a',
+        kind: 'audio',
+        url: 'assets/audio/sfx/ch01_step_wood_a.mp3',
+        required: false,
+        label: '木地板脚步 A',
+        tags: ['sfx'],
+      },
+      {
+        key: 'audio.sfx.ch01_step_wood_b',
+        kind: 'audio',
+        url: 'assets/audio/sfx/ch01_step_wood_b.mp3',
+        required: false,
+        label: '木地板脚步 B',
+        tags: ['sfx'],
+      },
+      {
         key: 'img.cg.ch01.phone',
         kind: 'image',
         url: 'assets/img/cg/ch01/phone.webp',
@@ -901,6 +926,13 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         url: 'assets/img/battle/ch01/dream_hall.webp',
         label: '梦域金殿',
         tags: ['battle', 'pixel'],
+      },
+      {
+        key: 'img.battle.ch01.miner_hall',
+        kind: 'image',
+        url: 'assets/img/battle/ch01/miner_hall.webp',
+        label: '战斗舞台 · 金殿（聚光/前景台阶/暗角）',
+        tags: ['battle'],
       },
       {
         key: 'img.char.ch01.miner',

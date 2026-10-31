@@ -1,8 +1,4 @@
 {
-  "assets/.DS_Store": {
-    "bytes": 6148,
-    "mtimeMs": 1792905739084
-  },
   "assets/audio/bgm/ch01_crisis.mp3": {
     "bytes": 1345036,
     "mtimeMs": 1793270879450
@@ -23,6 +19,10 @@
     "bytes": 1409089,
     "mtimeMs": 1792843174325
   },
+  "assets/audio/sfx/ch01_ambience_day.mp3": {
+    "bytes": 361197,
+    "mtimeMs": 1793410619526
+  },
   "assets/audio/sfx/ch01_metal.mp3": {
     "bytes": 6627,
     "mtimeMs": 1792886910856
@@ -38,6 +38,70 @@
   "assets/audio/sfx/ch01_snore.mp3": {
     "bytes": 97581,
     "mtimeMs": 1793013381094
+  },
+  "assets/audio/sfx/ch01_step_wood_a.mp3": {
+    "bytes": 8877,
+    "mtimeMs": 1793410619665
+  },
+  "assets/audio/sfx/ch01_step_wood_b.mp3": {
+    "bytes": 8877,
+    "mtimeMs": 1793410619808
+  },
+  "assets/audio/sfx/palace_blade_spin.mp3": {
+    "bytes": 19053,
+    "mtimeMs": 1793401106215
+  },
+  "assets/audio/sfx/palace_cloth_rustle.mp3": {
+    "bytes": 9549,
+    "mtimeMs": 1793401106156
+  },
+  "assets/audio/sfx/palace_crack_metal.mp3": {
+    "bytes": 17901,
+    "mtimeMs": 1793401105618
+  },
+  "assets/audio/sfx/palace_gasp.mp3": {
+    "bytes": 11853,
+    "mtimeMs": 1793401106265
+  },
+  "assets/audio/sfx/palace_hall_ambience.mp3": {
+    "bytes": 97101,
+    "mtimeMs": 1793401105460
+  },
+  "assets/audio/sfx/palace_heartbeat.mp3": {
+    "bytes": 36909,
+    "mtimeMs": 1793401106051
+  },
+  "assets/audio/sfx/palace_kneel_thud.mp3": {
+    "bytes": 13005,
+    "mtimeMs": 1793401105561
+  },
+  "assets/audio/sfx/palace_knock_head.mp3": {
+    "bytes": 15309,
+    "mtimeMs": 1793401106109
+  },
+  "assets/audio/sfx/palace_led_power.mp3": {
+    "bytes": 10701,
+    "mtimeMs": 1793401105774
+  },
+  "assets/audio/sfx/palace_rumble_hall.mp3": {
+    "bytes": 31149,
+    "mtimeMs": 1793401105848
+  },
+  "assets/audio/sfx/palace_servo_whir.mp3": {
+    "bytes": 19053,
+    "mtimeMs": 1793401105677
+  },
+  "assets/audio/sfx/palace_stamp_hit.mp3": {
+    "bytes": 10701,
+    "mtimeMs": 1793401105725
+  },
+  "assets/audio/sfx/palace_step_stone.mp3": {
+    "bytes": 7533,
+    "mtimeMs": 1793401105510
+  },
+  "assets/audio/sfx/palace_whoosh_heavy.mp3": {
+    "bytes": 20205,
+    "mtimeMs": 1793401105910
   },
   "assets/audio/sfx/type_blip_1.wav": {
     "bytes": 1366,
@@ -71,21 +135,13 @@
     "bytes": 1454,
     "mtimeMs": 1793276198090
   },
-  "assets/img/.DS_Store": {
-    "bytes": 8196,
-    "mtimeMs": 1792905774976
-  },
-  "assets/img/battle/.DS_Store": {
-    "bytes": 6148,
-    "mtimeMs": 1792905774975
-  },
   "assets/img/battle/ch01/dream_hall.webp": {
     "bytes": 316102,
     "mtimeMs": 1792888243972
   },
-  "assets/img/cg/.DS_Store": {
-    "bytes": 6148,
-    "mtimeMs": 1792905774974
+  "assets/img/battle/ch01/miner_hall.webp": {
+    "bytes": 69108,
+    "mtimeMs": 1793412771820
   },
   "assets/img/cg/ch01/news.webp": {
     "bytes": 257370,
@@ -219,6 +275,166 @@
     "bytes": 21411,
     "mtimeMs": 1792893622835
   },
+  "assets/img/character/palace/chu_gonggong_down.png": {
+    "bytes": 76783,
+    "mtimeMs": 1793395077104
+  },
+  "assets/img/character/palace/chu_gonggong_down_left.png": {
+    "bytes": 77544,
+    "mtimeMs": 1793395077384
+  },
+  "assets/img/character/palace/chu_gonggong_down_right.png": {
+    "bytes": 77658,
+    "mtimeMs": 1793395078269
+  },
+  "assets/img/character/palace/chu_gonggong_kneel.png": {
+    "bytes": 68287,
+    "mtimeMs": 1793396863717
+  },
+  "assets/img/character/palace/chu_gonggong_left.png": {
+    "bytes": 59256,
+    "mtimeMs": 1793395077680
+  },
+  "assets/img/character/palace/chu_gonggong_right.png": {
+    "bytes": 59379,
+    "mtimeMs": 1793395078265
+  },
+  "assets/img/character/palace/chu_gonggong_up.png": {
+    "bytes": 66076,
+    "mtimeMs": 1793395078262
+  },
+  "assets/img/character/palace/chu_gonggong_up_left.png": {
+    "bytes": 62082,
+    "mtimeMs": 1793395077974
+  },
+  "assets/img/character/palace/chu_gonggong_up_right.png": {
+    "bytes": 62075,
+    "mtimeMs": 1793395078272
+  },
+  "assets/img/character/palace/chu_walk_down.webp": {
+    "bytes": 349372,
+    "mtimeMs": 1793397528484
+  },
+  "assets/img/character/palace/chu_walk_down_left.webp": {
+    "bytes": 335332,
+    "mtimeMs": 1793397831151
+  },
+  "assets/img/character/palace/chu_walk_down_right.webp": {
+    "bytes": 345248,
+    "mtimeMs": 1793397844949
+  },
+  "assets/img/character/palace/chu_walk_left.webp": {
+    "bytes": 304496,
+    "mtimeMs": 1793397570371
+  },
+  "assets/img/character/palace/chu_walk_right.webp": {
+    "bytes": 320406,
+    "mtimeMs": 1793397622197
+  },
+  "assets/img/character/palace/chu_walk_up.webp": {
+    "bytes": 317360,
+    "mtimeMs": 1793397542835
+  },
+  "assets/img/character/palace/chu_walk_up_left.webp": {
+    "bytes": 176138,
+    "mtimeMs": 1793397858054
+  },
+  "assets/img/character/palace/chu_walk_up_right.webp": {
+    "bytes": 300142,
+    "mtimeMs": 1793397871652
+  },
+  "assets/img/character/palace/eunuch_crack.png": {
+    "bytes": 96675,
+    "mtimeMs": 1793395271700
+  },
+  "assets/img/character/palace/eunuch_down.png": {
+    "bytes": 104875,
+    "mtimeMs": 1793376406041
+  },
+  "assets/img/character/palace/miner.png": {
+    "bytes": 71225,
+    "mtimeMs": 1793395272827
+  },
+  "assets/img/character/palace/portrait_chu.png": {
+    "bytes": 709934,
+    "mtimeMs": 1793401980310
+  },
+  "assets/img/character/palace/portrait_zheng.png": {
+    "bytes": 1006826,
+    "mtimeMs": 1793401979509
+  },
+  "assets/img/character/palace/zheng_emperor_down.png": {
+    "bytes": 108995,
+    "mtimeMs": 1793376404231
+  },
+  "assets/img/character/palace/zheng_emperor_down_left.png": {
+    "bytes": 108216,
+    "mtimeMs": 1793376404236
+  },
+  "assets/img/character/palace/zheng_emperor_down_right.png": {
+    "bytes": 109698,
+    "mtimeMs": 1793376404240
+  },
+  "assets/img/character/palace/zheng_emperor_left.png": {
+    "bytes": 87159,
+    "mtimeMs": 1793376404243
+  },
+  "assets/img/character/palace/zheng_emperor_right.png": {
+    "bytes": 89223,
+    "mtimeMs": 1793376404247
+  },
+  "assets/img/character/palace/zheng_emperor_up.png": {
+    "bytes": 89468,
+    "mtimeMs": 1793376404256
+  },
+  "assets/img/character/palace/zheng_emperor_up_left.png": {
+    "bytes": 79034,
+    "mtimeMs": 1793376404259
+  },
+  "assets/img/character/palace/zheng_emperor_up_right.png": {
+    "bytes": 76933,
+    "mtimeMs": 1793376404263
+  },
+  "assets/img/character/palace/zheng_walk_down.webp": {
+    "bytes": 450202,
+    "mtimeMs": 1793397467250
+  },
+  "assets/img/character/palace/zheng_walk_down_left.webp": {
+    "bytes": 503212,
+    "mtimeMs": 1793397719498
+  },
+  "assets/img/character/palace/zheng_walk_down_right.webp": {
+    "bytes": 441592,
+    "mtimeMs": 1793397775859
+  },
+  "assets/img/character/palace/zheng_walk_left.webp": {
+    "bytes": 412774,
+    "mtimeMs": 1793397499718
+  },
+  "assets/img/character/palace/zheng_walk_right.webp": {
+    "bytes": 407802,
+    "mtimeMs": 1793397513235
+  },
+  "assets/img/character/palace/zheng_walk_up.webp": {
+    "bytes": 379660,
+    "mtimeMs": 1793397484125
+  },
+  "assets/img/character/palace/zheng_walk_up_left.webp": {
+    "bytes": 362530,
+    "mtimeMs": 1793397793561
+  },
+  "assets/img/character/palace/zheng_walk_up_right.webp": {
+    "bytes": 448212,
+    "mtimeMs": 1793397815748
+  },
+  "assets/img/character/palace/zhou_kneel_down.png": {
+    "bytes": 48596,
+    "mtimeMs": 1793376404266
+  },
+  "assets/img/character/palace/zhou_kneel_up.png": {
+    "bytes": 41033,
+    "mtimeMs": 1793376404269
+  },
   "assets/img/core/white.png": {
     "bytes": 79,
     "mtimeMs": 1792839029269
@@ -232,12 +448,16 @@
     "mtimeMs": 1792894765792
   },
   "assets/img/map/ch01/dorm_q.png": {
-    "bytes": 1732807,
-    "mtimeMs": 1793183680178
+    "bytes": 2409805,
+    "mtimeMs": 1793412751347
   },
   "assets/img/map/ch01/dorm_room.png": {
     "bytes": 68328,
     "mtimeMs": 1792894765574
+  },
+  "assets/img/map/palace/hall.png": {
+    "bytes": 2544329,
+    "mtimeMs": 1793412751367
   },
   "assets/img/prologue/01_night_sky.webp": {
     "bytes": 222848,
@@ -264,8 +484,8 @@
     "mtimeMs": 1792839029250
   },
   "assets/img/title/title_bg.webp": {
-    "bytes": 368908,
-    "mtimeMs": 1792840038498
+    "bytes": 120660,
+    "mtimeMs": 1793415881477
   },
   "assets/img/ui/icon_auto.png": {
     "bytes": 976,
@@ -278,5 +498,9 @@
   "assets/video/ch01-opening.mp4": {
     "bytes": 3526548,
     "mtimeMs": 1793186744372
+  },
+  "assets/video/ch01-phone.mp4": {
+    "bytes": 4419386,
+    "mtimeMs": 1793366294427
   }
 }
