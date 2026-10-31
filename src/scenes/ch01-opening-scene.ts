@@ -191,17 +191,59 @@ export class Ch01OpeningScene extends UIScene {
     );
   }
 
+  /**
+   * 抓当前视频帧，缩到 48×104 再放大成像素化定格。
+   *
+   * 这是「写实视频 → 像素游戏内」的画风切换说明：视频结束的一瞬间先定格成低分辨率像素画，
+   * 再淡出露出寝室，比直接 fade 更像同一部作品的转场。
+   * 只 drawImage、不读像素，所以不会触发跨域污染。
+   */
+  private capturePixelFrame(): HTMLCanvasElement | null {
+    const video = this.surface?.element;
+    if (!video || video.readyState < 2 || video.videoWidth === 0) return null;
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 48;
+      canvas.height = 104;
+      const context = canvas.getContext('2d');
+      if (!context) return null;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.style.cssText =
+        'position:fixed;inset:0;width:100%;height:100%;object-fit:cover;' +
+        'image-rendering:pixelated;pointer-events:none;z-index:9;' +
+        'transition:opacity .45s ease;background:#05060a;';
+      document.body.appendChild(canvas);
+      return canvas;
+    } catch (error) {
+      console.warn('[ch01-opening] 像素化转场抓帧失败，退回普通淡出', error);
+      return null;
+    }
+  }
+
   private finish(): void {
     if (this.leaving) return;
     this.leaving = true;
     this.tapTimer?.remove();
     this.tapTimer = null;
+    const pixelFrame = this.capturePixelFrame();
     this.surface?.element.pause();
     this.cameras.main.fadeOut(240, 5, 6, 10);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       this.surface?.destroy();
       this.surface = null;
-      void enterModule(this, 'ch01Dorm');
+      void enterModule(this, 'ch01Dorm')
+        .then(() => {
+          if (!pixelFrame) return;
+          // 场景自己的 time 会在 shutdown 后停掉，这里用窗口计时器完成收尾。
+          window.setTimeout(() => {
+            pixelFrame.style.opacity = '0';
+            window.setTimeout(() => pixelFrame.remove(), 700);
+          }, 140);
+        })
+        .catch((error: unknown) => {
+          pixelFrame?.remove();
+          console.warn('[ch01-opening] 进入寝室失败', error);
+        });
     });
   }
 
