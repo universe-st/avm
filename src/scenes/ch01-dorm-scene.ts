@@ -519,9 +519,29 @@ export class Ch01DormScene extends UIScene {
     });
   }
 
+  /**
+   * 交互点选择：当前目标的交互点只要在半径内就优先，避免「站在书桌下按 E 却只翻到小说」。
+   *
+   * 目标完成后回落到「最近的可交互物」，书桌/窗/门这些风味交互不受影响。
+   */
+  private pickNear(feet: { x: number; y: number }): InteractableDef | null {
+    const base = findInteractableNear(this.room, feet);
+    const targetId = this.flow?.state.talkedZheng === false
+      ? 'zheng'
+      : this.flow?.state.phoneFound === false
+        ? 'phone'
+        : null;
+    if (!targetId) return base;
+    const target = this.room.interactables.find((item) => item.id === targetId);
+    if (!target) return base;
+    const at = interactableCenter(this.room, target);
+    const radius = target.radius ?? 100;
+    return Math.hypot(feet.x - at.x, feet.y - at.y) <= radius ? target : base;
+  }
+
   private updateNear(): void {
     const active = this.flow?.state.phase === 'explore' && !this.dialogue && !this.cardVisible && !this.ended;
-    const near = active && this.player ? findInteractableNear(this.room, this.player.position) : null;
+    const near = active && this.player ? this.pickNear(this.player.position) : null;
     this.near = near;
     this.interactAvailable.value = near !== null;
 
@@ -536,7 +556,7 @@ export class Ch01DormScene extends UIScene {
       const at = interactableCenter(this.room, near);
       this.promptText
         .setText(`[${INTERACT_KEY}] ${prompt}`)
-        .setPosition(at.x, at.y - 70)
+        .setPosition(at.x + 46, at.y - 92)
         // 开局站在书桌下，手机提示会压在主角头上；先让新手指引独占画面，移动后再显示提示。
         .setVisible(!this.tutorialVisible.value);
       this.highlightRing

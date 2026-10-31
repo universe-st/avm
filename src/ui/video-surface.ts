@@ -68,7 +68,7 @@ const FOREGROUND_STYLE = `${BASE_LAYER_STYLE}object-fit:contain;`;
 /** 背景：同一段画面铺满 + 模糊压暗，填掉上下黑边；放大 6% 让模糊边缘不露白。 */
 const BACKDROP_STYLE =
   `${BASE_LAYER_STYLE}object-fit:cover;` +
-  'filter:blur(28px) brightness(.55) saturate(.9);transform:scale(1.06);';
+  'filter:blur(28px) brightness(.55) saturate(.9);transform:scale(1.18);';
 
 /** 跳过按钮：墨黑半透明底 + 1px 鎏金边框 + 宣纸白字，和游戏内 secondary 按钮同一套观感。 */
 const SKIP_BUTTON_STYLE = [
@@ -275,7 +275,7 @@ export function mountVideoSurface(options: VideoSurfaceOptions): VideoSurfaceHan
     button.type = 'button';
     button.textContent = skipLabel;
     button.setAttribute('aria-label', skipLabel === '' ? '跳过' : skipLabel);
-    button.style.cssText = `${SKIP_BUTTON_STYLE}z-index:${baseZIndex + 2};`;
+    button.style.cssText = `${SKIP_BUTTON_STYLE};z-index:${baseZIndex + 2};`;
     button.addEventListener('click', handleSkipClick);
     document.body.appendChild(button);
     skipButton = button;
