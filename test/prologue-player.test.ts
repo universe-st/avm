@@ -200,4 +200,19 @@ describe('ProloguePlayer（特殊 cue）', () => {
     expect(player.tick(1000)).toEqual([]);
     expect(player.requestAdvance()).toEqual([]);
   });
+
+  it('supports a custom typing interval from the text-speed setting', () => {
+    const fast = new ProloguePlayer([cue('a', ['你好']), cue('b', ['再见'])], { typeMs: 10 });
+    fast.start();
+    expect(fast.tick(10).length).toBeGreaterThan(0);
+    expect(fast.state.typedCount).toBe(1);
+    expect(fast.tick(10).length).toBeGreaterThan(0);
+    expect(fast.state.phase).toBe('waiting');
+
+    // 省略/非法值回退 TYPE_MS
+    const fallback = new ProloguePlayer([cue('a', ['你好'])], { typeMs: 0 });
+    fallback.start();
+    expect(fallback.tick(TYPE_MS - 1)).toEqual([]);
+    expect(fallback.tick(1).length).toBeGreaterThan(0);
+  });
 });

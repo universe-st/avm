@@ -29,6 +29,8 @@ export interface ProloguePlayerOptions {
    * 默认手动——每句都要玩家点一下才继续。
    */
   readonly auto?: boolean;
+  /** 逐字间隔（毫秒）。省略用开幕默认 TYPE_MS；`1` 约等于立即显示。 */
+  readonly typeMs?: number;
 }
 
 export type PrologueEvent =
@@ -66,11 +68,16 @@ export class ProloguePlayer {
   private typeElapsed = 0;
   private holdElapsed = 0;
   private leaveElapsed = 0;
+  private readonly typeMs: number;
 
   constructor(cues: readonly PrologueCue[], options: ProloguePlayerOptions = {}) {
     if (cues.length === 0) throw new Error('ProloguePlayer: cues 不能为空');
     this.cues = cues;
     this.auto = options.auto === true;
+    this.typeMs =
+      Number.isFinite(options.typeMs) && (options.typeMs ?? 0) > 0
+        ? Math.trunc(options.typeMs as number)
+        : TYPE_MS;
   }
 
   get state(): PrologueState {
@@ -203,7 +210,7 @@ export class ProloguePlayer {
   private tickTyping(delta: number): PrologueEvent[] {
     this.typeElapsed += delta;
     const total = this.totalChars;
-    const next = Math.min(total, Math.floor(this.typeElapsed / TYPE_MS));
+    const next = Math.min(total, Math.floor(this.typeElapsed / this.typeMs));
 
     if (next <= this.typedCount) {
       if (total === 0) return this.finishLine();

@@ -7,8 +7,10 @@ import { enterModule } from '../app/director';
 import { applyCamera, getViewportPlan } from '../app/viewport';
 import { audioDirector } from '../audio/audio-director';
 import { bgmManager } from '../audio/bgm-manager';
+import { settings, textSpeedFactor } from '../app/settings';
 import {
   PROLOGUE_CUES,
+  TYPE_MS,
   cueText,
   type PrologueCue,
 } from '../story/prologue';
@@ -187,7 +189,11 @@ export class PrologueScene extends UIScene {
   }
 
   private startSequence(): void {
-    this.player = new ProloguePlayer(PROLOGUE_CUES, { auto: this.autoMode.value });
+    this.player = new ProloguePlayer(PROLOGUE_CUES, {
+      auto: this.autoMode.value,
+      // 设置里的文字速度同样作用于开幕：instant 用 1ms 近似整句直出。
+      typeMs: Math.max(1, Math.round(TYPE_MS * textSpeedFactor(settings.textSpeed))),
+    });
     this.started = true;
     this.handleEvents(this.player.start());
   }

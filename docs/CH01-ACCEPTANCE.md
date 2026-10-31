@@ -165,7 +165,7 @@
 | 项 | 结果 |
 | --- | --- |
 | `pnpm typecheck` | 通过 |
-| `pnpm test` | 通过，169 tests / 20 files |
+| `pnpm test` | 通过，170 tests / 20 files |
 | `pnpm assets:check` | 通过，118 key / 118 url；`assets:pass` 通过（可走格 509 / 1782） |
 | `pnpm build` | 通过；JS 1,860.08 kB / gzip 512.93 kB（优化前 1,767.33 kB / 486.71 kB） |
 
