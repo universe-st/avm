@@ -61,7 +61,7 @@ describe('render layers', () => {
     for (const key of Object.values(CH01_ASSET_KEYS.cg)) {
       expect(key).toMatch(/^img\.cg\.ch01\./);
     }
-    expect(CH01_ASSET_KEYS.battle.dreamHall).toMatch(/^img\.battle\.ch01\./);
+    expect(CH01_ASSET_KEYS.battle.minerHall).toMatch(/^img\.battle\.ch01\./);
     expect(Object.values(CH01_STATIC_SPRITES).every((key) => key.startsWith('img.char.ch01.'))).toBe(true);
     expect(Object.values(CH01_WALK_SHEETS).every((key) => key.includes('zhou_walk'))).toBe(true);
   });

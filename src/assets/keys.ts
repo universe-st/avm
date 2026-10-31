@@ -132,11 +132,8 @@ export const CH01_ASSET_KEYS = {
     news: 'img.cg.ch01.news',
   },
   battle: {
-    dreamHall: 'img.battle.ch01.dream_hall',
     /** 战斗专用舞台图（720×1280）：聚光、前景台阶、暗角，不是宫殿全景。 */
     minerHall: 'img.battle.ch01.miner_hall',
-    /** 梦域金殿地图：过场场景与战斗共用素材源。 */
-    palaceHall: 'img.map.palace.hall',
   },
   audio: {
     dormBgm: 'audio.bgm.ch01_dorm',

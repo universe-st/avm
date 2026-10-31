@@ -921,13 +921,6 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
     dependsOn: ['battle.common', 'ch.01'],
     assets: [
       {
-        key: 'img.battle.ch01.dream_hall',
-        kind: 'image',
-        url: 'assets/img/battle/ch01/dream_hall.webp',
-        label: '梦域金殿',
-        tags: ['battle', 'pixel'],
-      },
-      {
         key: 'img.battle.ch01.miner_hall',
         kind: 'image',
         url: 'assets/img/battle/ch01/miner_hall.webp',
