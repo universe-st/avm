@@ -685,6 +685,7 @@ export class Ch01DormScene extends UIScene {
   }
 
   private showChapterCard(lines: readonly string[]): void {
+    audioDirector.playSfxAt(CH01_ASSET_KEYS.audio.chapterChime, { volume: 0.45 });
     this.cardVisible = true;
     this.cardActive.value = true;
     this.joystick?.setEnabled(false);
@@ -1021,6 +1022,7 @@ export class Ch01DormScene extends UIScene {
   }
 
   private showEndCard(): void {
+    audioDirector.playSfxAt(CH01_ASSET_KEYS.audio.chapterChime, { volume: 0.38 });
     this.ended = true;
     // 结束卡是模态；把 HUD 切到 card 分支，避免右下角「交互」按钮从卡片下面露出来。
     this.cardActive.value = true;

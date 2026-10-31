@@ -148,6 +148,8 @@ export const CH01_ASSET_KEYS = {
     /** 木地板脚步 A/B，交替播放避免机械感。 */
     stepWoodA: 'audio.sfx.ch01_step_wood_a',
     stepWoodB: 'audio.sfx.ch01_step_wood_b',
+    /** 章节卡/结束卡钟声。 */
+    chapterChime: 'audio.sfx.ch01_chapter_chime',
   },
 } as const;
 

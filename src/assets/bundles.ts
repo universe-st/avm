@@ -870,6 +870,14 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         tags: ['sfx'],
       },
       {
+        key: 'audio.sfx.ch01_chapter_chime',
+        kind: 'audio',
+        url: 'assets/audio/sfx/ch01_chapter_chime.mp3',
+        required: false,
+        label: '章节卡钟声',
+        tags: ['sfx'],
+      },
+      {
         key: 'img.cg.ch01.phone',
         kind: 'image',
         url: 'assets/img/cg/ch01/phone.webp',
