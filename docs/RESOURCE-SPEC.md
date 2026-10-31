@@ -37,9 +37,9 @@ interface AssetDef {
 | `cutscene.ch01palace` | 梦域金殿地图 `hall.png`（1056×1728）+ 13 张殿上角色图（200×420）+ 2 张半身立绘（720×900） | 8 MB | — | 金殿过场 `scene.ch01.palace`；战斗 `battle.ch01.first` 也复用它当背景 |
 | `cutscene.ch01palace.walk` | 郑卿 / 楚公公 八方向行走 sheet（各 8 张 × 16 帧 × 200×420，WebP） | 12 MB | `cutscene.ch01palace` | 只在金殿过场加载；走位时播帧，停下回静态图 |
 | `cutscene.ch01palace.sfx` | 金殿音效 14 条（环境/脚步/跪地/裂皮/心跳…，mp3 24kHz 单声道，共约 300 KB） | 1 MB | `cutscene.ch01palace` | 过场音效；缺失时静默跳过，不阻断 |
-| `ch.01` | 33×54 寝室整图、郑卿睡床 4 帧、周全 Q 版八向/行走、小白/郑卿、校园 BGM、沉睡症新闻 CG、《危机来临》回忆 BGM、呼噜/拳击/手机 SFX | 12 MB | — | 进入第一章 |
+| `ch.01` | 33×54 寝室整图（重组窗光版）、郑卿睡床 4 帧、周全 Q 版八向/行走、小白/郑卿、校园 BGM、沉睡症新闻 CG、《危机来临》回忆 BGM、呼噜/拳击/手机 SFX、寝室环境音与木地板脚步 A/B | 12 MB | — | 进入第一章 |
 | `battle.common` | 战斗公共资源（本期为空，依赖 `ui`） | 3 MB | — | 进入剧情战 |
-| `battle.ch01` | 梦域金殿背景、矿工 sprite、战斗 BGM/金属 SFX；依赖 `ch.01` 复用周全 sprite | 5 MB | — | 进入剧情战 |
+| `battle.ch01` | 战斗专用舞台 `miner_hall.webp`（720×1280）、矿工 sprite、战斗 BGM/金属 SFX；依赖 `ch.01` 复用周全 sprite | 5 MB | — | 进入剧情战 |
 
 后续：`ch.NN`（单章 ≤ 8 MB）、`battle.<id>`（≤ 5 MB）、`cutscene.<id>`（单段 ≤ 8 MB）。
 章节包不得互相依赖；公共资源上移到 `ui` / `battle.common`。

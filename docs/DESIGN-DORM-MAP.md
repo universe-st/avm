@@ -28,7 +28,7 @@
 
 郑卿床（右上，窗下） col 21–29 / 行 11–25   ← 剧情状态叠郑卿睡觉动画
 书桌               col 12–20 / 行 6–10
-出生点             (16,14)
+出生点             (14,12)
 门                 (16,52)
 ```
 
@@ -55,10 +55,11 @@
 
 ## 4. 通行规划
 
-- 可通过：室内地板、南门洞、出生点；通过格逐格写在 `pass-grid.json`（50×54，`1` 可通过）。角色改小后通行矩阵不变。
-- 不可通过：四周墙体、四张床、书桌。
+- 可通过：室内地板、南门洞、出生点；通过格逐格写在 `pass-grid.json`（33×54，`1` 可通过），由 `tools/gen-pass-grid.py` 从 `map-manifest.json` 生成。
+- 不可通过：四周墙体、四张床、书桌；**程序化叠加的行李箱也通过 `map-manifest.blockers` 封格**（西墙 2×3、东墙 2×2，共 10 格）。
 - 最小通道：门 6 格、桌侧 6–7 格、中央 22 格，均 ≥ 角色宽度 4 格。
-- 校验图：`map-pass.png`（绿=可通过，红=不可通过）与 `map-scale-check.png`（角色 128 px 宽 + 4 格脚印）。
+- 校验图：`map-pass.png`（绿=可通过，红=不可通过）、`dorm_q_v2-pass.png` 与 `map-scale-check.png`（角色 128 px 宽 + 4 格脚印）。
+- 2026-10-31：`pnpm assets:pass` = 509 / 1782 可走格；`Compose` 重组的寝室图与 pass-grid 逐格对齐。
 
 > 地图编辑器项目里的整图素材是通过 API 导入的，宿主没有写入逐格「通行」标记；**以 `pass-grid.json` 为通行真值**，编辑器内只作素材/坐标参考。地图项目里已移除郑卿睡床整图，避免把运行时动画当成地图素材。
 
@@ -74,13 +75,22 @@
 
 ```
 assets-src/map/ch01/dorm-map/
-  map-final.png          1600×1728 最终合图（四张空床）
-  map-pass.png           通行检查图（800×864）
-  map-scale-check.png    角色 4 格宽校验
-  floor.png / wall-*.png / bed.png / bed-zheng-anim.png / table.png
+  map-final.png          1056×1728 最终合图（四张空床；2026-10-31 用 compose-dorm-map.py 重组）
+  map-manifest.json      图块占格 + blockers（行李箱封格）+ markers
+  prop-placement.json    程序化道具占格（地毯可行走 / 行李箱封格）
+  pass-grid.json         33×54 通行矩阵（gen-pass-grid.py 生成）
   frames/zheng-{0..3}-fit.png   单帧
-  pass-grid.json         50×54 通行矩阵
 ```
+
+合成脚本（2026-10-31）：
+
+```bash
+python3 tools/compose-dorm-map.py     # manifest → 底图 + 窗光/阴影/地毯/行李箱 → public/assets/img/map/ch01/dorm_q.png
+python3 tools/gen-pass-grid.py        # manifest(含 blockers) → pass-grid.json + 打印 ASCII
+python3 tools/gen-pass-grid.py --check  # 与 RoomDef.ascii 逐格比对
+```
+
+`map-final.png` 与 `public/assets/img/map/ch01/dorm_q.png` 内容相同；改图后必须同时更新，并重跑 `pnpm assets:pass`。
 
 ## 7. 脚盒与视觉间余（2026-10-29）
 

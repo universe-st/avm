@@ -10,6 +10,7 @@
 - 生成：请求 2 张，1 张成功（`out/img-01.png`），1 张下载失败
 - 提示词要点：国风 HD-2D 像素、纯白梦境裂隙、七星座、锈蚀矿工、学生背影持白光匕首、无文字
 - 后期：1584×2816 → 1440×2560 裁切 → 亮度 0.94 + 暗角 → 480×853 降采样 → 56 色量化 → NEAREST 放大 → WebP q90（360 KB）
+  - 2026-10-31：为进一步消除手机端 canvas 缩小产生的摩尔纹，重出 720×1280 Lanczos + WebP q90（120 KB）；构图不变。
 - 原始件：`assets-src/title/title_bg_v1.png`、`title_bg_pixel_1440x2560.png`
 
 ## 2. 标题 BGM《潜入》（v2 · 科幻版）
@@ -369,3 +370,26 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
 - 半身立绘：火山方舟 Seedream 5.0，以 Q 版源图为参考保持同一张脸
   - 郑卿皇帝 `imvvl3lp901faff` → `portrait_zheng.png`（720×900）
   - 楚公公 `imvvl3lpkafbcd8` → `portrait_chu.png`（720×900）
+
+### 11.13 全面优化：寝室重组、金殿增强、战斗舞台、环境音（2026-10-31）
+
+**本地合成（零生成费用，可复现）**
+
+- `tools/compose-dorm-map.py`：读 `assets-src/map/ch01/dorm-map/map-manifest.json` 重组寝室底图，叠加北窗光楔/地面光池/窗棂投影/浮尘、床桌墙根接触阴影、墙裙与砖缝脏迹、暖冷色温、泛光/暗角/固定 seed 颗粒；复用旧零件 `rug.png`（可行走地毯）与 `boxes.png`（两处行李箱，占格写进 `map-manifest.blockers`）。
+  - 产物：`public/assets/img/map/ch01/dorm_q.png`、`assets-src/map/ch01/dorm-map/map-final.png`、`prop-placement.json`
+  - 校验：`dorm_q_v2-pass.png`；`pnpm assets:pass` = 509 / 1782 可走格
+- `tools/enhance-palace-map.py`：读 `hall.png`，叠加 5 道窗棂斜光柱（含格影）、香炉烟/浮尘、台脚与红柱地面反光、毯边金边、金红色温、泛光/暗角/颗粒。
+  - 产物：`public/assets/img/map/palace/hall.png`、`assets-src/palace/hall-final.png`
+- `tools/compose-battle-plate.py`：从金殿合图裁 720×1280 战斗专用舞台，前景台阶虚化、聚光锥 + 红毯光池（敌位 360,820）、左下玩家位冷调补光、浮尘、暗角。
+  - 产物：`public/assets/img/battle/ch01/miner_hall.webp`（WebP q88，69 KB）
+  - 原始 PNG：`.tmp/art-review/battle_plate.png`（不入库，可重跑脚本）
+
+**音效（真实计费）**
+
+| 用途 | 任务 id | 原始时长 | 后处理 | 产物 |
+| --- | --- | --- | --- | --- |
+| 寝室午后环境音（蝉鸣/操场/吊扇，循环） | `fmvvqbjri7f80b1` | 30.00s | `loudnorm I=-21:TP=-2.5:LRA=7`，mp3 96k | `public/assets/audio/sfx/ch01_ambience_day.mp3`（361 KB） |
+| 木地板脚步 | `fmvvqbjrr997b54` | 2.50s | 截 0.5s + 尾部淡出 + `loudnorm I=-13`；B 版 `asetrate×1.06` 变调 | `ch01_step_wood_a.mp3` / `ch01_step_wood_b.mp3`（各 ~9 KB） |
+
+- 生成模型：火山引擎 Seed-Audio `seed-audio-1.0`，44.1kHz，单声道 mp3；自动审核模式。
+- 提示词见任务记录；环境音刻意压到 -21 LUFS，作为 BGM 之下的底噪。

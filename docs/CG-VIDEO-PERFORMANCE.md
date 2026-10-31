@@ -47,3 +47,13 @@
 - `?stage=scene.ch01.open`：视频可见、右下「跳过」可见、canvas 透明、播完自动进寝室。
 - 进寝室后 `canvas.style.zIndex` 应恢复成空（`getComputedStyle` 为 `auto`）。
 - 手机上重点看：开头 3 秒是否掉帧、音画是否同步、切场景时画面是否闪黑。
+
+## 6. 2026-10-31 补充：9:16 视频的上下黑边
+
+`720×1280` 的成片放进 `390×844`（9:19.5）视口时，`contain` 会在上下各留约 75 CSS px 黑边。解决方案不是重出视频，而是 `src/ui/video-surface.ts` 的双层挂载：
+
+- 背景层：同源 `<video>`，`object-fit:cover` + `blur(28px) brightness(.55) saturate(.9)` + `scale(1.06)`，永远 muted + loop；
+- 前景层：同源 `<video>`，`object-fit:contain`，保留完整构图与声音；
+- 两层都由合成器直出，仍然不经过 canvas；跳过按钮在 DOM 层，带 `env(safe-area-inset-*)`。
+
+开场动画（canvas 透明、视频在下面）与手机 CG（视频盖在 canvas 上）共用这个模块，只是 `zIndex` 不同。代价是同源视频解码两份；低端 Android 若掉帧，可对非关键 CG 退回 `layout:'contain'`。
