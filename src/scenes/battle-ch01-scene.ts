@@ -1,9 +1,11 @@
 import Phaser from 'phaser';
 import { ref } from '@phaser-mvvm/core';
-import { UIScene, prefersReducedMotion, type ModalHandle } from '@phaser-mvvm/phaser';
+import { UIScene, type ModalHandle } from '@phaser-mvvm/phaser';
 import { enterModule } from '../app/director';
 import { SCENE_KEYS } from '../app/scene-keys';
 import { applyCamera, getViewportPlan } from '../app/viewport';
+import { resolveReducedMotion } from '../app/settings';
+import { saveProgress } from '../app/progress';
 import { audioDirector } from '../audio/audio-director';
 import { bgmManager } from '../audio/bgm-manager';
 import {
@@ -21,7 +23,17 @@ import {
 } from '../battle/core/scripted-battle';
 import type { BattleAction, BattleState } from '../battle/types';
 import { DANGER, GOLD, INK, makeSceneText } from '../ui/cinematic';
-import { hashSeed, mulberry32 } from '../dev/random';
+import {
+  addContactShadow,
+  addDustMotes,
+  addLightShaft,
+  addVignette,
+  impactRing,
+  ledPulse,
+  screenRumble,
+  sparkBurst,
+} from '../ui/fx-kit';
+import { hashSeed } from '../dev/random';
 import { addCoverImage } from '../ui/background';
 import { setLinearTextures, setPixelTextures } from '../ui/pixel';
 import { buildBattleCh01Hud } from '../ui/battle-ch01-hud';
@@ -68,7 +80,13 @@ export class BattleCh01Scene extends UIScene {
   private introOpen = false;
   private defeatModal: ModalHandle | null = null;
   private exitModal: ModalHandle | null = null;
-  private readonly reduced = prefersReducedMotion();
+  /** 氛围/特效对象，shutdown 统一销毁。 */
+  private fx: Phaser.GameObjects.GameObject[] = [];
+  private corePulse: Phaser.GameObjects.Container | null = null;
+
+  private get reduced(): boolean {
+    return resolveReducedMotion();
+  }
 
   private readonly roundLabel = ref('第 1 回合');
   private readonly enemyLabel = ref('');
@@ -115,22 +133,39 @@ export class BattleCh01Scene extends UIScene {
     this.enemySprite = null;
     this.playerSprite = null;
     this.hpGraphics = null;
+    for (const object of this.fx) object.destroy();
+    this.fx = [];
+    this.corePulse = null;
 
     applyCamera(this);
     this.cameras.main.setBackgroundColor('#05060a');
     setPixelTextures(this, [CH01_ASSET_KEYS.characters.miner, CH01_ASSET_KEYS.characters.zhouDown]);
-    setLinearTextures(this, [CH01_ASSET_KEYS.battle.palaceHall]);
+    setLinearTextures(this, [CH01_ASSET_KEYS.battle.minerHall]);
 
-    if (!addCoverImage(this, CH01_ASSET_KEYS.battle.palaceHall)) {
+    if (!addCoverImage(this, CH01_ASSET_KEYS.battle.minerHall)) {
       this.add.rectangle(0, 0, getViewportPlan().designWidth, getViewportPlan().designHeight, 0x1a1012)
         .setOrigin(0, 0);
     }
-    this.add.rectangle(0, 0, getViewportPlan().designWidth, getViewportPlan().designHeight, 0x05060a, 0.28)
+    this.add.rectangle(0, 0, getViewportPlan().designWidth, getViewportPlan().designHeight, 0x05060a, 0.34)
       .setOrigin(0, 0)
       .setDepth(LAYERS.props);
 
     this.createCombatants();
     this.addDust();
+    this.fx.push(
+      addLightShaft(this, {
+        x: getViewportPlan().designWidth * 0.5,
+        y: 40,
+        width: 420,
+        height: 980,
+        angleDeg: 8,
+        color: 0xffdfa0,
+        alpha: 0.1,
+        reduced: this.reduced,
+        depth: LAYERS.props + 2,
+      }),
+      addVignette(this, { alpha: 0.46 }),
+    );
     super.create();
     audioDirector.attach(this);
     bgmManager.enterScene(this);
@@ -172,44 +207,75 @@ export class BattleCh01Scene extends UIScene {
 
   private addDust(): void {
     // seed 只影响尘埃/光点位置，不影响战斗判定；同 seed 同一画面。
-    const rng = mulberry32((this.seed ^ hashSeed('battle.ch01.first')) >>> 0);
     const plan = getViewportPlan();
-    for (let index = 0; index < 18; index += 1) {
-      const x = 40 + rng() * (plan.designWidth - 80);
-      const y = plan.designHeight * 0.25 + rng() * plan.designHeight * 0.45;
-      const dot = this.add.circle(x, y, 1 + rng() * 2, 0xd8b76a, 0.15 + rng() * 0.2).setDepth(LAYERS.props + 1);
-      this.tweens.add({
-        targets: dot,
-        y: y - 20 - rng() * 30,
-        alpha: 0,
-        duration: 2400 + rng() * 2200,
-        delay: rng() * 1200,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-      });
-    }
+    this.fx.push(
+      addDustMotes(this, {
+        x: 40,
+        y: plan.designHeight * 0.24,
+        width: plan.designWidth - 80,
+        height: plan.designHeight * 0.46,
+        count: 24,
+        seed: this.seed ^ hashSeed('battle.ch01.first'),
+        color: 0xd8b76a,
+        alpha: 0.55,
+        reduced: this.reduced,
+        depth: LAYERS.effects,
+      }),
+    );
   }
 
   private createCombatants(): void {
     const plan = getViewportPlan();
     const centerX = plan.designWidth / 2;
+    const enemyY = plan.designHeight * 0.52;
+    const playerY = plan.designHeight * 0.7;
 
     if (this.textures.exists(CH01_ASSET_KEYS.characters.miner)) {
       this.enemySprite = this.add
-        .image(centerX, plan.designHeight * 0.48, CH01_ASSET_KEYS.characters.miner)
+        .image(centerX, enemyY, CH01_ASSET_KEYS.characters.miner)
+        // 128×160 的像素图按 2× 显示，才有「Boss 该有的体积」；整数倍不糊。
+        .setScale(2)
         .setOrigin(0.5, 1)
-        .setDepth(characterDepth(plan.designHeight * 0.48));
+        .setDepth(characterDepth(enemyY));
+      // 待机呼吸：只缩放不改位置，血条锚点不会跟着晃。
+      if (!this.reduced) {
+        this.tweens.add({
+          targets: this.enemySprite,
+          scaleY: 2.04,
+          duration: 1500,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
+      }
+      this.corePulse = ledPulse(this, centerX, enemyY - 178, {
+        color: 0xff3b30,
+        radius: 11,
+        reduced: this.reduced,
+        depth: LAYERS.effects,
+      });
+      this.fx.push(this.corePulse);
     }
     if (this.textures.exists(CH01_ASSET_KEYS.characters.zhouDown)) {
       this.playerSprite = this.add
-        .image(plan.designWidth * 0.25, plan.designHeight * 0.66, CH01_ASSET_KEYS.characters.zhouDown)
+        .image(plan.designWidth * 0.26, playerY, CH01_ASSET_KEYS.characters.zhouDown)
+        .setScale(2)
         .setOrigin(0.5, 1)
-        .setDepth(characterDepth(plan.designHeight * 0.66));
+        .setDepth(characterDepth(playerY));
       this.playerSprite.setFlipX(false);
     }
 
-    this.add.ellipse(centerX, plan.designHeight * 0.48 + 4, 180, 32, 0x000000, 0.32).setDepth(LAYERS.props);
-    this.add.ellipse(plan.designWidth * 0.25, plan.designHeight * 0.66 + 4, 90, 20, 0x000000, 0.32).setDepth(LAYERS.props);
+    this.fx.push(
+      addContactShadow(this, { x: centerX, y: enemyY + 2, width: 210, height: 38, alpha: 0.34, depth: LAYERS.props }),
+      addContactShadow(this, {
+        x: plan.designWidth * 0.26,
+        y: playerY + 2,
+        width: 110,
+        height: 22,
+        alpha: 0.34,
+        depth: LAYERS.props,
+      }),
+    );
 
     this.hpGraphics = this.add.graphics().setDepth(LAYERS.effects);
   }
@@ -231,30 +297,51 @@ export class BattleCh01Scene extends UIScene {
 
     if (attack?.type === 'player-attack') {
       audioDirector.playSfx('audio.sfx.ch01_punch');
-      this.floatNumber('1', this.enemySprite?.x ?? 360, (this.enemySprite?.y ?? 520) - 180, GOLD);
-      if (!this.reduced) this.cameras.main.shake(90, 0.002);
+      this.playerLunge();
+      this.time.delayedCall(this.reduced ? 30 : 110, () => {
+        this.hitEnemy();
+        this.floatNumber('1', this.enemySprite?.x ?? 360, (this.enemySprite?.y ?? 520) - 220, GOLD, '毫无作用');
+      });
     } else {
       audioDirector.playClick();
-      this.floatNumber('防御', this.playerSprite?.x ?? 180, (this.playerSprite?.y ?? 760) - 120, 0xf2efe6);
+      this.floatNumber('防御', this.playerSprite?.x ?? 180, (this.playerSprite?.y ?? 760) - 150, 0xf2efe6);
+      impactRing(this, this.playerSprite?.x ?? 180, (this.playerSprite?.y ?? 760) - 80, {
+        color: 0xf2efe6,
+        radius: 110,
+        ms: 360,
+        reduced: this.reduced,
+        depth: LAYERS.effects,
+      });
     }
 
     if (enemyHit?.type === 'enemy-attack') {
       this.time.delayedCall(220, () => {
         audioDirector.playSfx('audio.sfx.ch01_metal');
+        this.enemyLunge();
         this.floatNumber(
           `-${enemyHit.amount}`,
           this.playerSprite?.x ?? 180,
-          (this.playerSprite?.y ?? 760) - 160,
+          (this.playerSprite?.y ?? 760) - 190,
           DANGER,
         );
-        if (!this.reduced) this.cameras.main.shake(130, 0.004);
+        if (!this.reduced) {
+          screenRumble(this, { ms: 160, intensity: 0.006, reduced: this.reduced });
+          this.cameras.main.flash(120, 192, 57, 43);
+        }
+        sparkBurst(this, this.playerSprite?.x ?? 180, (this.playerSprite?.y ?? 760) - 120, {
+          color: 0xffb26b,
+          count: 14,
+          seed: this.seed,
+          reduced: this.reduced,
+          depth: LAYERS.effects,
+        });
       });
     }
 
     if (protocol?.type === 'protocol') {
       this.time.delayedCall(420, () => {
         audioDirector.playSfx('audio.sfx.ch01_metal');
-        this.floatNumber('清除协议', this.playerSprite?.x ?? 180, (this.playerSprite?.y ?? 760) - 190, DANGER);
+        this.floatNumber('清除协议', this.playerSprite?.x ?? 180, (this.playerSprite?.y ?? 760) - 230, DANGER);
         if (!this.reduced) this.cameras.main.flash(180, 192, 57, 43);
       });
     }
@@ -265,8 +352,61 @@ export class BattleCh01Scene extends UIScene {
         this.showDefeatOverlay();
       } else {
         this.actionsDisabled.value = false;
+        this.showTurnBanner('你的回合');
       }
     });
+  }
+
+  /** 玩家前冲一小步再回位；不改变实际坐标，只改表现。 */
+  private playerLunge(): void {
+    const sprite = this.playerSprite;
+    if (!sprite || this.reduced) return;
+    const homeX = sprite.x;
+    this.tweens.add({
+      targets: sprite,
+      x: homeX + 56,
+      duration: 90,
+      yoyo: true,
+      ease: 'Quad.easeOut',
+    });
+  }
+
+  /** 敌方俯冲 + 受击闪白；`hitEnemy` 同时给火花与冲击环。 */
+  private enemyLunge(): void {
+    const sprite = this.enemySprite;
+    if (!sprite || this.reduced) return;
+    const homeY = sprite.y;
+    this.tweens.add({
+      targets: sprite,
+      y: homeY + 28,
+      duration: 120,
+      yoyo: true,
+      ease: 'Quad.easeOut',
+    });
+  }
+
+  private hitEnemy(): void {
+    const sprite = this.enemySprite;
+    if (!sprite) return;
+    if (!this.reduced) {
+      sprite.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
+      this.time.delayedCall(70, () => sprite.clearTint());
+    }
+    impactRing(this, sprite.x, sprite.y - 150, {
+      color: 0xd8b76a,
+      radius: 90,
+      ms: 320,
+      reduced: this.reduced,
+      depth: LAYERS.effects,
+    });
+    sparkBurst(this, sprite.x, sprite.y - 150, {
+      color: 0xffe3a8,
+      count: 16,
+      seed: this.seed + 3,
+      reduced: this.reduced,
+      depth: LAYERS.effects,
+    });
+    if (!this.reduced) screenRumble(this, { ms: 90, intensity: 0.003, reduced: this.reduced });
   }
 
   private syncHud(): void {
@@ -285,11 +425,17 @@ export class BattleCh01Scene extends UIScene {
   private drawHpBars(): void {
     const graphics = this.hpGraphics;
     if (!graphics) return;
-    const plan = getViewportPlan();
     graphics.clear();
 
-    this.drawBar(graphics, 220, plan.designHeight * 0.22, 280, 10, this.state.enemy.hp / this.state.enemy.maxHp, DANGER);
-    this.drawBar(graphics, 40, plan.designHeight * 0.7, 280, 10, this.state.player.hp / this.state.player.maxHp, GOLD);
+    // 血条贴着角色头顶，而不是钉在屏幕坐标上。
+    const enemy = this.enemySprite;
+    if (enemy) {
+      this.drawBar(graphics, enemy.x - 110, enemy.y - 344, 220, 12, this.state.enemy.hp / this.state.enemy.maxHp, DANGER);
+    }
+    const player = this.playerSprite;
+    if (player) {
+      this.drawBar(graphics, player.x - 58, player.y - 214, 116, 9, this.state.player.hp / this.state.player.maxHp, GOLD);
+    }
   }
 
   private drawBar(
@@ -312,20 +458,56 @@ export class BattleCh01Scene extends UIScene {
     }
   }
 
-  private floatNumber(text: string, x: number, y: number, color: number): void {
+  private floatNumber(text: string, x: number, y: number, color: number, sub?: string): void {
     const label = makeSceneText(this, x, y, text, {
-      size: 34,
+      size: 44,
       color,
       depth: 600,
-      stroke: 5,
+      stroke: 6,
       bold: true,
     });
+    const extras: Phaser.GameObjects.Text[] = [label];
+    if (sub) {
+      extras.push(
+        makeSceneText(this, x, y + 40, sub, {
+          size: 20,
+          color: 0xf2efe6,
+          depth: 600,
+          stroke: 4,
+        }),
+      );
+    }
     this.tweens.add({
-      targets: label,
-      y: y - 46,
+      targets: extras,
+      y: `-=46`,
       alpha: 0,
       duration: this.reduced ? 240 : 780,
       ease: 'Sine.easeOut',
+      onComplete: () => {
+        for (const object of extras) object.destroy();
+      },
+    });
+  }
+
+  /** 回合提示：屏幕中央偏上的小字卡，不抢对话/按钮。 */
+  private showTurnBanner(text: string, tone: 'gold' | 'danger' = 'gold'): void {
+    const plan = getViewportPlan();
+    const label = makeSceneText(this, plan.designWidth / 2, plan.designHeight * 0.34, text, {
+      size: 34,
+      color: tone === 'danger' ? DANGER : GOLD,
+      depth: 640,
+      stroke: 6,
+      bold: true,
+      originX: 0.5,
+      originY: 0.5,
+    });
+    label.setAlpha(0);
+    this.tweens.add({
+      targets: label,
+      alpha: 1,
+      duration: 160,
+      yoyo: true,
+      hold: 520,
       onComplete: () => label.destroy(),
     });
   }
@@ -337,7 +519,10 @@ export class BattleCh01Scene extends UIScene {
     openBattleIntro(this.mvvm, {
       onClose: () => {
         this.introOpen = false;
-        if (!this.ended) this.actionsDisabled.value = false;
+        if (!this.ended) {
+          this.actionsDisabled.value = false;
+          this.showTurnBanner('你的回合');
+        }
       },
     });
   }
@@ -348,6 +533,8 @@ export class BattleCh01Scene extends UIScene {
     this.busy = false;
     this.actionsDisabled.value = true;
     this.syncHud();
+    // 战败即视为走到「战后征召」这一段，继续游戏直接回到寝室醒来。
+    saveProgress('dorm.after', { preview: this.preview });
 
     this.defeatModal = openBattleDefeat(this.mvvm, {
       preview: this.preview,
@@ -386,4 +573,12 @@ export class BattleCh01Scene extends UIScene {
     });
   }
 
+  shutdown(): void {
+    for (const object of this.fx) object.destroy();
+    this.fx = [];
+    this.corePulse = null;
+    this.hpGraphics = null;
+    this.enemySprite = null;
+    this.playerSprite = null;
+  }
 }

@@ -63,3 +63,41 @@ export function maskDialogueText(full: string, revealed: number): string {
 export function dialogueLineText(line: DialogueLine): string {
   return line.text;
 }
+
+/**
+ * 说话人的语义色档位（不直接给颜色值，UI 层再映射到主题色）。
+ *
+ * 这样纯逻辑可以单测，也不必让剧情模块 import 主题/Phaser。
+ */
+export type SpeakerTone = 'narration' | 'zhou' | 'zheng' | 'xiaobai' | 'miner' | 'default';
+
+const XIAOBAI_NAMES = ['小白', '？？？', '莫名其妙出现的白色小娃娃', 'TEAR-27', 'TEAR'];
+const MINER_NAMES = ['矿工', '因泰里', '清除单元'];
+
+function includesAny(value: string, needles: readonly string[]): boolean {
+  return needles.some((needle) => value.includes(needle));
+}
+
+/**
+ * 按稳定 role 优先、显示名兜底推断语义色。
+ *
+ * - 省略 speaker 或「旁白」→ narration（不显示说话人，文字用天蓝）；
+ * - 小白的名字会变（？？？ → 长名字 → 小白），靠 role 保持同色；
+ * - 矿工/因泰里 → danger。
+ */
+export function speakerTone(speaker?: string, role?: DialogueRole): SpeakerTone {
+  if (role === 'xiaobai') return 'xiaobai';
+  const name = (speaker ?? '').trim();
+  if (name === '' || name === '旁白') return 'narration';
+  if (includesAny(name, XIAOBAI_NAMES)) return 'xiaobai';
+  if (includesAny(name, MINER_NAMES)) return 'miner';
+  if (name.includes('郑卿')) return 'zheng';
+  if (name.includes('周全')) return 'zhou';
+  return 'default';
+}
+
+/** 旁白不显示「旁白」两个字；其他角色原样显示。 */
+export function speakerLabel(speaker?: string): string {
+  const name = (speaker ?? '').trim();
+  return name === '旁白' ? '' : name;
+}

@@ -1,3 +1,4 @@
+import Phaser from 'phaser';
 import { UIScene, type ModalHandle } from '@phaser-mvvm/phaser';
 import {
   Button,
@@ -9,23 +10,57 @@ import {
   Spacer,
   Text,
 } from '@phaser-mvvm/widgets/compose';
-import { settings } from '../app/settings';
+import { settings, resetSettings, resolveReducedMotion } from '../app/settings';
+import { CHECKPOINT_LABELS, continueDestination, loadProgress } from '../app/progress';
 import { SCENE_KEYS } from '../app/scene-keys';
 import { enterModule } from '../app/director';
 import { applyCamera, getViewportPlan } from '../app/viewport';
 import { audioDirector } from '../audio/audio-director';
 import { bgmManager } from '../audio/bgm-manager';
 import { addCoverImage, addScrims } from '../ui/background';
+import { addEmbers, addVignette } from '../ui/fx-kit';
 
 export class TitleScene extends UIScene {
+  private fx: Phaser.GameObjects.GameObject[] = [];
+
   constructor() {
     super(SCENE_KEYS.title);
   }
 
   override create(): void {
     applyCamera(this);
-    addCoverImage(this, 'img.title.bg');
+    const cover = addCoverImage(this, 'img.title.bg');
     addScrims(this);
+    const plan = getViewportPlan();
+    const reduced = resolveReducedMotion();
+
+    // 主视觉轻微推近（Ken Burns）+ 下半区余烬：标题页不再是一张死图。
+    if (cover && !reduced) {
+      const base = cover.scale;
+      this.tweens.add({
+        targets: cover,
+        scale: base * 1.025,
+        duration: 14000,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    }
+    this.fx.push(
+      addEmbers(this, {
+        x: 40,
+        y: plan.designHeight * 0.45,
+        width: plan.designWidth - 80,
+        height: plan.designHeight * 0.4,
+        count: 16,
+        seed: 7,
+        color: 0xd8b76a,
+        reduced,
+        depth: 1,
+      }),
+      addVignette(this, { alpha: 0.34, depth: 2 }),
+    );
+
     super.create();
     this.cameras.main.fadeIn(520, 5, 6, 10);
 
@@ -41,9 +76,15 @@ export class TitleScene extends UIScene {
     this.input.keyboard?.once('keydown', unlock);
   }
 
+  shutdown(): void {
+    for (const object of this.fx) object.destroy();
+    this.fx = [];
+  }
+
   protected content(): void {
     const plan = getViewportPlan();
     const tall = plan.designHeight >= 1450;
+    const progress = loadProgress();
 
     Column(
       {
@@ -93,7 +134,7 @@ export class TitleScene extends UIScene {
 
         Spacer({ grow: 1.6 });
 
-        Column({ width: 380, gap: 14 }, () => {
+        Column({ width: 380, gap: 14, alignItems: 'stretch' }, () => {
           Button('开始游戏', {
             variant: 'primary',
             size: 'lg',
@@ -102,7 +143,23 @@ export class TitleScene extends UIScene {
               void enterModule(this, 'prologue');
             },
           });
-          Button('继续游戏', { variant: 'secondary', size: 'lg', disabled: true });
+          Button('继续游戏', {
+            variant: 'secondary',
+            size: 'lg',
+            disabled: progress === null,
+            onClick: () => {
+              if (!progress) return;
+              audioDirector.playClick();
+              const destination = continueDestination(progress.checkpoint);
+              void enterModule(this, destination.module, destination.data);
+            },
+          });
+          Text(
+            progress
+              ? `上次：${CHECKPOINT_LABELS[progress.checkpoint]}`
+              : '还没有进度：从「开始游戏」进入第一章',
+            { size: 'xs', tone: 'muted', align: 'center' },
+          );
           Button('制作名单', {
             variant: 'ghost',
             size: 'lg',
@@ -177,12 +234,67 @@ export class TitleScene extends UIScene {
               size: 'md',
               onClick: () => {
                 audioDirector.playClick();
-                settings.bgm = 0.6;
-                settings.sfx = 0.8;
-                settings.muted = false;
+                resetSettings();
+                bgmManager.setBgmVolume(settings.bgm);
+                audioDirector.setSfxVolume(settings.sfx);
                 bgmManager.syncVolume();
               },
             });
+          });
+
+          Divider({});
+          Text('文字速度', { size: 'sm', tone: 'muted' });
+          Row({ width: 'fill', gap: 8, alignItems: 'center' }, () => {
+            const speeds = [
+              ['slow', '慢'],
+              ['normal', '正常'],
+              ['fast', '快'],
+              ['instant', '瞬间'],
+            ] as const;
+            for (const [value, label] of speeds) {
+              Button(() => (settings.textSpeed === value ? `● ${label}` : label), {
+                variant: 'ghost',
+                size: 'md',
+                width: 120,
+                onClick: () => {
+                  audioDirector.playClick();
+                  settings.textSpeed = value;
+                },
+              });
+            }
+          });
+
+          Row({ width: 'fill', gap: 10, alignItems: 'center' }, () => {
+            Text('自动播放', { size: 'sm', tone: 'muted' });
+            Button(() => (settings.autoAdvance ? '开' : '关'), {
+              variant: 'ghost',
+              size: 'md',
+              width: 120,
+              onClick: () => {
+                audioDirector.playClick();
+                settings.autoAdvance = !settings.autoAdvance;
+              },
+            });
+          });
+
+          Text('动效', { size: 'sm', tone: 'muted' });
+          Row({ width: 'fill', gap: 8, alignItems: 'center' }, () => {
+            const motions = [
+              ['system', '跟随系统'],
+              ['reduced', '减弱'],
+              ['full', '完整'],
+            ] as const;
+            for (const [value, label] of motions) {
+              Button(() => (settings.motion === value ? `● ${label}` : label), {
+                variant: 'ghost',
+                size: 'md',
+                width: 150,
+                onClick: () => {
+                  audioDirector.playClick();
+                  settings.motion = value;
+                },
+              });
+            }
           });
 
           Divider({});

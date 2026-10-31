@@ -161,4 +161,31 @@ describe('Ch01Flow', () => {
     expect(isCh01ResumeData(null)).toBe(false);
     expect(isCh01ResumeData('afterBattle')).toBe(false);
   });
+
+  it('从标题「继续游戏」可以恢复到探索 / 结束卡', () => {
+    const explore = new Ch01Flow({ resume: 'explore' });
+    expect(types(explore.start())).toEqual(['objective']);
+    expect(explore.state.phase).toBe('explore');
+    expect(explore.state.talkedZheng).toBe(false);
+
+    const complete = new Ch01Flow({ resume: 'complete' });
+    expect(types(complete.start())).toEqual(['complete']);
+    expect(complete.state.phase).toBe('complete');
+
+    expect(isCh01ResumeData({ resume: 'explore' })).toBe(true);
+    expect(isCh01ResumeData({ resume: 'complete' })).toBe(true);
+  });
+
+  it('dream 节点只负责推进战斗，不复述金殿台词', () => {
+    const flow = startExplore();
+    flow.interact('zheng');
+    flow.nodeCompleted();
+    flow.interact('phone');
+    flow.nodeCompleted();
+    expect(flow.state.currentNode).toBe('dream');
+    // 空台词节点：下一拍直接是战斗，不再吐 dialogue 内容。
+    const battle = flow.nodeCompleted();
+    expect(types(battle)).toEqual(['objective', 'battle']);
+    expect(flow.state.phase).toBe('battle');
+  });
 });

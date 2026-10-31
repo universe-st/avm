@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CH01_ASSET_KEYS } from '../src/assets/keys';
 import { CH01_NODES } from '../src/story/ch01-dorm';
+import { PALACE_BEATS } from '../src/story/ch01-palace';
 
 /**
  * 文案结构回归：摇醒郑卿 → 沉睡症新闻回忆 → 回到寝室。
@@ -52,5 +53,25 @@ describe('第一章寝室 · 郑卿段落', () => {
     expect(lines.filter((line) => line.bgm !== undefined).map((line) => line.bgm)).toEqual([
       'ch01Crisis',
     ]);
+  });
+
+  it('金殿剧情只在 palace 场景演一次，dream 节点不再复述', () => {
+    expect(CH01_NODES.dream.lines).toHaveLength(0);
+
+    const palaceText = PALACE_BEATS.filter((beat) => beat.kind === 'say')
+      .map((beat) => (beat.kind === 'say' ? beat.text : ''))
+      .join('');
+    expect(palaceText).toContain('老郑');
+    expect(palaceText).toContain('护驾');
+    expect(palaceText).toContain('谁派你来的');
+    expect(palaceText).toContain('清除协议');
+
+    const dormText = Object.values(CH01_NODES)
+      .flatMap((node) => node.lines)
+      .map((line) => line.text)
+      .join('');
+    expect(dormText).not.toContain('护驾');
+    expect(dormText).not.toContain('谁派你来的');
+    expect(dormText).not.toContain('清除协议');
   });
 });

@@ -49,8 +49,9 @@ export const CH01_OBJECTIVES = {
 export const CH01_CHAPTER_CARD = ['第一章 权力之梦', '第一节 · 寝室'] as const;
 
 export const CH01_END_CARD = {
+  kicker: '第一章 · 权力之梦',
   title: '第一节 · 寝室',
-  subtitle: '第一章《权力之梦》未完待续',
+  subtitle: '第二节 · 待续',
   hint: '下一次，小白会给他「解」。',
 } as const;
 
@@ -168,22 +169,20 @@ export const CH01_NODES: Readonly<Record<Ch01NodeId, Ch01Node>> = {
       { speaker: '莫名其妙出现的白色小娃娃', role: 'xiaobai', text: '比喻不严谨，但有效。非法操作者：因泰里文明。' },
       { speaker: '周全', text: '怎么证明？' },
       { speaker: '莫名其妙出现的白色小娃娃', role: 'xiaobai', text: '视觉确认。' },
-      { speaker: '旁白', text: '它伸手一指。宿舍、床铺、郑卿——全被白光吞没。', fx: 'flash' },
+      { speaker: '旁白', text: '它伸手一指。宿舍、床铺、郑卿——全被白光吞没。' },
     ],
   },
   dream: {
     id: 'dream',
     battle: CH01_BATTLE_ID,
-    lines: [
-      { speaker: '旁白', text: '白光褪去。你跪在冰冷的地板上。', fx: 'flash' },
-      { speaker: '旁白', text: '金殿，红柱，高台。龙椅上坐着穿龙袍的郑卿。' },
-      { speaker: '周全', text: '老郑？！' },
-      { speaker: '楚公公', text: '有刺客！护驾！' },
-      { speaker: '郑卿（梦中）', text: '哼。谁派你来的？' },
-      { speaker: '旁白', text: '太监的皮肉裂开，露出铁骨和猩红电子眼。', fx: 'shake' },
-      { speaker: '矿工', text: '入侵单元确认。执行矿场清除协议。' },
-      { speaker: '莫名其妙出现的白色小娃娃', role: 'xiaobai', text: '建议：先活下来。' },
-    ],
+    /**
+     * 这里不再复述金殿剧情。
+     *
+     * 2026-10-31 加入了可演出场景 `scene.ch01.palace`：白光、跪地、老郑、护驾、
+     * 楚公公、裂皮变矿工都在那里完整演一遍。本节点只负责把流程推进到战斗，
+     * 台词留空由金殿接管，避免同一段剧情说两遍。
+     */
+    lines: [],
   },
   after: {
     id: 'after',

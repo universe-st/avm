@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { ref } from '@phaser-mvvm/core';
-import { UIScene, prefersReducedMotion, type ModalHandle } from '@phaser-mvvm/phaser';
+import { UIScene, type ModalHandle } from '@phaser-mvvm/phaser';
 
 /** 对话面板一页最多显示的字数（34px 字号 × 4 行 × 约 17 字）。 */
 const DIALOGUE_PAGE_CHARS = 68;
@@ -24,7 +24,8 @@ import { SCENE_KEYS } from '../app/scene-keys';
 import { applyCamera, getViewportPlan } from '../app/viewport';
 import { audioDirector } from '../audio/audio-director';
 import { typeVoiceForSpeaker } from '../audio/type-voice';
-import { settings } from '../app/settings';
+import { autoAdvanceDelay, resolveReducedMotion, settings, textSpeedFactor } from '../app/settings';
+import { saveProgress } from '../app/progress';
 import { bgmManager } from '../audio/bgm-manager';
 import {
   isStageLaunchContext,
@@ -59,8 +60,18 @@ import {
 } from '../story/ch01-flow';
 import { DialoguePlayer, type DialogueEvent } from '../story/dialogue-player';
 import { playCutsceneVideo, type CutsceneVideoHandle } from '../ui/cutscene-video';
-import type { DialogueLine } from '../story/dialogue';
+import {
+  DIALOGUE_TYPE_MS,
+  speakerLabel,
+  speakerTone,
+  type DialogueLine,
+  type SpeakerTone,
+} from '../story/dialogue';
+import { DialogueHistory } from '../story/dialogue-history';
+import { openDialogueHistory } from '../ui/history-modal';
 import { TitleCard, GOLD, makeSceneText } from '../ui/cinematic';
+import { addDustMotes, addLightShaft, addVignette } from '../ui/fx-kit';
+import { addStageFrame, type StageFrameHandle } from '../ui/stage-frame';
 import { VirtualJoystick } from '../ui/joystick';
 import { setPixelTexture } from '../ui/pixel';
 
@@ -101,6 +112,8 @@ export class Ch01DormScene extends UIScene {
   private player: PlayerActor | null = null;
   private xiaobai: Phaser.GameObjects.Image | null = null;
   private promptText: Phaser.GameObjects.Text | null = null;
+  /** 靠近可交互物时套在地上的金圈，比头顶文字更早被看到。 */
+  private highlightRing: Phaser.GameObjects.Ellipse | null = null;
   private cg: CgOverlay | null = null;
   private emotionBubble: EmotionBubble | null = null;
   private emotionHoldUntil = 0;
@@ -108,6 +121,9 @@ export class Ch01DormScene extends UIScene {
   private bgmStarted = false;
   private card: TitleCard | null = null;
   private cardTimer: Phaser.Time.TimerEvent | null = null;
+  /** 舞台框：寝室上下留白的墨色底板与鎏金界框。 */
+  private stageFrame: StageFrameHandle | null = null;
+  private ambientFx: Phaser.GameObjects.GameObject[] = [];
   private joystick: VirtualJoystick | null = null;
   private keys: MovementKeys | null = null;
   private dialogue: DialoguePlayer | null = null;
@@ -119,26 +135,40 @@ export class Ch01DormScene extends UIScene {
   private deferred: Ch01Event[] = [];
   private near: InteractableDef | null = null;
   private lastTyped = 0;
+  /** 走了多少设计像素播下一次脚步；两只脚交替。 */
+  private stepDistance = 0;
+  private stepFlip = false;
   private cardVisible = false;
   private transitioning = false;
   private ended = false;
   private preview = false;
   private previewPhase: Ch01PreviewPhase = 'opening';
   private tutorialDismissed = false;
-  private resumeAfterBattle = false;
+  private resumeMode: 'start' | 'afterBattle' | 'explore' | 'complete' = 'start';
   private seed = 1;
   private debug = false;
   private exitModal: ModalHandle | null = null;
-  private readonly reduced = prefersReducedMotion();
+  private historyModal: ModalHandle | null = null;
+  /** 自动播放的推进计时器；同一时刻只允许一个。 */
+  private autoTimer: Phaser.Time.TimerEvent | null = null;
+  /** 已经写进对话记录的行号，避免分页/重绘时重复收录。 */
+  private historyLineIndex = -1;
+  private readonly history = new DialogueHistory();
+
+  private get reduced(): boolean {
+    return resolveReducedMotion();
+  }
 
   private readonly objective = ref<string>(CH01_OBJECTIVES.wakeZheng);
   private readonly dialogueVisible = ref(false);
   private readonly dialogueSpeaker = ref('');
   /** 当前这句的稳定角色 id（小白的名字会变，声线与立绘认这个）。 */
   private dialogueRole: DialogueLine['role'] | null = null;
-  private readonly dialogueNarration = ref(false);
+  private readonly dialogueTone = ref<SpeakerTone>('default');
   private readonly dialogueText = ref('');
   private readonly dialogueHint = ref('继续');
+  private readonly dialoguePageIndex = ref(0);
+  private readonly dialoguePageCount = ref(1);
   private readonly interactLabel = ref('交互');
   private readonly interactAvailable = ref(false);
   private readonly cardActive = ref(false);
@@ -154,7 +184,7 @@ export class Ch01DormScene extends UIScene {
     this.preview = context?.preview === true;
     this.debug = context ? stageBoolParam(context, 'debug', false) : false;
     this.seed = context?.seed ?? 1;
-    this.resumeAfterBattle = context === null && isCh01ResumeData(data);
+    this.resumeMode = context === null && isCh01ResumeData(data) ? data.resume : 'start';
 
     const rawPhase = context ? stageParam(context, 'phase') : undefined;
     this.previewPhase = normalizeCh01PreviewPhase(rawPhase);
@@ -176,7 +206,7 @@ export class Ch01DormScene extends UIScene {
     this.cameras.main.fadeIn(this.reduced ? 220 : 460, 5, 6, 10);
 
     this.flow = new Ch01Flow({
-      ...(this.resumeAfterBattle ? { resume: 'afterBattle' as const } : {}),
+      resume: this.resumeMode,
       previewPhase: this.previewPhase,
     });
 
@@ -210,9 +240,11 @@ export class Ch01DormScene extends UIScene {
       objective: this.objective,
       dialogueVisible: this.dialogueVisible,
       dialogueSpeaker: this.dialogueSpeaker,
-      dialogueNarration: this.dialogueNarration,
+      dialogueTone: this.dialogueTone,
       dialogueText: this.dialogueText,
       dialogueHint: this.dialogueHint,
+      dialoguePageIndex: this.dialoguePageIndex,
+      dialoguePageCount: this.dialoguePageCount,
       interactLabel: this.interactLabel,
       interactAvailable: this.interactAvailable,
       cardActive: this.cardActive,
@@ -221,13 +253,18 @@ export class Ch01DormScene extends UIScene {
         audioDirector.playClick();
         this.openExitConfirm();
       },
-      onContinue: () => {
-        audioDirector.playClick();
-        this.advanceDialogue();
-      },
       onSkipDialogue: () => {
         audioDirector.playClick();
         this.skipDialogue();
+      },
+      onAuto: () => {
+        audioDirector.playClick();
+        settings.autoAdvance = !settings.autoAdvance;
+        this.scheduleAutoAdvance();
+      },
+      onHistory: () => {
+        audioDirector.playClick();
+        this.openHistory();
       },
       onInteract: () => {
         audioDirector.playClick();
@@ -253,10 +290,16 @@ export class Ch01DormScene extends UIScene {
     this.transitioning = false;
     this.ended = false;
     this.exitModal = null;
+    this.historyModal = null;
+    this.autoTimer?.remove();
+    this.autoTimer = null;
+    this.history.clear();
+    this.historyLineIndex = -1;
     this.roomView = null;
     this.player = null;
     this.xiaobai = null;
     this.promptText = null;
+    this.highlightRing = null;
     this.cg = null;
     this.emotionBubble = null;
     this.emotionHoldUntil = 0;
@@ -264,15 +307,23 @@ export class Ch01DormScene extends UIScene {
     this.bgmStarted = false;
     this.card = null;
     this.cardTimer = null;
+    this.stageFrame?.destroy();
+    this.stageFrame = null;
+    for (const fx of this.ambientFx) fx.destroy();
+    this.ambientFx = [];
     this.joystick = null;
     this.keys = null;
     this.objective.value = CH01_OBJECTIVES.wakeZheng;
     this.dialogueVisible.value = false;
     this.dialogueSpeaker.value = '';
     this.dialogueRole = null;
-    this.dialogueNarration.value = false;
+    this.dialogueTone.value = 'default';
     this.dialogueText.value = '';
     this.dialogueHint.value = '继续';
+    this.dialoguePageIndex.value = 0;
+    this.dialoguePageCount.value = 1;
+    this.stepDistance = 0;
+    this.stepFlip = false;
     this.interactLabel.value = '交互';
     this.interactAvailable.value = false;
     this.cardActive.value = false;
@@ -295,6 +346,42 @@ export class Ch01DormScene extends UIScene {
     };
 
     this.roomView = new Ch01DormRoomView(this, this.room, this.debug);
+
+    // 舞台框 + 午后窗光：地图只占设计高的一部分，上下留白做成有意设计的画框。
+    this.stageFrame = addStageFrame(this, {
+      x: 0,
+      y: roomY,
+      width: BASE_ROOM.size[0] * BASE_ROOM.tileSize,
+      height: roomHeight,
+      variant: 'dorm',
+      reduced: this.reduced,
+    });
+    this.ambientFx.push(
+      addLightShaft(this, {
+        x: 360,
+        y: roomY + 18,
+        width: 300,
+        height: 620,
+        angleDeg: 9,
+        color: 0xffe2ac,
+        alpha: 0.13,
+        reduced: this.reduced,
+        depth: LAYERS.props + 2,
+      }),
+      addDustMotes(this, {
+        x: 110,
+        y: roomY + 130,
+        width: 500,
+        height: 430,
+        count: 22,
+        seed: this.seed,
+        color: 0xffe6b8,
+        alpha: 0.5,
+        reduced: this.reduced,
+        depth: LAYERS.effects,
+      }),
+      addVignette(this, { alpha: 0.3 }),
+    );
     const opening = this.isOpening();
     this.player = new PlayerActor(this, this.room, {
       staticKeys: CH01_Q_STATIC_SPRITES,
@@ -330,6 +417,24 @@ export class Ch01DormScene extends UIScene {
       depth: LAYERS.effects,
       stroke: 4,
     }).setVisible(false);
+
+    this.highlightRing = this.add
+      .ellipse(0, 0, 120, 52, GOLD, 0)
+      .setStrokeStyle(2, GOLD, 0.75)
+      .setDepth(LAYERS.markers + 10)
+      .setVisible(false);
+    if (!this.reduced) {
+      this.tweens.add({
+        targets: this.highlightRing,
+        scaleX: 1.12,
+        scaleY: 1.12,
+        alpha: 0.65,
+        duration: 900,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    }
 
     this.card = new TitleCard(this, { depth: LAYERS.cinematic });
   }
@@ -390,7 +495,28 @@ export class Ch01DormScene extends UIScene {
     // 撞墙（这一帧一像素都没挪动）就停在站立帧，别原地踏步。
     const moved =
       result.position.x !== player.position.x || result.position.y !== player.position.y;
+    const distance = Math.hypot(
+      result.position.x - player.position.x,
+      result.position.y - player.position.y,
+    );
     player.moveTo(result.position, facing, moved, deltaMs);
+    if (moved) this.advanceFootsteps(distance);
+  }
+
+  /** 每走约 34 设计像素落一只脚；A/B 交替 + 轻微音高差，避免机械感。 */
+  private advanceFootsteps(distance: number): void {
+    if (!Number.isFinite(distance) || distance <= 0) return;
+    this.stepDistance += distance;
+    if (this.stepDistance < 34) return;
+    this.stepDistance = 0;
+    this.stepFlip = !this.stepFlip;
+    const key = this.stepFlip
+      ? CH01_ASSET_KEYS.audio.stepWoodB
+      : CH01_ASSET_KEYS.audio.stepWoodA;
+    audioDirector.playSfxAt(key, {
+      volume: 0.3,
+      rate: this.stepFlip ? 1.03 : 0.97,
+    });
   }
 
   private updateNear(): void {
@@ -413,8 +539,12 @@ export class Ch01DormScene extends UIScene {
         .setPosition(at.x, at.y - 70)
         // 开局站在书桌下，手机提示会压在主角头上；先让新手指引独占画面，移动后再显示提示。
         .setVisible(!this.tutorialVisible.value);
+      this.highlightRing
+        ?.setPosition(at.x, at.y + 18)
+        .setVisible(!this.tutorialVisible.value);
     } else {
       this.promptText.setVisible(false);
+      this.highlightRing?.setVisible(false);
     }
   }
 
@@ -446,6 +576,7 @@ export class Ch01DormScene extends UIScene {
    */
   private onScenePointerDown(pointer: Phaser.Input.Pointer): void {
     if (this.cutscene) return;
+    if (this.historyModal?.open === true) return;
     const plan = getViewportPlan();
     const inTopRightButtons = pointer.worldY < 150 && pointer.worldX > plan.designWidth - 230;
     if (this.dialogueVisible.value) {
@@ -468,6 +599,7 @@ export class Ch01DormScene extends UIScene {
   /** 「跳过」：整段对话直接结束，后续事件照常发（目标更新、镜头等）。 */
   private skipDialogue(): void {
     if (!this.dialogue) return;
+    this.cancelAutoAdvance();
     this.finishDialogue();
   }
 
@@ -503,13 +635,22 @@ export class Ch01DormScene extends UIScene {
           break;
         case 'objective':
           this.objective.value = event.text;
-          if (this.flow?.state.phase === 'explore') this.startExploreAudio();
+          if (this.flow?.state.phase === 'explore') {
+            this.startExploreAudio();
+            saveProgress('dorm.explore', { preview: this.preview });
+          }
           break;
         case 'dialogue':
+          // 空台词节点（现在的 `dream`）只用来把流程推到下一拍，不弹空白面板。
+          if (event.lines.length === 0) {
+            this.finishDialogue();
+            break;
+          }
           if (event.nodeId === 'phone' && !this.phoneCutsceneSeen) {
             this.phoneCutsceneSeen = true;
             this.startPhoneCutscene(event.lines);
           } else {
+            if (event.nodeId === 'after') saveProgress('dorm.after', { preview: this.preview });
             this.startDialogue(event.lines);
           }
           break;
@@ -567,14 +708,21 @@ export class Ch01DormScene extends UIScene {
     /**
      * 对话面板固定 300 高、字号 34（lg）、内容宽 628 —— 大约 4 行 × 17 字。
      * 超出就分页，点一下翻下一页，避免长句被裁掉。
+     * `typeMs` 由设置换算；`instant` 传 0，播放器一次显示整句。
      */
-    this.dialogue = new DialoguePlayer(lines, { pageChars: DIALOGUE_PAGE_CHARS });
+    this.dialogue = new DialoguePlayer(lines, {
+      pageChars: DIALOGUE_PAGE_CHARS,
+      typeMs: Math.round(DIALOGUE_TYPE_MS * textSpeedFactor(settings.textSpeed)),
+    });
     this.dialogueVisible.value = true;
     this.dialogueSpeaker.value = '';
     this.dialogueRole = null;
-    this.dialogueNarration.value = false;
+    this.dialogueTone.value = 'default';
     this.dialogueText.value = '';
     this.dialogueHint.value = '继续';
+    this.dialoguePageIndex.value = 0;
+    this.dialoguePageCount.value = 1;
+    this.historyLineIndex = -1;
     this.lastTyped = 0;
     this.joystick?.setEnabled(false);
     this.tutorialVisible.value = false;
@@ -587,33 +735,91 @@ export class Ch01DormScene extends UIScene {
     for (const event of events) {
       if (event.type === 'line') {
         // 旁白不显示「旁白」两个字，文字改用天蓝色；说话人变化也要反映在逐字音上。
-        const narration = event.speaker === '旁白';
+        const tone = speakerTone(event.speaker, event.line.role);
         this.dialogueRole = event.line.role ?? null;
-        this.dialogueSpeaker.value = narration ? '' : (event.speaker ?? '');
-        this.dialogueNarration.value = narration;
+        this.dialogueTone.value = tone;
+        this.dialogueSpeaker.value = speakerLabel(event.speaker);
+        this.dialoguePageIndex.value = event.pageIndex;
+        this.dialoguePageCount.value = event.pageCount;
         this.applyLineCue(event.line);
+        this.recordHistory(event);
         if (this.dialogueRole === 'xiaobai' || event.speaker === '小白') this.showXiaobai();
       } else if (event.type === 'type') {
         this.dialogueText.value = event.text;
         this.dialogueHint.value = event.done ? '继续' : '补全';
+        this.dialoguePageIndex.value = event.pageIndex;
+        this.dialoguePageCount.value = event.pageCount;
         const gained = event.typedCount - this.lastTyped;
         if (gained > 0 && gained <= 2) {
           audioDirector.playTypeBlip(typeVoiceForSpeaker(event.speaker, this.dialogueRole ?? undefined));
         }
         this.lastTyped = event.typedCount;
+        if (event.done) this.scheduleAutoAdvance();
+        else this.cancelAutoAdvance();
       } else if (event.type === 'complete') {
+        this.cancelAutoAdvance();
         this.finishDialogue();
         return;
       }
     }
   }
 
+  /** 收进对话记录；只在首次看到某一行时写入，分页重绘不重复。 */
+  private recordHistory(event: DialogueEvent & { type: 'line' }): void {
+    if (this.historyLineIndex === event.index) return;
+    this.historyLineIndex = event.index;
+    const narration = speakerTone(event.speaker, event.line.role) === 'narration';
+    this.history.push({
+      speaker: speakerLabel(event.speaker),
+      text: event.line.text,
+      narration,
+      at: this.time.now,
+    });
+  }
+
+  private cancelAutoAdvance(): void {
+    this.autoTimer?.remove();
+    this.autoTimer = null;
+  }
+
+  /**
+   * 自动播放：一句/一页打完后按阅读时长推进。
+   *
+   * 同一时刻只保留一个计时器；玩家点屏幕会先取消它，再手动推进。
+   */
+  private scheduleAutoAdvance(): void {
+    this.cancelAutoAdvance();
+    if (!settings.autoAdvance || !this.dialogue) return;
+    if (this.dialogue.state.phase !== 'waiting') return;
+    const chars = Array.from(this.dialogue.pageText).length;
+    const delay = autoAdvanceDelay(chars, settings.textSpeed);
+    this.autoTimer = this.time.delayedCall(delay, () => {
+      this.autoTimer = null;
+      if (!this.dialogue || this.historyModal?.open === true) return;
+      this.advanceDialogue();
+    });
+  }
+
+  private openHistory(): void {
+    if (this.historyModal?.open === true) return;
+    this.cancelAutoAdvance();
+    this.historyModal = openDialogueHistory(this.mvvm, this.history.entries, {
+      onClose: () => {
+        this.historyModal = null;
+        // 关闭记录后按当前状态恢复自动播放（不重复计时）。
+        if (this.dialogue) this.scheduleAutoAdvance();
+      },
+    });
+  }
+
   private advanceDialogue(): void {
     if (!this.dialogue) return;
+    this.cancelAutoAdvance();
     this.handleDialogueEvents(this.dialogue.requestAdvance());
   }
 
   private finishDialogue(): void {
+    this.cancelAutoAdvance();
     this.dialogue = null;
     // 回忆段一旦开始，《危机来临》就保持到离开寝室（梦域战斗会接手切曲）；
     // 即使玩家中途点「跳过」也不切回日常，情绪不能断。
@@ -623,8 +829,10 @@ export class Ch01DormScene extends UIScene {
     if (!this.dialogue) {
       this.dialogueVisible.value = false;
       this.dialogueSpeaker.value = '';
-      this.dialogueNarration.value = false;
+      this.dialogueTone.value = 'default';
       this.dialogueText.value = '';
+      this.dialoguePageIndex.value = 0;
+      this.dialoguePageCount.value = 1;
       this.cg?.hide();
       this.emotionBubble?.hide();
     }
@@ -731,10 +939,16 @@ export class Ch01DormScene extends UIScene {
     this.player?.setSitting(false);
     this.roomView?.setChairVisible(true);
     bgmManager.play('ch01Dorm');
+    // 环境音：蝉鸣/操场/吊扇，压得很低，只负责「这个房间是活的」。
+    audioDirector.playSfxAt(CH01_ASSET_KEYS.audio.ambienceDay, { volume: 0.22, loop: true });
+  }
+
+  private stopAmbience(): void {
+    audioDirector.stopLoop(CH01_ASSET_KEYS.audio.ambienceDay);
   }
 
   private isOpening(): boolean {
-    return !this.resumeAfterBattle && this.previewPhase === 'opening';
+    return this.resumeMode === 'start' && this.previewPhase === 'opening';
   }
 
   private showXiaobai(): void {
@@ -760,6 +974,7 @@ export class Ch01DormScene extends UIScene {
   private beginPalace(battleId: string): void {
     if (this.transitioning) return;
     this.transitioning = true;
+    saveProgress('dorm.palace', { preview: this.preview });
     this.dialogue = null;
     this.dialogueVisible.value = false;
     this.joystick?.setEnabled(false);
@@ -767,6 +982,7 @@ export class Ch01DormScene extends UIScene {
     this.cg?.hide();
     this.emotionBubble?.hide();
     this.stopSnore();
+    this.stopAmbience();
 
     if (!this.reduced) this.cameras.main.flash(180, 255, 255, 255);
     this.time.delayedCall(this.reduced ? 80 : 260, () => {
@@ -786,6 +1002,8 @@ export class Ch01DormScene extends UIScene {
 
   private showEndCard(): void {
     this.ended = true;
+    // 结束卡是模态；把 HUD 切到 card 分支，避免右下角「交互」按钮从卡片下面露出来。
+    this.cardActive.value = true;
     this.objective.value = CH01_OBJECTIVES.complete;
     this.joystick?.setEnabled(false);
     this.promptText?.setVisible(false);
@@ -793,9 +1011,13 @@ export class Ch01DormScene extends UIScene {
     this.cg?.hide();
     this.emotionBubble?.hide();
     this.stopSnore();
+    this.stopAmbience();
+    saveProgress('ch01.complete', { preview: this.preview });
     openCh01EndCard(this.mvvm, {
       onRestart: () => {
         audioDirector.playClick();
+        // 「重看本节」= 从头开始；先把检查点退回寝室探索，避免继续游戏直接又跳结束卡。
+        saveProgress('dorm.explore', { preview: this.preview });
         this.scene.restart();
       },
       onTitle: () => {
@@ -820,6 +1042,8 @@ export class Ch01DormScene extends UIScene {
 
   private onShutdown(): void {
     this.shuttingDown = true;
+    this.cancelAutoAdvance();
+    this.stopAmbience();
     this.cutscene?.destroy();
     this.cutscene = null;
     this.input.off('pointerdown', this.onScenePointerDown, this);
@@ -833,6 +1057,12 @@ export class Ch01DormScene extends UIScene {
     this.cardTimer = null;
     this.exitModal?.close('scene');
     this.exitModal = null;
+    this.historyModal?.close('scene');
+    this.historyModal = null;
+    this.stageFrame?.destroy();
+    this.stageFrame = null;
+    for (const fx of this.ambientFx) fx.destroy();
+    this.ambientFx = [];
     this.roomView?.destroy();
     this.roomView = null;
     this.card?.destroy();
@@ -843,6 +1073,7 @@ export class Ch01DormScene extends UIScene {
     this.player = null;
     this.xiaobai = null;
     this.promptText = null;
+    this.highlightRing = null;
     this.cg = null;
     this.keys = null;
   }

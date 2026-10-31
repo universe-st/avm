@@ -106,9 +106,13 @@ export class DialoguePlayer {
 
   constructor(lines: readonly DialogueLine[], options: { typeMs?: number; pageChars?: number } = {}) {
     this.lines = lines;
-    this.typeMs = Number.isFinite(options.typeMs) && (options.typeMs ?? 0) > 0
-      ? Math.trunc(options.typeMs as number)
-      : DIALOGUE_TYPE_MS;
+    // `typeMs: 0` 是显式「整句立即显示」；省略或负数才回退默认值。
+    this.typeMs =
+      options.typeMs === 0
+        ? 0
+        : Number.isFinite(options.typeMs) && (options.typeMs ?? 0) > 0
+          ? Math.trunc(options.typeMs as number)
+          : DIALOGUE_TYPE_MS;
     this.pageChars = Number.isFinite(options.pageChars) && (options.pageChars ?? 0) > 0
       ? Math.trunc(options.pageChars as number)
       : 0;
@@ -153,6 +157,8 @@ export class DialoguePlayer {
   tick(deltaMs: number): DialogueEvent[] {
     if (this.phase !== 'typing') return [];
     if (!Number.isFinite(deltaMs) || deltaMs <= 0) return [];
+    // 立即显示模式：enterLine 已经把整句吐完，不进逐字阶段。
+    if (this.typeMs <= 0) return [];
 
     this.accumulator += deltaMs;
     if (!this.currentLine) return [];
@@ -205,7 +211,9 @@ export class DialoguePlayer {
     this.pages = paginateText(line.text, this.pageChars);
     this.pageIndex = 0;
     const total = charsOf(this.pageText).length;
-    this.phase = total === 0 ? 'waiting' : 'typing';
+    const instant = this.typeMs <= 0;
+    if (instant) this.typedCount = total;
+    this.phase = total === 0 || instant ? 'waiting' : 'typing';
     const events: DialogueEvent[] = [
       {
         type: 'line',
@@ -216,8 +224,7 @@ export class DialoguePlayer {
         ...(line.speaker === undefined ? {} : { speaker: line.speaker }),
       },
     ];
-    if (total === 0) events.push(this.typeEvent(true));
-    else events.push(this.typeEvent(false));
+    events.push(this.typeEvent(total === 0 || instant));
     return events;
   }
 
@@ -232,10 +239,12 @@ export class DialoguePlayer {
       return [{ type: 'complete' }];
     }
     const total = charsOf(this.pageText).length;
-    this.phase = total === 0 ? 'waiting' : 'typing';
+    const instant = this.typeMs <= 0;
+    if (instant) this.typedCount = total;
+    this.phase = total === 0 || instant ? 'waiting' : 'typing';
     return [
       { type: 'line', index: this.lineIndex, line, pageIndex: index, pageCount: this.pages.length, ...(line.speaker === undefined ? {} : { speaker: line.speaker }) },
-      this.typeEvent(total === 0),
+      this.typeEvent(total === 0 || instant),
     ];
   }
 

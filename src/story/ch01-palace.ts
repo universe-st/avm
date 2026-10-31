@@ -337,6 +337,13 @@ export const PALACE_BEATS: readonly PalaceBeat[] = [
     speaker: '矿工',
     text: '入侵单元确认！执行矿场清除协议！',
   },
+  // 原寝室 `dream` 节点的收尾台词，金殿接管后挪到这里，避免丢掉小白这句吐槽。
+  {
+    kind: 'say',
+    speaker: '？？？',
+    role: 'xiaobai',
+    text: '建议：先活下来。',
+  },
   {
     kind: 'act',
     actions: [

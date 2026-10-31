@@ -167,4 +167,26 @@ describe('DialoguePlayer', () => {
       expect(Array.from(masked)).toHaveLength(Array.from(full).length);
     }
   });
+
+  it('typeMs=0 立即显示整句，但仍要手动推进与分页', () => {
+    const player = new DialoguePlayer(
+      [{ speaker: '周全', text: '一二三四五六七八九十。' }, { text: '下一句' }],
+      { typeMs: 0, pageChars: 5 },
+    );
+    const start = player.start();
+    expect(types(start)).toEqual(['line', 'type']);
+    const typed = start[1];
+    if (typed?.type !== 'type') throw new Error('expected type');
+    expect(typed.done).toBe(true);
+    expect(typed.text).toBe(player.pageText);
+    expect(player.state.phase).toBe('waiting');
+    expect(player.tick(1000)).toEqual([]);
+
+    // 翻页后同样是立即显示
+    const nextPage = player.requestAdvance();
+    const event = nextPage[1];
+    if (event?.type !== 'type') throw new Error('expected type');
+    expect(event.done).toBe(true);
+    expect(player.state.phase).toBe('waiting');
+  });
 });

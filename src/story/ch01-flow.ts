@@ -39,8 +39,14 @@ export type Ch01Event =
   | { readonly type: 'complete' };
 
 export interface Ch01FlowOptions {
-  /** 战斗返回时从战后节点继续；默认从章节卡开始。 */
-  readonly resume?: 'start' | 'afterBattle';
+  /**
+   * 从哪一段继续：
+   * - `start`：章节卡 + 开场（默认）；
+   * - `afterBattle`：战后征召；
+   * - `explore`：标题「继续游戏」回到寝室自由探索；
+   * - `complete`：直接结束卡。
+   */
+  readonly resume?: 'start' | 'afterBattle' | 'explore' | 'complete';
   /** 舞台预览的 phase 参数；未知值回退 opening。 */
   readonly previewPhase?: string;
 }
@@ -65,6 +71,10 @@ export class Ch01Flow {
   constructor(options: Ch01FlowOptions = {}) {
     if (options.resume === 'afterBattle') {
       this.initialPhase = 'after';
+    } else if (options.resume === 'explore') {
+      this.initialPhase = 'explore';
+    } else if (options.resume === 'complete') {
+      this.initialPhase = 'complete';
     } else {
       this.initialPhase = normalizeCh01PreviewPhase(options.previewPhase);
     }
@@ -198,14 +208,16 @@ export class Ch01Flow {
   }
 }
 
-/** 战斗场景通过 payload 回来时使用；与 `Ch01FlowOptions['resume']` 一致。 */
-export function isCh01ResumeData(
-  value: unknown,
-): value is { readonly resume: 'afterBattle' } {
+/** 战斗/继续游戏通过 payload 回来时使用。 */
+export type Ch01ResumeData = { readonly resume: 'afterBattle' | 'explore' | 'complete' };
+
+export function isCh01ResumeData(value: unknown): value is Ch01ResumeData {
   return (
     value !== null &&
     typeof value === 'object' &&
-    (value as { resume?: unknown }).resume === 'afterBattle'
+    ['afterBattle', 'explore', 'complete'].includes(
+      String((value as { resume?: unknown }).resume),
+    )
   );
 }
 

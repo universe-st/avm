@@ -1,5 +1,6 @@
 import { Button, Column, Panel, Row, Spacer, Text } from '@phaser-mvvm/widgets/compose';
 import type { Ref } from '@phaser-mvvm/core';
+import { buildStageHeader } from './hud-kit';
 
 export interface BattleCh01HudModel {
   readonly roundLabel: Ref<string>;
@@ -13,53 +14,68 @@ export interface BattleCh01HudModel {
   readonly onMenu: () => void;
 }
 
-/** 第一章剧情战的 Compose HUD（UI 层）。 */
+/**
+ * 第一章剧情战的 Compose HUD（UI 层）。
+ *
+ * 顶部信息条与探索/过场共用；敌方名字放在独立名牌里，
+ * 不再直接压在金色龙椅上（对比度不够，之前的实机截图里几乎看不清）。
+ */
 export function buildBattleCh01Hud(model: BattleCh01HudModel): void {
   Column(
     {
       width: 'fill',
       height: 'fill',
-      padding: 24,
-      gap: 10,
+      padding: 0,
+      gap: 0,
       alignItems: 'stretch',
     },
     () => {
-      Row({ width: 'fill', justifyContent: 'space-between', alignItems: 'center' }, () => {
-        Column({ gap: 2, alignItems: 'start' }, () => {
-          Text(() => model.roundLabel.value, { size: 'md', tone: 'primary' });
-          Text('梦域 · 金殿', { size: 'xs', tone: 'muted' });
-        });
-        Button('菜单', {
-          variant: 'ghost',
-          size: 'sm',
-          width: 88,
-          onClick: model.onMenu,
-        });
+      buildStageHeader({
+        location: '梦域 / 金殿',
+        chapter: '第一章 · 权力之梦',
+        objective: model.roundLabel,
+        subtitle: '剧情战 · 矿场清除协议',
+        onMenu: model.onMenu,
       });
 
-      Text(() => model.enemyLabel.value, { size: 'sm', tone: 'danger' });
+      Panel(
+        {
+          width: 520,
+          padding: 10,
+          gap: 2,
+          variant: 'surface',
+          alignSelf: 'center',
+          margin: { top: 4 },
+        },
+        () => {
+          Text(() => model.enemyLabel.value, { size: 'sm', tone: 'danger', align: 'center' });
+        },
+      );
+
       Spacer({ grow: 1 });
 
-      Panel({ width: 672, height: 360, padding: 22, gap: 10, variant: 'surface' }, () => {
-        Text(() => model.playerLabel.value, { size: 'md', tone: 'primary' });
-        Text(() => model.hintText.value, { size: 'sm', tone: 'muted' });
-        Row({ width: 'fill', gap: 14, justifyContent: 'center' }, () => {
-          Button('攻击', {
-            variant: 'primary',
-            size: 'lg',
-            width: 220,
-            disabled: () => model.actionsDisabled.value,
-            onClick: model.onAttack,
+      Column({ width: 'fill', padding: 24 }, () => {
+        Panel({ width: 672, height: 350, padding: 22, gap: 10, variant: 'surface', alignSelf: 'center' }, () => {
+          Text(() => model.playerLabel.value, { size: 'md', tone: 'primary' });
+          Text(() => model.hintText.value, { size: 'sm', tone: 'muted' });
+          Row({ width: 'fill', gap: 14, justifyContent: 'center' }, () => {
+            Button('攻击', {
+              variant: 'primary',
+              size: 'lg',
+              width: 220,
+              disabled: () => model.actionsDisabled.value,
+              onClick: model.onAttack,
+            });
+            Button('防御', {
+              variant: 'secondary',
+              size: 'lg',
+              width: 220,
+              disabled: () => model.actionsDisabled.value,
+              onClick: model.onGuard,
+            });
           });
-          Button('防御', {
-            variant: 'secondary',
-            size: 'lg',
-            width: 220,
-            disabled: () => model.actionsDisabled.value,
-            onClick: model.onGuard,
-          });
+          Text(() => model.logText.value, { size: 'sm', tone: 'muted', wrap: true, maxLines: 2 });
         });
-        Text(() => model.logText.value, { size: 'sm', tone: 'muted', wrap: true, maxLines: 2 });
       });
     },
   );
