@@ -31,7 +31,8 @@
 1. 标题 → 开始游戏 → 开幕第一句；点右上角「跳过」。
 2. 进入第一章第一节：章节卡 → 寝室 → 目标「叫醒郑卿」。
 3. 移动：WASD/摇杆；撞床/柜/墙被挡；在床、柜、桌、窗、风扇、门附近出现 `[E]` 提示。
-4. 郑卿：12 句对话；逐字，点「继续」补全/推进；结束后目标变「找到手机」。
+4. 郑卿：12 句对话；逐字，**点屏幕任意位置**补全/推进（面板上没有按钮；右上角「跳过」按钮区除外，点它不会误推进）；右上角「跳过」直接结束整段对话；结束后目标变「找到手机」。
+   - 面板固定 300 高、字号 34；**一句放得下 5 行 × 约 14 字 ≈ 68 字**，超出由 `DialoguePlayer` 按标点分页，点一下翻下一页（页内先补全再翻页）。
 5. 手机：小白登场（白色兜帽精灵），说明沉睡症/因泰里；目标变「听听这个外星小东西怎么说」。
 6. 「视觉确认」→ 白闪 → 梦域金殿战斗。
 7. 战斗：
@@ -64,6 +65,9 @@
 | [CG 390×844](screenshots/ch01-cg-phone-390x844.png) | 手机白光 CG；UI 在 CG 之上 |
 | [行走 390×844](screenshots/ch01-walk-390x844.png) | 行走中段；上身与静态图同宽 |
 | [八方向](screenshots/ch01-directions-8.png) | 四个斜向改为 direct 逐张生成 |
+| [正北返工前后](screenshots/ch01-q-up-orientation-fix.png) | `back` 截帧 16→18、行走视频按「正背面锁定」重出；见 `ASSET-CREDITS.md` 11.3.3 |
+| [朝上站立 390×844](screenshots/ch01-q-up-ingame-390x844.png) | 实机正背面：两肩对称、头部左右露耳一致 |
+| [角色 90% 缩放](screenshots/ch01-q-player-scale-90.png) | `spriteScale 0.682 → 0.6138`、`headOffset 258 → 232`；对比图左 0.682 / 右 0.6138 |
 | [开局坐姿](screenshots/ch01-sitting-390x844.png) | 周全坐在书桌前；先放呼噜声、不播 BGM |
 | [心情气泡](screenshots/ch01-emotion-390x844.png) | 表情气泡在头顶，然后才开始打字 |
 | [战斗 390×844](screenshots/ch01-battle-390x844.png) | 金殿背景、矿工、HP、攻击/防御 |
@@ -114,3 +118,40 @@
 7. 坐姿是单张图，不是可动画的坐姿骨骼；站起来时切回站立图。
 8. 像素素材在非整数 DPR 下可能被画布缩放；已用 NEAREST + 2× 资源，首版接受。
 9. Android 真机/模拟器未跑（按默认约定）。
+
+## 7. 2026-10-29 修订（出生点 / 新手引导 / 郑卿段落）
+
+本节记录对第一节的增量修改；上面的 2026-10-25 流程记录仍是当时验收状态。
+
+| 项 | 结果 |
+| --- | --- |
+| `pnpm typecheck` | 通过 |
+| `pnpm test` | 通过，137 tests / 16 files |
+| `pnpm assets:check` | 通过，66 key / 66 url，无重复、无缺失 |
+| 浏览器 | 390×844 与 1200×648 各走一遍，控制台 0 error |
+
+改动：
+
+1. **出生点**：`[14,12]`、朝下，位于书桌下方靠左侧床的一侧；`ascii` 的 `P` 同步移动，地图单测改为断言新坐标。
+2. **新手引导**：首次进入探索（`phase=explore` 或开场对白结束）在画面中部弹出「新手指引」，说明摇杆/方向键与 `E`/「交互」；玩家第一次推动方向即收起，不再弹出。不会挡住主角与郑卿。
+3. **郑卿交互点**：判定点从床尾 `[25,26]` 移到枕头左侧床沿 `[21,13]`，半径 150；玩家沿左侧过道走到头边即可触发，`[E] 叫醒郑卿` 提示与表情气泡都跟着落到头侧。
+4. **摇醒剧情**：补 4 句（抓肩猛摇 → 软面条 → 呼噜不乱 → 嘴角带笑），带一次镜头震动与郑卿「笑」表情气泡。
+5. **沉睡症新闻回忆**：删掉「校门口小报标题」旁白，改为 `周全：怎么回事？难道说……` → 黑白新闻 CG（家里的电视 + 男女主持）→ 4 句新闻播报 → 画面暗下、回到寝室。旁白明确写成「脑海里闪出画面 / 几天前」，这是周全的**回忆**，不是寝室里正在播放；回忆结束后 BGM 不切回日常，**维持《危机来临》** 直到进入梦域。新增 `img.cg.ch01.news`、`audio.bgm.ch01_crisis`，并登记 `cg.ch01.news` 舞台。
+6. **跳过时的 BGM**：回忆段点「跳过」也保持《危机来临》，不切回日常；只有进入梦域战斗才由战斗场景换成《清除协议》。
+7. **分页修正**：`paginateText` 不再把句尾标点单独剩成一页（例如 69 字 / 上限 68 时不再出现只有「。」的第二页）。
+8. **旁白表现**：说话人不再显示「旁白」二字；正文用天蓝色 `#87ceeb`；整段旁白统一用第二人称「你」指代周全（不再出现「周全扑到床边」这种第三人称写法）。
+9. **逐字声线**：旁白 / 周全 / 郑卿 / 小白各一条专属 blip（音高、波形、衰减不同），其他角色用 `type_blip_1/2` 两条轮换；映射在 `src/audio/type-voice.ts`，有单测。
+
+截图：
+
+- `docs/screenshots/ch01-tutorial-spawn-390x844.png`（出生点 + 新手指引）
+- `docs/screenshots/ch01-tutorial-dismissed.png`（首次移动后指引收起）
+- `docs/screenshots/ch01-tutorial-1200x648.png`（1200×648 视口）
+- `docs/screenshots/zheng-approach.png`（郑卿头侧的 `[E]` 提示）
+- `docs/screenshots/zheng-shake.png`、`zheng-smile.png`（摇醒 + 笑气泡）
+- `docs/screenshots/ch01-news-cg.png`、`ch01-news-male.png`、`ch01-news-female2.png`、`ch01-news-back.png`（黑白新闻回忆、回到寝室）
+- `docs/screenshots/ch01-crisis-explore.png`（回忆结束后自由探索，BGM 仍是《危机来临》）
+- `docs/screenshots/ch01-narration-skyblue.png`（旁白：无说话人、天蓝色、第二人称）
+- `docs/screenshots/ch01-speech-normal.png`、`ch01-xiaobai-voice.png`、`ch01-anchor-generic-voice.png`（周全 / 小白 / 配角普通文字与声线）
+- `docs/screenshots/ch01-narration-1200x648.png`（1200×648 下的旁白排版）
+- `docs/screenshots/cg-ch01-news-stage.png`（`?stage=cg.ch01.news`）

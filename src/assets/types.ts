@@ -1,5 +1,5 @@
 /** 资源类型：M0 只需要图、音频、JSON；图集/序列帧后续加。 */
-export type AssetKind = 'image' | 'audio' | 'json';
+export type AssetKind = 'image' | 'audio' | 'json' | 'video';
 
 export type BundleId =
   | 'core'
@@ -9,7 +9,12 @@ export type BundleId =
   | 'cutscene.prologue'
   | 'ch.01'
   | 'battle.common'
-  | 'battle.ch01';
+  | 'battle.ch01'
+  | 'cutscene.ch01opening'
+  | 'cutscene.ch01phone'
+  | 'cutscene.ch01palace'
+  | 'cutscene.ch01palace.walk'
+  | 'cutscene.ch01palace.sfx';
 
 export interface AssetDef {
   /** 全局唯一；Phaser cache 的 key。 */

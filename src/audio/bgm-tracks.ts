@@ -33,6 +33,12 @@ export const BGM_TRACKS = {
     fadeInMs: 1600,
     fadeOutMs: 900,
   },
+  ch01Crisis: {
+    key: CH01_ASSET_KEYS.audio.crisisBgm,
+    label: '回忆《危机来临》',
+    fadeInMs: 700,
+    fadeOutMs: 1100,
+  },
   ch01Dream: {
     key: CH01_ASSET_KEYS.audio.dreamBgm,
     label: '梦域金殿《清除协议》',

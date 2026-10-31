@@ -1,3 +1,5 @@
+import type { BgmId } from '../audio/bgm-tracks';
+
 /**
  * 地图内对话的纯数据与打字机工具。
  *
@@ -8,14 +10,26 @@ export type DialogueFx = 'flash' | 'shake' | 'glitch';
 export type EmotionKind = 'confused' | 'angry' | 'happy' | 'surprised' | 'sad' | 'annoyed';
 export type EmotionTarget = 'zhou' | 'zheng' | 'xiaobai';
 
+/**
+ * 稳定角色 id：显示名会变，身份不变。
+ *
+ * 小白的名字是剧情里现给的（先是「？？？」，再是「莫名其妙出现的白色小娃娃」，
+ * 最后才定成「小白」），但声线、立绘、表情气泡不能跟着改名失效。
+ */
+export type DialogueRole = 'xiaobai';
+
 export interface DialogueLine {
-  /** 省略时按旁白处理。 */
+  /** 省略时按旁白处理。这是**显示名**，可以随剧情变。 */
   readonly speaker?: string;
+  /** 稳定角色 id；省略时按显示名推断。 */
+  readonly role?: DialogueRole;
   readonly text: string;
   /** 本句显示的全屏 CG key；没有就隐藏上一张 CG。 */
   readonly cg?: string;
   /** 本句附带的镜头/画面特效。 */
   readonly fx?: DialogueFx;
+  /** 本句切换 BGM（`BGM_TRACKS` 的 id）；省略时保持当前曲目。 */
+  readonly bgm?: BgmId;
   /** 说话人头顶先冒出的表情气泡，再开始打字。 */
   readonly emotion?: EmotionKind;
   /** 表情气泡挂在谁头上；省略时按说话人推断。 */

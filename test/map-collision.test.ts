@@ -3,6 +3,7 @@ import {
   canStandAt,
   isWalkableTile,
   tileCenter,
+  worldToTile,
 } from '../src/map/core/room';
 import {
   facingFromVector,
@@ -10,21 +11,22 @@ import {
   normalizeDirection,
 } from '../src/map/core/collision';
 import { CH01_DORM_ROOM } from '../src/map/rooms/ch01-dorm';
+import { PLAYER_FOOT } from '../src/map/player-foot';
 
-const FOOT = { width: 58, height: 20 } as const;
+const FOOT = PLAYER_FOOT;
 
 describe('map collision', () => {
   it('does not stand inside furniture', () => {
-    expect(canStandAt(CH01_DORM_ROOM, tileCenter(CH01_DORM_ROOM, 9, 15), FOOT)).toBe(false);
-    expect(canStandAt(CH01_DORM_ROOM, tileCenter(CH01_DORM_ROOM, 19, 15), FOOT)).toBe(true);
+    expect(canStandAt(CH01_DORM_ROOM, tileCenter(CH01_DORM_ROOM, 10, 25), FOOT)).toBe(false);
+    expect(canStandAt(CH01_DORM_ROOM, tileCenter(CH01_DORM_ROOM, 16, 18), FOOT)).toBe(true);
   });
 
   it('blocks a straight step into the bed', () => {
-    const start = tileCenter(CH01_DORM_ROOM, 19, 15);
+    const start = tileCenter(CH01_DORM_ROOM, 19, 20);
     const result = moveWithCollision(
       CH01_DORM_ROOM,
       start,
-      { x: -60, y: 0 },
+      { x: 60, y: 0 },
       FOOT,
     );
     expect(result.position).toEqual(start);
@@ -38,10 +40,31 @@ describe('map collision', () => {
   });
 
   it('moves freely on the central floor', () => {
-    const start = tileCenter(CH01_DORM_ROOM, 24, 30);
+    const start = tileCenter(CH01_DORM_ROOM, 16, 30);
     const result = moveWithCollision(CH01_DORM_ROOM, start, { x: 20, y: 0 }, FOOT);
     expect(result.position.x).toBe(start.x + 20);
     expect(result.blocked).toBe(false);
+  });
+
+  it('walks the aisle between the two bed rows', () => {
+    // 上下两排床之间的过道（北排床尾到南排床头）必须站得住、横着能走通。
+    expect(canStandAt(CH01_DORM_ROOM, tileCenter(CH01_DORM_ROOM, 5, 27), FOOT)).toBe(true);
+    let feet = tileCenter(CH01_DORM_ROOM, 16, 27);
+    for (let i = 0; i < 400; i += 1) {
+      feet = moveWithCollision(CH01_DORM_ROOM, feet, { x: -2, y: 0 }, FOOT).position;
+    }
+    const tile = worldToTile(CH01_DORM_ROOM, feet);
+    expect(tile).not.toBeNull();
+    expect(tile?.col ?? 99).toBeLessThanOrEqual(5);
+  });
+
+  it('enters the aisle from the central corridor', () => {
+    let feet = tileCenter(CH01_DORM_ROOM, 16, 23);
+    for (let i = 0; i < 200; i += 1) {
+      feet = moveWithCollision(CH01_DORM_ROOM, feet, { x: 0, y: 2 }, FOOT).position;
+    }
+    const tile = worldToTile(CH01_DORM_ROOM, feet);
+    expect(tile?.row ?? 0).toBeGreaterThanOrEqual(29);
   });
 
   it('normalizes diagonal input and derives facing', () => {
@@ -58,7 +81,7 @@ describe('map collision', () => {
   });
 
   it('treats the door tile as walkable but keeps the outer frame solid', () => {
-    expect(isWalkableTile(CH01_DORM_ROOM, 24, 52)).toBe(true);
-    expect(isWalkableTile(CH01_DORM_ROOM, 21, 52)).toBe(false);
+    expect(isWalkableTile(CH01_DORM_ROOM, 16, 52)).toBe(true);
+    expect(isWalkableTile(CH01_DORM_ROOM, 22, 52)).toBe(false);
   });
 });

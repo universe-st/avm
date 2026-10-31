@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "assets:scan": "node tools/scan-assets.mjs",
     "assets:check": "node tools/check-assets.mjs",
-    "check": "pnpm typecheck && pnpm test && pnpm assets:check",
+    "assets:pass": "python3 tools/gen-pass-grid.py --check",
+    "check": "pnpm typecheck && pnpm test && pnpm assets:check && pnpm assets:pass",
     "android:sync": "node tools/sync-cordova.mjs",
     "android:debug": "node tools/build-android.mjs --debug",
     "android:release": "node tools/build-android.mjs --release"

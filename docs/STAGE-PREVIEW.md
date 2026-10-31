@@ -363,12 +363,14 @@ CG 构图要求见 `docs/ART-STYLE.md`：主体放中心 4:5 安全区；查看�
 | --- | --- | --- |
 | `scene.title` | 场景 | 标题界面 |
 | `scene.prologue` | 场景 | 完整开幕 |
+| `scene.ch01.open` | 场景 | 第一章开场动画（12.8s 竖屏 CG，播完或跳过进寝室） |
 | `scene.placeholder` | 场景 | 序章占位页（仅预览；正常流程不再进入） |
 | `scene.ch01.dorm` | 场景 | 第一章 · 第一节 寝室；phase=opening/explore/after/complete，debug=1 显示碰撞 |
 | `battle.ch01.first` | 战斗 | 第一章剧情战；phase=opening/mid/defeat；主角伤害固定 1、必败 |
 | `cg.ch01.phone` | CG | 第一章 · 手机白光 |
 | `cg.ch01.xiaobai` | CG | 第一章 · 小白登场 |
 | `cg.ch01.wake` | CG | 第一章 · 醒来 |
+| `cg.ch01.news` | CG | 第一章 · 沉睡症新闻（黑白回忆） |
 | `cg.prologue.sequence` | CG | 5 张开幕配图连看 |
 | `cg.prologue.sky` | CG | 深夜天幕 |
 | `cg.prologue.dream` | CG | 梦的本源 |

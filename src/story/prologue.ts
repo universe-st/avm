@@ -5,7 +5,11 @@
  * 和「逐字/停顿时间」。场景只消费这里的数据与纯函数。
  *
  * 2026-10-25：按用户要求删掉开场「深夜天幕，一颗流星划过」的舞台提示小字幕，
- * 第一句直接从「你，有做过梦吗？」开始；夜空与流星仍由 `meteor` 动画保留。
+ * 第一句直接从「你，做过梦吗？」开始；夜空与流星仍由 `meteor` 动画保留。
+ *
+ * 2026-10-30：按用户改稿调整三句——「有」改「曾」、「无可捉摸」改「不可捉摸」，
+ * 第三段改为「那天，当它成为一场席卷地球的灾难……」。改稿文件见
+ * `drama/交付/已落地剧本-对白与场景.md` 的历史版本。
  */
 
 /** 开幕剧情使用的配图 key，必须与 `cutscene.prologue` bundle 一致。 */
@@ -46,7 +50,7 @@ export const PROLOGUE_CUES: readonly PrologueCue[] = [
   {
     id: 'sky-question',
     image: 'img.prologue.sky',
-    lines: ['你，有做过梦吗？'],
+    lines: ['你，曾做过梦吗？'],
     tone: 'gold',
     holdMs: 1400,
     meteor: true,
@@ -54,7 +58,7 @@ export const PROLOGUE_CUES: readonly PrologueCue[] = [
   {
     id: 'sky-dream',
     image: 'img.prologue.sky',
-    lines: ['梦，无可捉摸，虚无缥缈。'],
+    lines: ['梦，不可捉摸，虚无缥缈。'],
     holdMs: 1400,
   },
   {
@@ -67,9 +71,9 @@ export const PROLOGUE_CUES: readonly PrologueCue[] = [
     id: 'dreamfall-disaster',
     image: 'img.prologue.disaster',
     lines: [
-      '但当它成为一场席卷了地球的灾难，',
-      '人类被迫参加了一场',
-      '他们未曾好好准备的战争。',
+      '那天，当它成为一场席卷地球的灾难，',
+      '人类被迫参加了',
+      '一场未曾准备的战争。',
     ],
     size: 34,
     holdMs: 1800,

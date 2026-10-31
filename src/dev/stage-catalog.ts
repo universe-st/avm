@@ -74,6 +74,16 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     tags: ['story'],
   },
   {
+    id: 'scene.ch01.open',
+    kind: 'scene',
+    sceneKey: SCENE_KEYS.ch01Opening,
+    title: '第一章开场动画',
+    status: 'ready',
+    requires: ['core', 'cutscene.ch01opening'],
+    description: '竖屏 CG：蝉与窗 → 溶进寝室 → 周全看书 → 郑卿打呼 → 放下书起身；播完进第一章。',
+    tags: ['story'],
+  },
+  {
     id: 'scene.placeholder',
     kind: 'scene',
     sceneKey: SCENE_KEYS.placeholder,
@@ -89,10 +99,21 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     sceneKey: SCENE_KEYS.ch01Dorm,
     title: '第一章 · 第一节 寝室',
     status: 'ready',
-    requires: ['core', 'ui', 'ch.01'],
+    requires: ['core', 'ui', 'ch.01', 'cutscene.ch01phone'],
     description:
-      '寝室小地图：移动、碰撞、叫醒郑卿、找手机、小白登场。phase=opening|explore|after|complete，debug=1 显示碰撞。',
+      '寝室小地图：移动、碰撞、叫醒郑卿、找手机（播放手机 CG）、小白登场。phase=opening|explore|after|complete，debug=1 显示碰撞。',
     tags: ['ch01', 'map'],
+  },
+  {
+    id: 'scene.ch01.palace',
+    kind: 'scene',
+    sceneKey: SCENE_KEYS.ch01Palace,
+    title: '第一章 · 梦域金殿',
+    status: 'ready',
+    requires: ['core', 'ui', 'cutscene.ch01palace', 'cutscene.ch01palace.walk', 'cutscene.ch01palace.sfx'],
+    description:
+      '殿上过场：白光吞没、跪于殿前、楚公公喊护驾、梦中郑卿、太监裂皮变矿工，结束进战斗。',
+    tags: ['ch01', 'cutscene'],
   },
   {
     id: CH01_FIRST_BATTLE_ID,
@@ -100,7 +121,7 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     sceneKey: SCENE_KEYS.battleCh01,
     title: '战斗 · 初次接触',
     status: 'ready',
-    requires: ['core', 'battle.common', 'battle.ch01'],
+    requires: ['core', 'battle.common', 'battle.ch01', 'cutscene.ch01palace'],
     description:
       '第一章剧情战：1v1 矿工，主角伤害固定 1，最多 3 回合必败。phase=opening|mid|defeat。',
     tags: ['ch01', 'scripted'],
@@ -190,6 +211,15 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     requires: ['ch.01'],
     tags: ['ch01', 'cg'],
     frames: [{ key: CH01_ASSET_KEYS.cg.wake, caption: '醒来', holdMs: 2400 }],
+  },
+  {
+    id: 'cg.ch01.news',
+    kind: 'cg',
+    title: 'CG · 沉睡症新闻回忆',
+    status: 'ready',
+    requires: ['ch.01'],
+    tags: ['ch01', 'cg'],
+    frames: [{ key: CH01_ASSET_KEYS.cg.news, caption: '沉睡症新闻（黑白回忆）', holdMs: 3200 }],
   },
   {
     id: 'battle.sandbox',

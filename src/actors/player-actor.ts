@@ -9,7 +9,8 @@ import { tileCenter } from '../map/core/room';
 import { characterDepth } from '../render/layers';
 import { setLinearTextures, setPixelTextures } from '../ui/pixel';
 
-const WALK_FRAME_MS = 95;
+// 20 帧 × 65ms ≈ 一个 1.3s 的步态循环；旧的 8 帧 @95ms 只有 760ms，看着像抖。
+const WALK_FRAME_MS = 65;
 
 export interface PlayerActorOptions {
   readonly spawn?: { readonly at: readonly [number, number]; readonly facing: Facing };
@@ -92,7 +93,12 @@ export class PlayerActor {
     this.sprite = scene.textures.exists(staticKey)
       ? scene.add
           .image(this.feetPoint.x, this.feetPoint.y, staticKey)
-          .setOrigin(0.5, 1)
+          /**
+           * 立绘的脚在帧内 y=394（帧高 400，下面留了 6px 余白给鞋影）。
+           * 用 1.0 当锚点的话 feetY 会比视觉脚底低 6px，角色看起来就「踩进」了地面的障碍物；
+           * 0.985 = 394/400，让视觉脚底和碰撞用的脚底坐标对上。
+           */
+          .setOrigin(0.5, 0.985)
           .setScale(this.spriteScale)
           .setDepth(characterDepth(this.feetPoint.y))
       : null;
@@ -148,9 +154,9 @@ export class PlayerActor {
     } else {
       this.sprite.setTexture(this.staticKeys[this.facingValue], 0);
     }
-    const bob = this.walking ? Math.abs(Math.sin(this.walkClock * 0.02)) * 2 : 0;
+    // 上下起伏已经烘进 20 帧序列里，这里不再叠一层随机相位的 bob（会和步态打架）。
     const sittingOffset = this.sitting ? this.sittingOffsetY : 0;
-    this.sprite.setPosition(this.feetPoint.x, this.feetPoint.y - bob + sittingOffset);
+    this.sprite.setPosition(this.feetPoint.x, this.feetPoint.y + sittingOffset);
     this.sprite.setDepth(characterDepth(this.feetPoint.y));
   }
 

@@ -3,6 +3,10 @@
     "bytes": 6148,
     "mtimeMs": 1792905739084
   },
+  "assets/audio/bgm/ch01_crisis.mp3": {
+    "bytes": 1345036,
+    "mtimeMs": 1793270879450
+  },
   "assets/audio/bgm/ch01_dorm.mp3": {
     "bytes": 1281273,
     "mtimeMs": 1792891870489
@@ -32,24 +36,40 @@
     "mtimeMs": 1792886910830
   },
   "assets/audio/sfx/ch01_snore.mp3": {
-    "bytes": 96592,
-    "mtimeMs": 1792894829368
+    "bytes": 97581,
+    "mtimeMs": 1793013381094
   },
   "assets/audio/sfx/type_blip_1.wav": {
     "bytes": 1366,
-    "mtimeMs": 1792883131348
+    "mtimeMs": 1793276198088
   },
   "assets/audio/sfx/type_blip_2.wav": {
     "bytes": 1366,
-    "mtimeMs": 1792883131349
+    "mtimeMs": 1793276198089
   },
   "assets/audio/sfx/type_blip_3.wav": {
     "bytes": 1366,
-    "mtimeMs": 1792883131350
+    "mtimeMs": 1793276198089
   },
   "assets/audio/sfx/ui_click.mp3": {
     "bytes": 7149,
     "mtimeMs": 1792843100336
+  },
+  "assets/audio/sfx/voice_blip_narrator.wav": {
+    "bytes": 2028,
+    "mtimeMs": 1793276198090
+  },
+  "assets/audio/sfx/voice_blip_xiaobai.wav": {
+    "bytes": 1278,
+    "mtimeMs": 1793276198091
+  },
+  "assets/audio/sfx/voice_blip_zheng.wav": {
+    "bytes": 1896,
+    "mtimeMs": 1793276198090
+  },
+  "assets/audio/sfx/voice_blip_zhou.wav": {
+    "bytes": 1454,
+    "mtimeMs": 1793276198090
   },
   "assets/img/.DS_Store": {
     "bytes": 8196,
@@ -66,6 +86,10 @@
   "assets/img/cg/.DS_Store": {
     "bytes": 6148,
     "mtimeMs": 1792905774974
+  },
+  "assets/img/cg/ch01/news.webp": {
+    "bytes": 257370,
+    "mtimeMs": 1793270852103
   },
   "assets/img/cg/ch01/phone.webp": {
     "bytes": 135344,
@@ -108,8 +132,8 @@
     "mtimeMs": 1792933584590
   },
   "assets/img/character/ch01/q/zhou_q_up.png": {
-    "bytes": 52916,
-    "mtimeMs": 1792933584579
+    "bytes": 50946,
+    "mtimeMs": 1793256402192
   },
   "assets/img/character/ch01/q/zhou_q_up_left.png": {
     "bytes": 51024,
@@ -119,37 +143,37 @@
     "bytes": 51155,
     "mtimeMs": 1792934862133
   },
-  "assets/img/character/ch01/q/zhou_q_walk_down.png": {
-    "bytes": 520662,
-    "mtimeMs": 1792933180801
+  "assets/img/character/ch01/q/zhou_q_walk_down.webp": {
+    "bytes": 407550,
+    "mtimeMs": 1793201001102
   },
-  "assets/img/character/ch01/q/zhou_q_walk_down_left.png": {
-    "bytes": 496048,
-    "mtimeMs": 1792934861981
+  "assets/img/character/ch01/q/zhou_q_walk_down_left.webp": {
+    "bytes": 381052,
+    "mtimeMs": 1793201100196
   },
-  "assets/img/character/ch01/q/zhou_q_walk_down_right.png": {
-    "bytes": 496698,
-    "mtimeMs": 1792934862062
+  "assets/img/character/ch01/q/zhou_q_walk_down_right.webp": {
+    "bytes": 400874,
+    "mtimeMs": 1793201111888
   },
-  "assets/img/character/ch01/q/zhou_q_walk_left.png": {
-    "bytes": 418070,
-    "mtimeMs": 1792933180918
+  "assets/img/character/ch01/q/zhou_q_walk_left.webp": {
+    "bytes": 364216,
+    "mtimeMs": 1793201076944
   },
-  "assets/img/character/ch01/q/zhou_q_walk_right.png": {
-    "bytes": 401428,
-    "mtimeMs": 1792933180976
+  "assets/img/character/ch01/q/zhou_q_walk_right.webp": {
+    "bytes": 370720,
+    "mtimeMs": 1793201088348
   },
-  "assets/img/character/ch01/q/zhou_q_walk_up.png": {
-    "bytes": 447621,
-    "mtimeMs": 1792933180858
+  "assets/img/character/ch01/q/zhou_q_walk_up.webp": {
+    "bytes": 311282,
+    "mtimeMs": 1793257225406
   },
-  "assets/img/character/ch01/q/zhou_q_walk_up_left.png": {
-    "bytes": 390553,
-    "mtimeMs": 1792934862129
+  "assets/img/character/ch01/q/zhou_q_walk_up_left.webp": {
+    "bytes": 337404,
+    "mtimeMs": 1793201122867
   },
-  "assets/img/character/ch01/q/zhou_q_walk_up_right.png": {
-    "bytes": 392272,
-    "mtimeMs": 1792934862220
+  "assets/img/character/ch01/q/zhou_q_walk_up_right.webp": {
+    "bytes": 338580,
+    "mtimeMs": 1793201133948
   },
   "assets/img/character/ch01/xiaobai.png": {
     "bytes": 14040,
@@ -208,8 +232,8 @@
     "mtimeMs": 1792894765792
   },
   "assets/img/map/ch01/dorm_q.png": {
-    "bytes": 2809335,
-    "mtimeMs": 1792933171890
+    "bytes": 1732807,
+    "mtimeMs": 1793183680178
   },
   "assets/img/map/ch01/dorm_room.png": {
     "bytes": 68328,
@@ -250,5 +274,9 @@
   "assets/img/ui/icon_skip.png": {
     "bytes": 665,
     "mtimeMs": 1792883469406
+  },
+  "assets/video/ch01-opening.mp4": {
+    "bytes": 3526548,
+    "mtimeMs": 1793186744372
   }
 }

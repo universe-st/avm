@@ -27,12 +27,17 @@ interface AssetDef {
 
 | bundle | 内容 | 预算 | 常驻 | 加载点 |
 | --- | --- | --- | --- | --- |
-| `core` | 基础纹理（白像素）、按钮点击音、逐字提示音 ×3、播放控制图标 ×2 | 2 MB | ✅ | 冷启动（之后每批自动带上） |
+| `core` | 基础纹理（白像素）、按钮点击音、逐字提示音（通用 ×3 + 角色声线 ×4）、播放控制图标 ×2 | 2 MB | ✅ | 冷启动（之后每批自动带上） |
 | `ui` | 设置弹窗/通用 UI（本期为空，用主题绘制） | 1 MB | ✅ | 冷启动（之后每批自动带上） |
 | `title` | 标题主视觉、徽记、标题 BGM | 6 MB | — | 进入标题 |
 | `ch.00` | 序章占位背景 | 2 MB | — | 进入占位页 |
 | `cutscene.prologue` | 开幕剧情 5 张配图 + 开幕曲《星夜梦境》 | 6 MB | — | 点击开始 / 进入开幕 |
-| `ch.01` | 50×54 寝室整图、郑卿睡床 4 帧、周全 Q 版四向/行走、小白/郑卿、校园 BGM、呼噜/拳击/手机 SFX | 8 MB | — | 进入第一章 |
+| `cutscene.ch01opening` | 开场动画 `ch01-opening.mp4`（720×1280、12.8s、带同轨声音） | 5 MB | — | 开幕结束 / 跳过 → 进开场动画 |
+| `cutscene.ch01phone` | 手机 CG `ch01-phone.mp4`（720×1280、20.2s、三镜、带同轨声音） | 6 MB | — | 进入寝室时随场景加载；「查看手机」时全屏播放 |
+| `cutscene.ch01palace` | 梦域金殿地图 `hall.png`（1056×1728）+ 13 张殿上角色图（200×420）+ 2 张半身立绘（720×900） | 8 MB | — | 金殿过场 `scene.ch01.palace`；战斗 `battle.ch01.first` 也复用它当背景 |
+| `cutscene.ch01palace.walk` | 郑卿 / 楚公公 八方向行走 sheet（各 8 张 × 16 帧 × 200×420，WebP） | 12 MB | `cutscene.ch01palace` | 只在金殿过场加载；走位时播帧，停下回静态图 |
+| `cutscene.ch01palace.sfx` | 金殿音效 14 条（环境/脚步/跪地/裂皮/心跳…，mp3 24kHz 单声道，共约 300 KB） | 1 MB | `cutscene.ch01palace` | 过场音效；缺失时静默跳过，不阻断 |
+| `ch.01` | 33×54 寝室整图、郑卿睡床 4 帧、周全 Q 版八向/行走、小白/郑卿、校园 BGM、沉睡症新闻 CG、《危机来临》回忆 BGM、呼噜/拳击/手机 SFX | 12 MB | — | 进入第一章 |
 | `battle.common` | 战斗公共资源（本期为空，依赖 `ui`） | 3 MB | — | 进入剧情战 |
 | `battle.ch01` | 梦域金殿背景、矿工 sprite、战斗 BGM/金属 SFX；依赖 `ch.01` 复用周全 sprite | 5 MB | — | 进入剧情战 |
 
@@ -41,9 +46,12 @@ interface AssetDef {
 
 第一章资源说明：
 
-- `ch.01` 的寝室改用 50×54 俯视整图 `dorm_q.png`（1600×1728，按 720 宽显示），配套郑卿睡床 4 帧与 Q 版周全 160×400 帧（场景缩放 0.45）；旧 `dorm_room.png` 仅留作历史资源。
+- `ch.01` 的寝室改用 33×54 俯视整图 `dorm_q.png`（1056×1728，32px/格，按 720 宽显示），配套郑卿睡床 4 帧与 Q 版周全 160×400 帧（场景缩放 **0.6138** = 原 0.682 × 0.9，`headOffset` 232；按需求在 2026-10-29 整体缩到 90%）;旧 `dorm_room.png` 仅留作历史资源。
 - 周全四向静态图/行走 sheet 由游戏素材大师 sprite 模块生成；小白/矿工/郑卿由参考设定图的精灵图裁切。
-- 资源路径/key 按 `map / character / cg / battle / ui` 分组，key 统一从 `src/assets/keys.ts` 取，详见 `docs/RENDER-LAYERS.md`。当前 `ch.01` 共 41 个文件。
+- Q 版行走 sheet 为 **20 帧 × 160×400（3200×400，WebP q92 约 200–400KB/张）**，由 `tools/make-ch01-q-walk20.py` 从「游戏素材大师」sprite 项目 `pmvnrpn64691ee5` 的 8 段行走视频**按步态周期重新抽帧**（不再插值）：每方向先找首尾最闭合的周期窗口（23–30 帧），再均匀取 20 帧，并按静态图统一缩放、脚底对齐；播放 65ms/帧。改帧数时要同步 `CH01_Q_WALK_FRAME_COUNT` 与场景构造 `walkFrameCount`；改尺寸/格式要同步 `bundles.ts` 的 url。
+- 重出某一方向时用技能脚本（与上面同一套规则，外加镜头拉远校正与接缝重挑）：`make-static-sprite.py --only <dir>` → `make-walk-sheet.py --dir-map "<源目录>=<dir>"`。静态帧的固定基准是**角色高 371 / 底边 394 / 水平中心 80**（160×400），八向必须一致，行走帧以静态图为对齐基准。
+- 资源路径/key 按 `map / character / cg / battle / ui` 分组，key 统一从 `src/assets/keys.ts` 取，详见 `docs/RENDER-LAYERS.md`。当前 `ch.01` 共 40 个文件。
+- 2026-10-29 新增：沉睡症新闻回忆 CG `img.cg.ch01.news`（1080×1920 黑白 WebP，257 KB）与回忆 BGM `audio.bgm.ch01_crisis`（84s，1.34 MB）。Q 版 8 向 20 帧行走 sheet 占约 3.2 MB，章节包实际约 10.2 MB；`budgetKB` 已按实际登记为 12 MB，后续压缩行走帧时再回收。
 - BGM/SFX 标 `required:false`：音频失败只静音，不阻断剧情。
 
 ## 3. 场景资源作用域（核心机制）

@@ -16,6 +16,8 @@
 ┌────────────────────────────────────────────┐
 │ Compose UI（HUD / 对话 / 按钮 / 模态）        │  UI_ROOT_DEPTH = 10000（MVVM 层）
 ├────────────────────────────────────────────┤
+│ screen（过场专用：立绘/遮幅/字卡/速度线/硬切） │  SCREEN_LAYERS = 7000–7050
+├────────────────────────────────────────────┤
 │ debug（碰撞/交互半径）                       │  LAYERS.debug = 6000
 │ CG（全屏剧情图）                             │  LAYERS.cg = 5000
 │ cinematic（章节卡/黑边）                     │  LAYERS.cinematic = 4000
@@ -121,3 +123,15 @@ public/assets/img/
 ## 6. 变更记录
 
 - v1.0（2026-10-25）：第一章第一节落地；新增 `LAYERS`、`CH01_ASSET_KEYS`、`PlayerActor`、`Ch01DormRoomView`、`CgOverlay`；资源按 map/character/cg/battle 分目录。
+
+## 8. 过场（cinematic）的两条硬规则（2026-10-31 补，踩过坑）
+
+1. **镜头推拉只能缩放「世界层容器」，不能改 `cameras.main.zoom`。**
+   相机 zoom 会把 Compose 页面（对话框）一起放大，出现「镜头一推，对话框飞出屏幕」。
+   做法：地图与角色都 add 进一个 `worldRoot` 容器，推拉 = 改容器的 `scale` 与位置（以屏幕中心为锚点）。
+2. **贴在屏幕上的东西，depth 只能取 `SCREEN_LAYERS`。**
+   立绘/遮幅/字卡/速度线属于屏幕层，必须高于 `LAYERS.debug` 且低于 `UI_ROOT_DEPTH`；
+   以前用 40–46 这种小数字，结果立绘被角色挡住、黑边压不住人物——现已归入 7000 段。
+
+`test/render-layers.test.ts` 里有两条守卫：屏幕层区间有序（且低于 UI 根），以及
+`cinematic-director.ts / portrait-layer.ts / ch01-palace-scene.ts` 里出现写死的 `setDepth(数字)` 直接失败。

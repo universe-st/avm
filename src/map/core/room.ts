@@ -47,11 +47,12 @@ export function isWalkableAt(room: RoomDef, point: MapPoint): boolean {
 
 /** 四角 + 底边中点；脚底盒完全落在可走格上才算站得住。 */
 export function canStandAt(room: RoomDef, feet: MapPoint, foot: FootBox): boolean {
+  const pad = foot.padding ?? 0;
   const half = foot.width / 2;
-  const left = feet.x - half;
-  const right = feet.x + half;
-  const top = feet.y - foot.height;
-  const bottom = feet.y;
+  const left = feet.x - half - pad;
+  const right = feet.x + half + pad;
+  const top = feet.y - foot.height - pad;
+  const bottom = feet.y + pad;
 
   const probes: readonly MapPoint[] = [
     { x: left, y: top },

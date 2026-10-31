@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DIALOGUE_TYPE_MS, maskDialogueText, type DialogueLine } from '../src/story/dialogue';
-import { DialoguePlayer } from '../src/story/dialogue-player';
+import { DialoguePlayer, paginateText } from '../src/story/dialogue-player';
 
 const lines: readonly DialogueLine[] = [
   { speaker: '周全', text: '你好' },
@@ -95,6 +95,68 @@ describe('DialoguePlayer', () => {
     player.requestAdvance();
     expect(player.isComplete).toBe(true);
     expect(player.tick(1000)).toEqual([]);
+  });
+
+  it('paginates a long line and reveals one page at a time', () => {
+    const long = '沉睡症全球蔓延，患者莫名长睡不醒，明山县已有十四例，校医院也查不出原因。'.repeat(2);
+    const player = new DialoguePlayer([{ speaker: '周全', text: long }], { pageChars: 20 });
+    const first = player.start();
+    const line = first[0];
+    if (line?.type !== 'line') throw new Error('expected line');
+    expect(line.pageCount).toBeGreaterThan(1);
+
+    // 第一页只到 pageChars 以内的标点处
+    const page1 = player.pageText;
+    expect(Array.from(page1).length).toBeLessThanOrEqual(20);
+    expect(player.state.pageIndex).toBe(0);
+
+    // 打字中点一下 = 补全本页，不翻页
+    player.requestAdvance();
+    expect(player.state.phase).toBe('waiting');
+    expect(player.state.pageIndex).toBe(0);
+
+    // 再点 = 翻到下一页，并从 0 重新逐字
+    const next = player.requestAdvance();
+    expect(types(next)).toEqual(['line', 'type']);
+    expect(player.state.pageIndex).toBe(1);
+    expect(player.state.phase).toBe('typing');
+    expect(player.state.typedCount).toBe(0);
+  });
+
+  it('paginateText prefers punctuation and never loses characters', () => {
+    const long = '沉睡症全球蔓延，患者莫名长睡不醒，明山县已有十四例。';
+    const pages = paginateText(long, 12);
+    expect(pages.join('')).toBe(long);
+    for (const page of pages) {
+      expect(Array.from(page).length).toBeLessThanOrEqual(12);
+    }
+    // 断点落在标点之后
+    expect(pages[0]?.endsWith('，')).toBe(true);
+
+    expect(paginateText('短句', 12)).toEqual(['短句']);
+    expect(paginateText(long, 0)).toEqual([long]);
+  });
+
+  it('merges an orphan punctuation page back into the previous page', () => {
+    // 在 10 字上限处硬切，句尾只剩一个「。」。
+    const text = '一二三四五六七八九十。';
+    expect(paginateText(text, 10)).toEqual([text]);
+  });
+
+  it('advances to the next line only after the last page', () => {
+    const linesTwo: readonly DialogueLine[] = [
+      { speaker: '周全', text: '第一句比较长，长到需要分成两页才放得下，不然就会溢出面板。' },
+      { speaker: '小白', text: '第二句。' },
+    ];
+    const player = new DialoguePlayer(linesTwo, { pageChars: 16 });
+    player.start();
+    player.requestAdvance();            // 补全第一页
+    player.requestAdvance();            // 翻到第二页
+    expect(player.state.pageIndex).toBe(1);
+    player.requestAdvance();            // 补全第二页
+    player.requestAdvance();            // 换到第二句
+    expect(player.state.lineIndex).toBe(1);
+    expect(player.state.pageIndex).toBe(0);
   });
 
   it('does not split surrogate pairs while masking', () => {

@@ -9,7 +9,86 @@
  * - `audio.*`：BGM / SFX
  * - UI 资源继续用 `img.ui.*`
  */
+/**
+ * 全局逐字提示音（core bundle）。
+ *
+ * `genericA/B` 给没有专属声线的配角轮换；其余四个 key 是主角团/旁白的专属声线。
+ * 生成脚本：`tools/make-type-blips.py`。
+ */
+export const TYPE_BLIP_KEYS = {
+  genericA: 'audio.sfx.type1',
+  genericB: 'audio.sfx.type2',
+  genericC: 'audio.sfx.type3',
+  narrator: 'audio.sfx.voice_narrator',
+  zhou: 'audio.sfx.voice_zhou',
+  zheng: 'audio.sfx.voice_zheng',
+  xiaobai: 'audio.sfx.voice_xiaobai',
+} as const;
+
+/** 梦域金殿（第一章殿上过场）的资源 key。 */
+export const PALACE_ASSET_KEYS = {
+  map: {
+    hall: 'img.map.palace.hall',
+  },
+  characters: {
+    zhouKneelUp: 'img.char.palace.zhou_kneel_up',
+    zhouKneelDown: 'img.char.palace.zhou_kneel_down',
+    eunuch: 'img.char.palace.eunuch_down',
+    eunuchCrack: 'img.char.palace.eunuch_crack',
+    miner: 'img.char.palace.miner',
+    zhengDown: 'img.char.palace.zheng_emperor_down',
+    zhengUp: 'img.char.palace.zheng_emperor_up',
+    zhengLeft: 'img.char.palace.zheng_emperor_left',
+    zhengRight: 'img.char.palace.zheng_emperor_right',
+    chuDown: 'img.char.palace.chu_gonggong_down',
+    chuUp: 'img.char.palace.chu_gonggong_up',
+    chuLeft: 'img.char.palace.chu_gonggong_left',
+    chuRight: 'img.char.palace.chu_gonggong_right',
+    chuKneel: 'img.char.palace.chu_gonggong_kneel',
+    portraitZheng: 'img.char.palace.portrait_zheng',
+    portraitChu: 'img.char.palace.portrait_chu',
+  },
+  sfx: {
+    ambience: 'audio.sfx.palace.ambience',
+    step: 'audio.sfx.palace.step',
+    kneel: 'audio.sfx.palace.kneel',
+    crack: 'audio.sfx.palace.crack',
+    servo: 'audio.sfx.palace.servo',
+    stamp: 'audio.sfx.palace.stamp',
+    led: 'audio.sfx.palace.led',
+    rumble: 'audio.sfx.palace.rumble',
+    whoosh: 'audio.sfx.palace.whoosh',
+    heartbeat: 'audio.sfx.palace.heartbeat',
+    knock: 'audio.sfx.palace.knock',
+    cloth: 'audio.sfx.palace.cloth',
+    blade: 'audio.sfx.palace.blade',
+    gasp: 'audio.sfx.palace.gasp',
+  },
+  walk: {
+    zheng_down: 'img.char.palace.walk.zheng_down',
+    zheng_up: 'img.char.palace.walk.zheng_up',
+    zheng_left: 'img.char.palace.walk.zheng_left',
+    zheng_right: 'img.char.palace.walk.zheng_right',
+    zheng_down_left: 'img.char.palace.walk.zheng_down_left',
+    zheng_down_right: 'img.char.palace.walk.zheng_down_right',
+    zheng_up_left: 'img.char.palace.walk.zheng_up_left',
+    zheng_up_right: 'img.char.palace.walk.zheng_up_right',
+    chu_down: 'img.char.palace.walk.chu_down',
+    chu_up: 'img.char.palace.walk.chu_up',
+    chu_left: 'img.char.palace.walk.chu_left',
+    chu_right: 'img.char.palace.walk.chu_right',
+    chu_down_left: 'img.char.palace.walk.chu_down_left',
+    chu_down_right: 'img.char.palace.walk.chu_down_right',
+    chu_up_left: 'img.char.palace.walk.chu_up_left',
+    chu_up_right: 'img.char.palace.walk.chu_up_right',
+  },
+} as const;
+
 export const CH01_ASSET_KEYS = {
+  /** 剧情视频（bundle `cutscene.ch01phone`）。 */
+  video: {
+    phone: 'video.ch01.phone',
+  },
   map: {
     dormRoom: 'img.map.ch01.dorm_room',
     dormRoomQ: 'img.map.ch01.dorm_q',
@@ -50,13 +129,17 @@ export const CH01_ASSET_KEYS = {
     phone: 'img.cg.ch01.phone',
     xiaobai: 'img.cg.ch01.xiaobai',
     wake: 'img.cg.ch01.wake',
+    news: 'img.cg.ch01.news',
   },
   battle: {
     dreamHall: 'img.battle.ch01.dream_hall',
+    /** 战斗背景：梦域金殿地图（2026-10-31 从旧 9:16 立绘迁到可演出地图）。 */
+    palaceHall: 'img.map.palace.hall',
   },
   audio: {
     dormBgm: 'audio.bgm.ch01_dorm',
     dreamBgm: 'audio.bgm.ch01_dream',
+    crisisBgm: 'audio.bgm.ch01_crisis',
     punch: 'audio.sfx.ch01_punch',
     metal: 'audio.sfx.ch01_metal',
     phone: 'audio.sfx.ch01_phone',
@@ -112,3 +195,6 @@ export const CH01_Q_WALK_SHEETS = {
 } as const;
 
 export const CH01_Q_FRAME = { width: 160, height: 400 } as const;
+
+/** Q 版行走 sheet 的帧数：`tools/make-ch01-q-walk20.py` 由 8 帧插值成 20 帧。 */
+export const CH01_Q_WALK_FRAME_COUNT = 20;

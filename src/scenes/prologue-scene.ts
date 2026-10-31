@@ -209,7 +209,7 @@ export class PrologueScene extends UIScene {
           this.showContinue();
           break;
         case 'complete':
-          this.finish('ch01Dorm');
+          this.finish('ch01Opening');
           break;
       }
     }
@@ -392,10 +392,10 @@ export class PrologueScene extends UIScene {
   private skip(): void {
     if (this.leaving) return;
     audioDirector.playClick();
-    this.finish('ch01Dorm');
+    this.finish('ch01Opening');
   }
 
-  private finish(destination: 'title' | 'ch01Dorm'): void {
+  private finish(destination: 'title' | 'ch01Opening'): void {
     if (this.leaving) return;
     this.leaving = true;
     this.started = false;

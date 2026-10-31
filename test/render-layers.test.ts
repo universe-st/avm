@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LAYERS, UI_ROOT_DEPTH, characterDepth } from '../src/render/layers';
+import { LAYERS, SCREEN_LAYERS, UI_ROOT_DEPTH, characterDepth } from '../src/render/layers';
 import {
   CH01_ASSET_KEYS,
   CH01_STATIC_SPRITES,
@@ -18,6 +18,19 @@ describe('render layers', () => {
     expect(LAYERS.cinematic).toBeLessThan(LAYERS.cg);
     expect(LAYERS.cg).toBeLessThan(LAYERS.debug);
     expect(LAYERS.debug).toBeLessThan(UI_ROOT_DEPTH);
+  });
+
+  it('keeps the screen band above every world layer and below the UI root', () => {
+    const screen = Object.values(SCREEN_LAYERS);
+    for (const depth of screen) {
+      expect(depth).toBeGreaterThan(LAYERS.debug);
+      expect(depth).toBeLessThan(UI_ROOT_DEPTH);
+    }
+    // 屏幕层内部有序：立绘 < 速度线 < 遮幅 < 字卡 < 硬切
+    expect(SCREEN_LAYERS.portrait).toBeLessThan(SCREEN_LAYERS.speedlines);
+    expect(SCREEN_LAYERS.speedlines).toBeLessThan(SCREEN_LAYERS.letterbox);
+    expect(SCREEN_LAYERS.letterbox).toBeLessThan(SCREEN_LAYERS.stamp);
+    expect(SCREEN_LAYERS.stamp).toBeLessThan(SCREEN_LAYERS.cut);
   });
 
   it('sorts characters by feet Y without leaving the character band', () => {
@@ -51,5 +64,23 @@ describe('render layers', () => {
     expect(CH01_ASSET_KEYS.battle.dreamHall).toMatch(/^img\.battle\.ch01\./);
     expect(Object.values(CH01_STATIC_SPRITES).every((key) => key.startsWith('img.char.ch01.'))).toBe(true);
     expect(Object.values(CH01_WALK_SHEETS).every((key) => key.includes('zhou_walk'))).toBe(true);
+  });
+});
+
+describe('layer discipline', () => {
+  const FILES = [
+    'src/ui/cinematic-director.ts',
+    'src/ui/portrait-layer.ts',
+    'src/scenes/ch01-palace-scene.ts',
+  ];
+
+  it('never hardcodes a numeric depth in cinematic scene code', async () => {
+    const { readFile } = await import('node:fs/promises');
+    for (const file of FILES) {
+      const source = await readFile(file, 'utf-8');
+      // setDepth(123) / setDepth(-5)：只允许 setDepth(LAYERS.xxx / SCREEN_LAYERS.xxx / characterDepth(...))
+      const literal = /setDepth\(\s*-?\d/.exec(source);
+      expect(literal, `${file} 里出现了写死的 depth：${literal?.[0] ?? ''}`).toBeNull();
+    }
   });
 });

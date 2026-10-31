@@ -59,7 +59,13 @@ export class Ch01DormRoomView {
     this.objects.length = 0;
   }
 
-  /** 郑卿睡在左上床：4 帧呼吸动画，尺寸与床格完全对齐。 */
+  /** 郑卿睡在北窗下那张床：4 帧呼吸动画。
+   *
+   * 这张精灵是「整张床 + 人」，比例按 9×22 格烘死（图 288×704）；
+   * 房间图里的空床是 9×15 格，两者不是同一套比例，所以不能按床格缩精灵，
+   * 否则人会被压扁/浮到枕头上方。保持 9×22 的原始显示比例即可——它比床大一圈，
+   * 靠 alpha 顶部（约 19% 透明）自然收进床区。
+   */
   private addSleepingZheng(): void {
     const key = CH01_ASSET_KEYS.map.bedZheng;
     if (!this.scene.textures.exists(key)) return;
@@ -78,7 +84,7 @@ export class Ch01DormRoomView {
     setLinearTextures(this.scene, [key]);
     const sprite = this.track(
       this.scene.add
-        .sprite(this.room.origin.x + 5 * this.room.tileSize, this.room.origin.y + 5 * this.room.tileSize, key, 0)
+        .sprite(this.room.origin.x + 21 * this.room.tileSize, this.room.origin.y + 5 * this.room.tileSize, key, 0)
         .setOrigin(0, 0)
         .setDisplaySize(this.room.tileSize * 9, this.room.tileSize * 22)
         .setDepth(LAYERS.props + 30),
@@ -102,8 +108,8 @@ export class Ch01DormRoomView {
       graphics.strokeCircle(at.x + 18, at.y - 14, 8);
     }
 
-    // Zzz 钉在郑卿床（左上床）上方，而不是交互 marker。
-    const anchor = tileCenter(this.room, 9, 6);
+    // Zzz 钉在郑卿床上方，而不是交互 marker。
+    const anchor = tileCenter(this.room, 25, 6);
     const zzz = this.track(
       makeSceneText(this.scene, anchor.x + 22, anchor.y - 12, 'Zzz', {
         size: 18,

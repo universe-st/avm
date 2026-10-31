@@ -9,30 +9,32 @@ import {
   worldToTile,
 } from '../src/map/core/room';
 import { CH01_DORM_ROOM } from '../src/map/rooms/ch01-dorm';
+import { PLAYER_FOOT } from '../src/map/player-foot';
 import type { RoomDef } from '../src/map/types';
 
-const FOOT = { width: 58, height: 20 } as const;
+const FOOT = PLAYER_FOOT;
 
 describe('ch01 dorm room', () => {
   it('passes structural validation', () => {
     expect(validateRoom(CH01_DORM_ROOM)).toEqual([]);
   });
 
-  it('is a 50x54 room with one spawn by the door', () => {
-    expect(CH01_DORM_ROOM.size).toEqual([50, 54]);
+  it('is a 33x54 room with one spawn below the desk, on the left-bed side', () => {
+    expect(CH01_DORM_ROOM.size).toEqual([33, 54]);
     expect(CH01_DORM_ROOM.ascii).toHaveLength(54);
-    for (const line of CH01_DORM_ROOM.ascii) expect(line).toHaveLength(50);
-    expect(CH01_DORM_ROOM.spawn.at).toEqual([24, 50]);
-    expect(isWalkableTile(CH01_DORM_ROOM, 24, 50)).toBe(true);
-    expect(canStandAt(CH01_DORM_ROOM, tileCenter(CH01_DORM_ROOM, 24, 50), FOOT)).toBe(true);
+    for (const line of CH01_DORM_ROOM.ascii) expect(line).toHaveLength(33);
+    expect(CH01_DORM_ROOM.spawn.at).toEqual([14, 12]);
+    expect(CH01_DORM_ROOM.spawn.facing).toBe('down');
+    expect(isWalkableTile(CH01_DORM_ROOM, 14, 12)).toBe(true);
+    expect(canStandAt(CH01_DORM_ROOM, tileCenter(CH01_DORM_ROOM, 14, 12), FOOT)).toBe(true);
   });
 
   it('keeps furniture and walls solid', () => {
     expect(isWalkableTile(CH01_DORM_ROOM, 0, 0)).toBe(false);
-    expect(isWalkableTile(CH01_DORM_ROOM, 9, 15)).toBe(false); // 郑卿床
-    expect(isWalkableTile(CH01_DORM_ROOM, 25, 25)).toBe(false); // 书桌
+    expect(isWalkableTile(CH01_DORM_ROOM, 25, 15)).toBe(false); // 郑卿床（北窗下）
+    expect(isWalkableTile(CH01_DORM_ROOM, 14, 8)).toBe(false); // 书桌
     expect(isWalkableTile(CH01_DORM_ROOM, 18, 15)).toBe(true); // 中央地板
-    expect(isWalkableTile(CH01_DORM_ROOM, 24, 30)).toBe(true);
+    expect(isWalkableTile(CH01_DORM_ROOM, 16, 30)).toBe(true);
   });
 
   it('reaches every required interactable from the spawn', () => {
@@ -54,9 +56,12 @@ describe('ch01 dorm room', () => {
     }
   });
 
-  it('finds the nearest interactable and respects its radius', () => {
-    const bed = tileCenter(CH01_DORM_ROOM, 14, 15);
-    expect(findInteractableNear(CH01_DORM_ROOM, bed)?.id).toBe('zheng');
+  it('puts Zheng\'s trigger beside his head and still reachable from the corridor', () => {
+    const zheng = CH01_DORM_ROOM.interactables.find((item) => item.id === 'zheng');
+    expect(zheng?.at).toEqual([21, 13]);
+    // 沿左侧过道走到头边（col 18 是可站的最右一列）。
+    const besideHead = tileCenter(CH01_DORM_ROOM, 18, 13);
+    expect(findInteractableNear(CH01_DORM_ROOM, besideHead)?.id).toBe('zheng');
     const far = { x: 0, y: 0 };
     expect(findInteractableNear(CH01_DORM_ROOM, far)).toBeNull();
   });

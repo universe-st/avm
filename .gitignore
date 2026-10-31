@@ -50,9 +50,8 @@ __pycache__/
 # ===== 素材管线打包中间件（解包后的目录已入库，zip 只是分发副本）=====
 assets-src/**/*.zip
 
-# ===== DSH 本地运行状态（只把项目级 skills 入库）=====
-.dsh/*
-!.dsh/skills/
+# ===== DSH 本地运行状态与项目级 skills（仅本机，不入库）=====
+.dsh/
 
 # ===== 系统与编辑器 =====
 .DS_Store
@@ -63,3 +62,16 @@ desktop.ini
 .vscode/
 *.swp
 *~
+
+# ===== previz 草图派生物（可随时删）=====
+.previz/
+
+# ===== IM 收件箱（本机附件，不入库）=====
+.dsh-im/
+
+# ===== 记忆库（本机，误删不可恢复）=====
+.dsh-meow/
+
+# ===== 短剧工程生成物（成片已进 public/assets；源镜头可重出）=====
+drama/剧集/*/制作成果/
+drama/.short-drama/

@@ -4,7 +4,14 @@ import { SCENE_KEYS, type SceneKey } from './scene-keys';
 /** 场景门禁同时服务普通场景与独立战斗场景。 */
 export type ModuleKind = 'scene' | 'battle';
 
-export type ModuleId = 'title' | 'prologue' | 'placeholder' | 'ch01Dorm' | 'battleCh01';
+export type ModuleId =
+  | 'title'
+  | 'prologue'
+  | 'placeholder'
+  | 'ch01Opening'
+  | 'ch01Dorm'
+  | 'ch01Palace'
+  | 'battleCh01';
 
 export interface GameModule {
   readonly id: ModuleId;
@@ -46,18 +53,32 @@ export const MODULES: Record<ModuleId, GameModule> = {
     requires: ['core', 'cutscene.prologue'],
     gate: { title: '正在开启序章' },
   },
+  ch01Opening: {
+    id: 'ch01Opening',
+    kind: 'scene',
+    sceneKey: SCENE_KEYS.ch01Opening,
+    requires: ['core', 'cutscene.ch01opening'],
+    gate: { title: '正在进入寝室' },
+  },
   ch01Dorm: {
     id: 'ch01Dorm',
     kind: 'scene',
     sceneKey: SCENE_KEYS.ch01Dorm,
-    requires: ['core', 'ui', 'ch.01'],
+    requires: ['core', 'ui', 'ch.01', 'cutscene.ch01phone'],
     gate: { title: '正在进入第一章 · 寝室' },
+  },
+  ch01Palace: {
+    id: 'ch01Palace',
+    kind: 'scene',
+    sceneKey: SCENE_KEYS.ch01Palace,
+    requires: ['core', 'ui', 'cutscene.ch01palace', 'cutscene.ch01palace.walk', 'cutscene.ch01palace.sfx'],
+    gate: { title: '正在进入梦域 · 金殿' },
   },
   battleCh01: {
     id: 'battleCh01',
     kind: 'battle',
     sceneKey: SCENE_KEYS.battleCh01,
-    requires: ['core', 'battle.common', 'battle.ch01'],
+    requires: ['core', 'battle.common', 'battle.ch01', 'cutscene.ch01palace'],
     gate: { title: '正在进入梦域金殿' },
   },
 };

@@ -11,8 +11,8 @@ import {
 } from '../src/story/prologue';
 
 const EXPECTED_SPOKEN =
-  '你，有做过梦吗？梦，无可捉摸，虚无缥缈。它根植于人的内心，人却从未真正了解过它。' +
-  '但当它成为一场席卷了地球的灾难，人类被迫参加了一场他们未曾好好准备的战争。' +
+  '你，曾做过梦吗？梦，不可捉摸，虚无缥缈。它根植于人的内心，人却从未真正了解过它。' +
+  '那天，当它成为一场席卷地球的灾难，人类被迫参加了一场未曾准备的战争。' +
   '而大多数人都不知道，这场战争，早就已经开始了。我们的故事，从一所学校开始。' +
   '20x5年9月7日。明山县·群英高级中学。';
 
@@ -33,7 +33,7 @@ describe('prologue script', () => {
   it('opens straight on the first line, without the stage-direction caption', () => {
     const first = PROLOGUE_CUES[0];
     expect(first?.id).toBe('sky-question');
-    expect(first?.lines).toEqual(['你，有做过梦吗？']);
+    expect(first?.lines).toEqual(['你，曾做过梦吗？']);
     // 2026-10-25：开场「深夜天幕，一颗流星划过」的字样已删除，不再有 caption。
     expect(PROLOGUE_CUES.some((item) => 'caption' in item)).toBe(false);
   });

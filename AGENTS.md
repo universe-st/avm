@@ -33,7 +33,7 @@ pnpm android:release
 12. **所有可玩场景/CG/战斗都必须登记舞台目录**：`src/dev/stage-catalog.ts`；场景 key 还要进 `src/app/scene-keys.ts`。`pnpm check` 会检查模块/内容场景覆盖，不登记就失败。
 13. 预览/验收只走 `launchStage()`、`?stage=<id>` 或 `__AVM__.stages`；场景不要自己解析 query，也不要直接 `scene.start()` 做预览跳转。新增场景/CG/战斗照 `docs/STAGE-PREVIEW.md` 的三套接入步骤做。
 14. 预览模式（`StageLaunchContext.preview === true`）**不得写存档/进度/成就**；随机必须用 `seed`（`src/dev/random.ts`），禁止直接 `Math.random()`。同一 seed + params 必须能复现同一画面/开局。
-15. 原生渲染分层只能取 `src/render/layers.ts` 的 `LAYERS` / `characterDepth()`；资源 key 只能取 `src/assets/keys.ts` 的分组。地图、角色、UI、CG 的归属见 `docs/RENDER-LAYERS.md`，不要在场景里写魔法 depth 或手写资源 key。
+15. 原生渲染分层只能取 `src/render/layers.ts` 的 `LAYERS` / `SCREEN_LAYERS` / `characterDepth()`；资源 key 只能取 `src/assets/keys.ts` 的分组。**过场里推拉镜头只能缩放世界层容器（`worldRoot`），禁止改 `cameras.main.zoom`（会把 Compose 对话框一起放大、挤出屏幕）；屏幕层特效（立绘/遮幅/字卡/速度线）只能用 `SCREEN_LAYERS`。**地图、角色、UI、CG 的归属见 `docs/RENDER-LAYERS.md`，不要在场景里写魔法 depth 或手写资源 key。
 16. **资源随场景走**：内容场景只通过 `GameModule.requires` 声明资源，切场景必须走 `enterModule` / `launchStage`；`AssetService` 会在目标场景 `create` 后释放旧 bundle（`core`/`ui` 常驻）。禁止跨场景 `prefetch`，禁止场景里手工 `textures.remove` / `cache.*.remove`；验收看 `__AVM__.assets.bundles()`。
 
 ## 3. 代码风格

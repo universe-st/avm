@@ -2,7 +2,16 @@ import Phaser from 'phaser';
 import { ref } from '@phaser-mvvm/core';
 import { UIScene, prefersReducedMotion, type ModalHandle } from '@phaser-mvvm/phaser';
 
-import { CH01_ASSET_KEYS, CH01_Q_FRAME, CH01_Q_STATIC_SPRITES, CH01_Q_WALK_SHEETS } from '../assets/keys';
+/** 对话面板一页最多显示的字数（34px 字号 × 4 行 × 约 17 字）。 */
+const DIALOGUE_PAGE_CHARS = 68;
+
+import {
+  CH01_ASSET_KEYS,
+  CH01_Q_FRAME,
+  CH01_Q_STATIC_SPRITES,
+  CH01_Q_WALK_FRAME_COUNT,
+  CH01_Q_WALK_SHEETS,
+} from '../assets/keys';
 import { PlayerActor } from '../actors/player-actor';
 import { Ch01DormRoomView } from '../world/ch01-dorm-room-view';
 import { CgOverlay } from '../ui/cg-overlay';
@@ -14,6 +23,7 @@ import { enterModule } from '../app/director';
 import { SCENE_KEYS } from '../app/scene-keys';
 import { applyCamera, getViewportPlan } from '../app/viewport';
 import { audioDirector } from '../audio/audio-director';
+import { typeVoiceForSpeaker } from '../audio/type-voice';
 import { settings } from '../app/settings';
 import { bgmManager } from '../audio/bgm-manager';
 import {
@@ -26,6 +36,7 @@ import {
   CH01_DORM_ROOM,
 } from '../map/rooms/ch01-dorm';
 import { findInteractableNear, interactableCenter } from '../map/core/room';
+import { PLAYER_FOOT } from '../map/player-foot';
 import {
   facingFromVector,
   moveWithCollision,
@@ -47,6 +58,7 @@ import {
   type Ch01PreviewPhase,
 } from '../story/ch01-flow';
 import { DialoguePlayer, type DialogueEvent } from '../story/dialogue-player';
+import { playCutsceneVideo, type CutsceneVideoHandle } from '../ui/cutscene-video';
 import type { DialogueLine } from '../story/dialogue';
 import { TitleCard, GOLD, makeSceneText } from '../ui/cinematic';
 import { VirtualJoystick } from '../ui/joystick';
@@ -64,9 +76,16 @@ interface MovementKeys {
 }
 
 const BASE_ROOM = CH01_DORM_ROOM;
-const FOOT = { width: 58, height: 20 } as const;
 const WALK_SPEED = 140;
 const INTERACT_KEY = 'E';
+
+/**
+ * 角色显示缩放：Q 版帧 160×400，原始比例 0.682，按要求整体缩到 **90%**（0.682 × 0.9）。
+ * `headOffset` 是头顶到脚底的设计像素，必须跟着一起缩，否则表情气泡会飘在头顶上方。
+ * 脚盒 `PLAYER_FOOT` 是碰撞用的，不跟缩放走（缩了会让窄过道更难走）。
+ */
+const PLAYER_SCALE = 0.6138;
+const PLAYER_HEAD_OFFSET = 232;
 
 
 /**
@@ -92,6 +111,11 @@ export class Ch01DormScene extends UIScene {
   private joystick: VirtualJoystick | null = null;
   private keys: MovementKeys | null = null;
   private dialogue: DialoguePlayer | null = null;
+  /** 手机 CG 的全屏播放句柄；非空时屏蔽场景输入。 */
+  private cutscene: CutsceneVideoHandle | null = null;
+  /** 手机 CG 只在第一次「查看手机」时播；重进本节不再打扰。 */
+  private phoneCutsceneSeen = false;
+  private shuttingDown = false;
   private deferred: Ch01Event[] = [];
   private near: InteractableDef | null = null;
   private lastTyped = 0;
@@ -100,6 +124,7 @@ export class Ch01DormScene extends UIScene {
   private ended = false;
   private preview = false;
   private previewPhase: Ch01PreviewPhase = 'opening';
+  private tutorialDismissed = false;
   private resumeAfterBattle = false;
   private seed = 1;
   private debug = false;
@@ -109,11 +134,16 @@ export class Ch01DormScene extends UIScene {
   private readonly objective = ref<string>(CH01_OBJECTIVES.wakeZheng);
   private readonly dialogueVisible = ref(false);
   private readonly dialogueSpeaker = ref('');
+  /** 当前这句的稳定角色 id（小白的名字会变，声线与立绘认这个）。 */
+  private dialogueRole: DialogueLine['role'] | null = null;
+  private readonly dialogueNarration = ref(false);
   private readonly dialogueText = ref('');
   private readonly dialogueHint = ref('继续');
   private readonly interactLabel = ref('交互');
   private readonly interactAvailable = ref(false);
   private readonly cardActive = ref(false);
+  /** 新手移动指引：首次进入探索时显示，玩家第一次移动后收起。 */
+  private readonly tutorialVisible = ref(false);
 
   constructor() {
     super(SCENE_KEYS.ch01Dorm);
@@ -180,11 +210,13 @@ export class Ch01DormScene extends UIScene {
       objective: this.objective,
       dialogueVisible: this.dialogueVisible,
       dialogueSpeaker: this.dialogueSpeaker,
+      dialogueNarration: this.dialogueNarration,
       dialogueText: this.dialogueText,
       dialogueHint: this.dialogueHint,
       interactLabel: this.interactLabel,
       interactAvailable: this.interactAvailable,
       cardActive: this.cardActive,
+      tutorialVisible: this.tutorialVisible,
       onMenu: () => {
         audioDirector.playClick();
         this.openExitConfirm();
@@ -192,6 +224,10 @@ export class Ch01DormScene extends UIScene {
       onContinue: () => {
         audioDirector.playClick();
         this.advanceDialogue();
+      },
+      onSkipDialogue: () => {
+        audioDirector.playClick();
+        this.skipDialogue();
       },
       onInteract: () => {
         audioDirector.playClick();
@@ -233,11 +269,15 @@ export class Ch01DormScene extends UIScene {
     this.objective.value = CH01_OBJECTIVES.wakeZheng;
     this.dialogueVisible.value = false;
     this.dialogueSpeaker.value = '';
+    this.dialogueRole = null;
+    this.dialogueNarration.value = false;
     this.dialogueText.value = '';
     this.dialogueHint.value = '继续';
     this.interactLabel.value = '交互';
     this.interactAvailable.value = false;
     this.cardActive.value = false;
+    this.tutorialVisible.value = false;
+    this.tutorialDismissed = false;
   }
 
   private createWorld(): void {
@@ -261,10 +301,12 @@ export class Ch01DormScene extends UIScene {
       walkSheets: CH01_Q_WALK_SHEETS,
       frameWidth: CH01_Q_FRAME.width,
       frameHeight: CH01_Q_FRAME.height,
-      spriteScale: 0.45,
-      headOffset: 170,
+      walkFrameCount: CH01_Q_WALK_FRAME_COUNT,
+      spriteScale: PLAYER_SCALE,
+      headOffset: PLAYER_HEAD_OFFSET,
       linearTextures: true,
-      ...(opening ? { spawn: { at: [24, 36] as const, facing: 'up' as const } } : {}),
+      // 开局站在书桌下方、靠左侧床的一侧。
+      ...(opening ? { spawn: { at: [14, 12] as const, facing: 'down' as const } } : {}),
     });
     this.cg = new CgOverlay(this, this.reduced);
     this.emotionBubble = new EmotionBubble(this, this.reduced);
@@ -334,15 +376,21 @@ export class Ch01DormScene extends UIScene {
       return;
     }
 
+    // 玩家第一次推动方向就把新手指引收起来，避免挡住探索。
+    this.dismissTutorial();
+
     const step = (WALK_SPEED * deltaMs) / 1000;
     const result = moveWithCollision(
       this.room,
       player.position,
       { x: direction.x * step, y: direction.y * step },
-      FOOT,
+      PLAYER_FOOT,
     );
     const facing = facingFromVector(direction.x, direction.y, player.facing);
-    player.moveTo(result.position, facing, true, deltaMs);
+    // 撞墙（这一帧一像素都没挪动）就停在站立帧，别原地踏步。
+    const moved =
+      result.position.x !== player.position.x || result.position.y !== player.position.y;
+    player.moveTo(result.position, facing, moved, deltaMs);
   }
 
   private updateNear(): void {
@@ -360,7 +408,11 @@ export class Ch01DormScene extends UIScene {
     if (!this.promptText) return;
     if (near) {
       const at = interactableCenter(this.room, near);
-      this.promptText.setText(`[${INTERACT_KEY}] ${prompt}`).setPosition(at.x, at.y - 70).setVisible(true);
+      this.promptText
+        .setText(`[${INTERACT_KEY}] ${prompt}`)
+        .setPosition(at.x, at.y - 70)
+        // 开局站在书桌下，手机提示会压在主角头上；先让新手指引独占画面，移动后再显示提示。
+        .setVisible(!this.tutorialVisible.value);
     } else {
       this.promptText.setVisible(false);
     }
@@ -368,11 +420,13 @@ export class Ch01DormScene extends UIScene {
 
   private onInteractKey(event: KeyboardEvent): void {
     event.preventDefault();
+    if (this.cutscene) return;
     this.interact();
   }
 
   private onAdvanceKey(event: KeyboardEvent): void {
     event.preventDefault();
+    if (this.cutscene) return;
     if (this.cardVisible) {
       this.hideChapterCard();
       return;
@@ -384,16 +438,41 @@ export class Ch01DormScene extends UIScene {
     if (this.near) this.interact();
   }
 
+  /**
+   * 全局点击：对话中**点屏幕任意位置**都算「补全 / 继续」。
+   *
+   * 右上角那条留给「跳过 / 菜单」按钮（点它们不该同时推进对话），
+   * 判定用设计坐标：UI 相机 1:1，`worldX/worldY` 就是设计像素。
+   */
   private onScenePointerDown(pointer: Phaser.Input.Pointer): void {
-    if (!this.cardVisible) return;
-    // 卡片右上角给「菜单」留出命中区。
+    if (this.cutscene) return;
     const plan = getViewportPlan();
-    if (pointer.worldX > plan.designWidth - 140 && pointer.worldY < 140) return;
+    const inTopRightButtons = pointer.worldY < 150 && pointer.worldX > plan.designWidth - 230;
+    if (this.dialogueVisible.value) {
+      if (inTopRightButtons) return;
+      this.advanceDialogue();
+      return;
+    }
+    if (!this.cardVisible) return;
+    if (inTopRightButtons) return;
     this.hideChapterCard();
   }
 
+  /** 收起新手指引；一次性，之后不再弹。 */
+  private dismissTutorial(): void {
+    if (this.tutorialDismissed) return;
+    this.tutorialDismissed = true;
+    this.tutorialVisible.value = false;
+  }
+
+  /** 「跳过」：整段对话直接结束，后续事件照常发（目标更新、镜头等）。 */
+  private skipDialogue(): void {
+    if (!this.dialogue) return;
+    this.finishDialogue();
+  }
+
   private interact(): void {
-    if (this.transitioning || this.ended) return;
+    if (this.transitioning || this.ended || this.cutscene) return;
     if (this.cardVisible) {
       this.hideChapterCard();
       return;
@@ -427,10 +506,15 @@ export class Ch01DormScene extends UIScene {
           if (this.flow?.state.phase === 'explore') this.startExploreAudio();
           break;
         case 'dialogue':
-          this.startDialogue(event.lines);
+          if (event.nodeId === 'phone' && !this.phoneCutsceneSeen) {
+            this.phoneCutsceneSeen = true;
+            this.startPhoneCutscene(event.lines);
+          } else {
+            this.startDialogue(event.lines);
+          }
           break;
         case 'battle':
-          this.beginBattle(event.battleId);
+          this.beginPalace(event.battleId);
           break;
         case 'complete':
           this.showEndCard();
@@ -461,14 +545,39 @@ export class Ch01DormScene extends UIScene {
     this.syncControls();
   }
 
+  /**
+   * 「查看手机」先整段放 CG（EP002），播完或跳过再进对话。
+   *
+   * 视频是 DOM 直显、盖在 canvas 上；播放期间场景输入由 `cutscene` 句柄屏蔽，
+   * 只留右上角的「跳过」。素材缺失时直接进对话，不卡流程。
+   */
+  private startPhoneCutscene(lines: readonly DialogueLine[]): void {
+    this.joystick?.setEnabled(false);
+    this.promptText?.setVisible(false);
+    this.interactAvailable.value = false;
+    this.cutscene = playCutsceneVideo(this, CH01_ASSET_KEYS.video.phone, (reason) => {
+      this.cutscene = null;
+      if (this.shuttingDown) return;
+      if (reason === 'error') console.warn('[ch01-dorm] 手机 CG 不可用，直接进入对话');
+      this.startDialogue(lines);
+    });
+  }
+
   private startDialogue(lines: readonly DialogueLine[]): void {
-    this.dialogue = new DialoguePlayer(lines);
+    /**
+     * 对话面板固定 300 高、字号 34（lg）、内容宽 628 —— 大约 4 行 × 17 字。
+     * 超出就分页，点一下翻下一页，避免长句被裁掉。
+     */
+    this.dialogue = new DialoguePlayer(lines, { pageChars: DIALOGUE_PAGE_CHARS });
     this.dialogueVisible.value = true;
     this.dialogueSpeaker.value = '';
+    this.dialogueRole = null;
+    this.dialogueNarration.value = false;
     this.dialogueText.value = '';
     this.dialogueHint.value = '继续';
     this.lastTyped = 0;
     this.joystick?.setEnabled(false);
+    this.tutorialVisible.value = false;
     this.promptText?.setVisible(false);
     this.interactAvailable.value = false;
     this.handleDialogueEvents(this.dialogue.start());
@@ -477,14 +586,20 @@ export class Ch01DormScene extends UIScene {
   private handleDialogueEvents(events: readonly DialogueEvent[]): void {
     for (const event of events) {
       if (event.type === 'line') {
-        this.dialogueSpeaker.value = event.speaker ?? '';
+        // 旁白不显示「旁白」两个字，文字改用天蓝色；说话人变化也要反映在逐字音上。
+        const narration = event.speaker === '旁白';
+        this.dialogueRole = event.line.role ?? null;
+        this.dialogueSpeaker.value = narration ? '' : (event.speaker ?? '');
+        this.dialogueNarration.value = narration;
         this.applyLineCue(event.line);
-        if (event.speaker === '小白') this.showXiaobai();
+        if (this.dialogueRole === 'xiaobai' || event.speaker === '小白') this.showXiaobai();
       } else if (event.type === 'type') {
         this.dialogueText.value = event.text;
         this.dialogueHint.value = event.done ? '继续' : '补全';
         const gained = event.typedCount - this.lastTyped;
-        if (gained > 0 && gained <= 2) audioDirector.playTypeBlip();
+        if (gained > 0 && gained <= 2) {
+          audioDirector.playTypeBlip(typeVoiceForSpeaker(event.speaker, this.dialogueRole ?? undefined));
+        }
         this.lastTyped = event.typedCount;
       } else if (event.type === 'complete') {
         this.finishDialogue();
@@ -500,12 +615,15 @@ export class Ch01DormScene extends UIScene {
 
   private finishDialogue(): void {
     this.dialogue = null;
+    // 回忆段一旦开始，《危机来临》就保持到离开寝室（梦域战斗会接手切曲）；
+    // 即使玩家中途点「跳过」也不切回日常，情绪不能断。
     const next = this.flow.nodeCompleted();
     this.handleEvents(next);
     // 如果 next 又开了对话，startDialogue 会把 visible 保持为 true，避免 Branch 闪一下探索按钮。
     if (!this.dialogue) {
       this.dialogueVisible.value = false;
       this.dialogueSpeaker.value = '';
+      this.dialogueNarration.value = false;
       this.dialogueText.value = '';
       this.cg?.hide();
       this.emotionBubble?.hide();
@@ -522,12 +640,18 @@ export class Ch01DormScene extends UIScene {
       !this.ended &&
       !this.transitioning;
     this.joystick?.setEnabled(canExplore);
-    if (canExplore) this.startExploreAudio();
-    if (!canExplore) this.promptText?.setVisible(false);
+    if (canExplore) {
+      this.startExploreAudio();
+      if (!this.tutorialDismissed) this.tutorialVisible.value = true;
+    } else {
+      this.tutorialVisible.value = false;
+      this.promptText?.setVisible(false);
+    }
     this.updateNear();
   }
 
   private applyLineCue(line: DialogueLine): void {
+    if (line.bgm !== undefined) bgmManager.play(line.bgm);
     if (line.cg !== undefined) this.cg?.show(line.cg, line.fx);
     else this.cg?.hide();
 
@@ -553,15 +677,16 @@ export class Ch01DormScene extends UIScene {
       by ??
       (this.dialogueSpeaker.value.includes('郑卿')
         ? 'zheng'
-        : this.dialogueSpeaker.value === '小白'
+        : this.dialogueRole === 'xiaobai' || this.dialogueSpeaker.value === '小白'
           ? 'xiaobai'
           : 'zhou');
 
     if (target === 'zheng') {
       const zheng = this.room.interactables.find((item) => item.id === 'zheng');
       if (!zheng) return;
+      // 郑卿的判定点在枕头左侧（床沿）；+88 正好落到床上那颗脑袋的中心。
       const at = interactableCenter(this.room, zheng);
-      this.emotionBubble?.show(kind, at.x + 6, at.y - 62, 900);
+      this.emotionBubble?.show(kind, at.x + 88, at.y - 62, 900);
       return;
     }
 
@@ -584,7 +709,7 @@ export class Ch01DormScene extends UIScene {
     sound.play();
     this.tweens.add({
       targets: sound,
-      volume: settings.muted ? 0 : settings.sfx * 0.8,
+      volume: settings.muted ? 0 : settings.sfx * 0.6,
       duration: 320,
       ease: 'Sine.easeOut',
     });
@@ -631,7 +756,8 @@ export class Ch01DormScene extends UIScene {
     });
   }
 
-  private beginBattle(battleId: string): void {
+  /** 梦域这一段先在金殿里演完（走位/台词），再由宫殿场景自己切战斗。 */
+  private beginPalace(battleId: string): void {
     if (this.transitioning) return;
     this.transitioning = true;
     this.dialogue = null;
@@ -646,12 +772,12 @@ export class Ch01DormScene extends UIScene {
     this.time.delayedCall(this.reduced ? 80 : 260, () => {
       this.cameras.main.fadeOut(this.reduced ? 160 : 320, 5, 6, 10);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-        void enterModule(this, 'battleCh01', {
+        void enterModule(this, 'ch01Palace', {
           encounterId: battleId,
           seed: this.seed,
           preview: this.preview,
         }).catch((error: unknown) => {
-          console.warn('[ch01-dorm] 进入战斗失败', error);
+          console.warn('[ch01-dorm] 进入金殿失败', error);
           this.transitioning = false;
         });
       });
@@ -693,6 +819,9 @@ export class Ch01DormScene extends UIScene {
   }
 
   private onShutdown(): void {
+    this.shuttingDown = true;
+    this.cutscene?.destroy();
+    this.cutscene = null;
     this.input.off('pointerdown', this.onScenePointerDown, this);
     const keyboard = this.input.keyboard;
     keyboard?.off('keydown-E', this.onInteractKey, this);

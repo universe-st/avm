@@ -156,8 +156,14 @@ export class LoaderScene extends Phaser.Scene {
     const pct = Math.round(state.progress * 100);
     this.barFill.scaleX = Math.min(1, Math.max(0, state.progress));
     this.percentText.setText(`${pct}%`);
-    const prefix = state.label ? `${state.label} · ` : '';
-    this.statusText.setText(`${prefix}${state.currentLabel || '准备中…'}`);
+    /**
+     * 状态行**只给阶段文案，不拼素材名 / bundle id**。
+     *
+     * `state.label` 是批次名（如 `ch.01`）、`state.currentLabel` 是当前资源文件名，
+     * 一起拼上去就是「ch.01 · ch01_dorm_q.png」这种内部标识，玩家看了一头雾水。
+     * 进度百分比和进度条已经足够表达「在加载」。
+     */
+    this.statusText.setText('正在载入…');
     this.statusText.setColor('#9b9486');
   }
 

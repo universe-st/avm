@@ -23,7 +23,7 @@ import type { BattleAction, BattleState } from '../battle/types';
 import { DANGER, GOLD, INK, makeSceneText } from '../ui/cinematic';
 import { hashSeed, mulberry32 } from '../dev/random';
 import { addCoverImage } from '../ui/background';
-import { setPixelTextures } from '../ui/pixel';
+import { setLinearTextures, setPixelTextures } from '../ui/pixel';
 import { buildBattleCh01Hud } from '../ui/battle-ch01-hud';
 import { openBattleDefeat, openBattleExit, openBattleIntro } from '../ui/battle-ch01-modals';
 
@@ -118,9 +118,10 @@ export class BattleCh01Scene extends UIScene {
 
     applyCamera(this);
     this.cameras.main.setBackgroundColor('#05060a');
-    setPixelTextures(this, [CH01_ASSET_KEYS.battle.dreamHall, CH01_ASSET_KEYS.characters.miner, CH01_ASSET_KEYS.characters.zhouDown]);
+    setPixelTextures(this, [CH01_ASSET_KEYS.characters.miner, CH01_ASSET_KEYS.characters.zhouDown]);
+    setLinearTextures(this, [CH01_ASSET_KEYS.battle.palaceHall]);
 
-    if (!addCoverImage(this, CH01_ASSET_KEYS.battle.dreamHall)) {
+    if (!addCoverImage(this, CH01_ASSET_KEYS.battle.palaceHall)) {
       this.add.rectangle(0, 0, getViewportPlan().designWidth, getViewportPlan().designHeight, 0x1a1012)
         .setOrigin(0, 0);
     }

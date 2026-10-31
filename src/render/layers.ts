@@ -30,6 +30,25 @@ export const LAYERS = {
   debug: 6000,
 } as const;
 
+/**
+ * 屏幕层（过场专用）：不随镜头缩放、永远盖在世界之上、又在 Compose UI 之下。
+ *
+ * 这一层的存在就是为了不再出现「立绘被太监挡住」「黑边压不住角色」这类问题：
+ * 只要是贴在屏幕上的东西（立绘、遮幅、字卡、速度线、硬切），depth 只能从这里取。
+ */
+export const SCREEN_LAYERS = {
+  /** 半身立绘：盖住世界，但**在遮幅之下**（遮幅是"裁画面"，要能切到立绘）。 */
+  portrait: 6950,
+  /** 集中线/速度线。 */
+  speedlines: 7000,
+  /** 上下遮幅（电影画幅）。 */
+  letterbox: 7020,
+  /** 定格字卡：在遮幅之上，不能被黑边吃掉。 */
+  stamp: 7040,
+  /** 硬切色块：屏幕层最上面。 */
+  cut: 7060,
+} as const;
+
 /** Compose UIRoot 的 depth；必须高于所有原生层。 */
 export const UI_ROOT_DEPTH = 10000;
 

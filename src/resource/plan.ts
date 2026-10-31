@@ -5,6 +5,7 @@ const FALLBACK_BYTES: Record<AssetDef['kind'], number> = {
   image: 192 * 1024,
   audio: 1024 * 1024,
   json: 32 * 1024,
+  video: 2 * 1024 * 1024,
 };
 
 export interface CatalogEntry {

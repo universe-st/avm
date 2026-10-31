@@ -13,6 +13,8 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
   server: {
+    // 监听所有网卡，方便手机 / 同网段设备直连 http://<局域网 IP>:5173/
+    host: true,
     port: 5173,
     strictPort: true,
   },

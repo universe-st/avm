@@ -73,6 +73,14 @@ export interface RoomDef {
 export interface FootBox {
   readonly width: number;
   readonly height: number;
+  /**
+   * 脚盒向外扩的「视觉间余」（设计 px）。
+   *
+   * 碰撞是**几何**判定：脚底探针正好落在障碍格边界上就算站住，于是角色能贴着床沿站，
+   * 实机上看起来就是「脚踩在床框上」。这个 padding 让探针比脚盒再外扩一点，
+   * 角色会在离障碍几像素处停下，脚与床/墙之间留出一条缝。
+   */
+  readonly padding?: number;
 }
 
 export interface RoomTile {

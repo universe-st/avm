@@ -10,8 +10,10 @@ import { CgStageScene } from './scenes/cg-stage-scene';
 import { BattleSandboxScene } from './scenes/battle-sandbox-scene';
 import { BattleCh01Scene } from './scenes/battle-ch01-scene';
 import { Ch01DormScene } from './scenes/ch01-dorm-scene';
+import { Ch01PalaceScene } from './scenes/ch01-palace-scene';
 import { PlaceholderScene } from './scenes/placeholder-scene';
 import { PrologueScene } from './scenes/prologue-scene';
+import { Ch01OpeningScene } from './scenes/ch01-opening-scene';
 import { TitleScene } from './scenes/title-scene';
 import { LoaderScene } from './resource/loader-scene';
 import { assetService } from './resource/asset-service';
@@ -36,6 +38,12 @@ MVVMPlugin.configure({
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
+  /**
+   * canvas 必须透明：开场 CG 走的是「DOM `<video>` 直接合成 + canvas 只画 UI」，
+   * 不透明的话 canvas 会整块盖住视频。各内容场景自己的 camera 背景色照旧画满，
+   * 只有 `ch01-opening` 显式设成 `rgba(0,0,0,0)` 把视频露出来。
+   */
+  transparent: true,
   backgroundColor: '#05060a',
   scale: {
     mode: Phaser.Scale.FIT,
@@ -75,8 +83,10 @@ const game = new Phaser.Game({
     LoaderScene,
     TitleScene,
     PrologueScene,
+    Ch01OpeningScene,
     PlaceholderScene,
     Ch01DormScene,
+    Ch01PalaceScene,
     BattleCh01Scene,
     CgStageScene,
     BattleSandboxScene,

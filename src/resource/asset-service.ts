@@ -157,6 +157,11 @@ export class AssetService {
       case 'json':
         host.cache.json.remove(asset.key);
         return;
+      case 'video': {
+        if (host.textures.exists(asset.key)) host.textures.remove(asset.key);
+        if (host.cache.video.exists(asset.key)) host.cache.video.remove(asset.key);
+        return;
+      }
       default: {
         if (!host.textures.exists(asset.key)) return;
         // 动画帧引用的是纹理 Frame；先删动画再删纹理，否则重进场景时
@@ -177,6 +182,8 @@ export class AssetService {
         return host.cache.audio.exists(asset.key);
       case 'json':
         return host.cache.json.exists(asset.key);
+      case 'video':
+        return host.cache.video.exists(asset.key);
       default:
         return host.textures.exists(asset.key);
     }
@@ -308,6 +315,9 @@ export class AssetService {
               break;
             case 'json':
               loader.json(asset.key, asset.url);
+              break;
+            case 'video':
+              loader.video(asset.key, asset.url);
               break;
             default:
               loader.image(asset.key, asset.url);
