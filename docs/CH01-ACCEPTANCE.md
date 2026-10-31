@@ -167,7 +167,7 @@
 | `pnpm typecheck` | 通过 |
 | `pnpm test` | 通过，171 tests / 20 files |
 | `pnpm assets:check` | 通过，118 key / 118 url；`assets:pass` 通过（可走格 509 / 1782） |
-| `pnpm build` | 通过；JS 1,860.97 kB / gzip 513.40 kB（优化前 1,767.33 kB / 486.71 kB） |
+| `pnpm build` | 通过；JS 1,862.18 kB / gzip 513.81 kB（优化前 1,767.33 kB / 486.71 kB） |
 
 新增单测：`progress`（解析/写入/预览不写/继续映射）、`settings`（旧存档兼容、速度倍率、自动播放停留）、`speaker-tone`（旁白/小白/矿工/默认）、`dialogue-history`（环形缓冲）、`ch01-flow`（恢复探索/结束卡、dream 空节点直达战斗）、`dialogue-player`（`typeMs=0` 立即显示）。
 
