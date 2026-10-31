@@ -881,8 +881,13 @@ export class Ch01DormScene extends UIScene {
 
   private applyLineCue(line: DialogueLine): void {
     if (line.bgm !== undefined) bgmManager.play(line.bgm);
-    if (line.cg !== undefined) this.cg?.show(line.cg, line.fx);
-    else this.cg?.hide();
+    if (line.cg !== undefined) {
+      this.cg?.show(line.cg, line.fx);
+    } else if (this.flow?.state.currentNode !== 'after') {
+      // 战后整段征召都发生在「趴在地板上」的画面里；中途切回站着的寝室会穿帮，
+      // 所以 after 节点没有显式 cg 时保持上一张醒来 CG，等整段结束再收起。
+      this.cg?.hide();
+    }
 
     if (line.emotion !== undefined) {
       this.emotionHoldUntil = this.time.now + 700;
