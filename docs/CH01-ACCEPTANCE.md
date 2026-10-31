@@ -167,7 +167,7 @@
 | `pnpm typecheck` | 通过 |
 | `pnpm test` | 通过，170 tests / 20 files |
 | `pnpm assets:check` | 通过，117 key / 117 url；`assets:pass` 通过（可走格 509 / 1782） |
-| `pnpm build` | 通过；JS 1,860.08 kB / gzip 512.93 kB（优化前 1,767.33 kB / 486.71 kB） |
+| `pnpm build` | 通过；JS 1,860.97 kB / gzip 513.40 kB（优化前 1,767.33 kB / 486.71 kB） |
 
 新增单测：`progress`（解析/写入/预览不写/继续映射）、`settings`（旧存档兼容、速度倍率、自动播放停留）、`speaker-tone`（旁白/小白/矿工/默认）、`dialogue-history`（环形缓冲）、`ch01-flow`（恢复探索/结束卡、dream 空节点直达战斗）、`dialogue-player`（`typeMs=0` 立即显示）。
 
@@ -191,7 +191,7 @@
 2. **金殿图增强**：`tools/enhance-palace-map.py` 叠加窗棂斜光柱、香炉烟/浮尘、地面反光、金红色温与暗角。
 3. **战斗舞台**：`tools/compose-battle-plate.py` 产出 720×1280 专用图（聚光锥、前景台阶虚化、暗角），战斗不再直接截宫殿地图；矿工/周全按 2× 整数倍放大，血条贴角色头顶，敌方加核心脉动与待机呼吸。
 4. **舞台框**：`src/ui/stage-frame.ts` 把寝室/金殿上下留白做成墨色底板 + 鎏金细线 + 颗粒 + 暗角。
-5. **视频填充**：`src/ui/video-surface.ts` 用「前景 contain + 背景同源模糊 cover」填掉开场/手机 CG 的上下黑边，保留跳过按钮与声音开关。
+5. **视频填充与转场**：`src/ui/video-surface.ts` 用「前景 contain + 背景同源模糊 cover」填掉开场/手机 CG 的上下黑边，保留跳过按钮与声音开关；开场结束抓当前帧缩到 48×104 再 pixelated 放大，做成像素化定格溶解，解释「写实视频 → 像素游戏内」的画风切换。
 6. **特效**：`src/ui/fx-kit.ts`（暗角/光柱/浮尘/余烬/接触阴影/冲击环/火星/碎片/LED/抖屏）接入寝室、金殿与战斗；全部遵守 reduced 与单特效 ≤40 对象。
 7. **接触阴影**：玩家、金殿五名角色、战斗双方都有脚底阴影。
 
