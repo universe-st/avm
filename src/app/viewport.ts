@@ -2,8 +2,16 @@ import type Phaser from 'phaser';
 
 /** 竖屏设计宽度：所有 UI 坐标按这个宽度写。 */
 export const DESIGN_WIDTH = 720;
-/** 设计高度随设备比例伸缩，避免 16:9～20:9 手机出现黑边。 */
-export const MIN_DESIGN_HEIGHT = 1280;
+/**
+ * 设计高度随设备比例伸缩，避免出现黑边。
+ *
+ * 只钳制「极端比例」，不要为了凑 9:16 就把高度下限抬到 1280——
+ * 788×1288 这类窗口的理想高度只有 1177，钳到 1280 之后设计框比窗口更窄，
+ * Phaser 的 FIT 只能按高度缩放，于是左右各留一条黑边，画面既不满屏又显得「没居中」。
+ * 下限放到 1100（= 720:1100 约 0.655，比常见竖屏都宽），既让画面铺满，
+ * 也不会矮到把固定尺寸的 HUD 面板和对话面板挤爆。
+ */
+export const MIN_DESIGN_HEIGHT = 1100;
 export const MAX_DESIGN_HEIGHT = 1600;
 
 export interface ViewportPlan {

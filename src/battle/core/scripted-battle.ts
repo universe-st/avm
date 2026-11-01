@@ -46,10 +46,11 @@ export function createBattle(setup: ScriptedBattleSetup): BattleState {
 /**
  * 一次玩家行动 + 一次敌方行动。
  *
- * 本场战斗的核心约束：
- * - 主角攻击伤害恒为 1（直接写死，不读 ATK/DEF）；
- * - 第 `maxRounds` 回合结束仍未战败 → 强制「清除协议」，必定 defeat；
- * - 不存在 victory 分支。
+ * 两套规则由 `setup.damageRule` 决定：
+ * - `fixed-one`（默认）：主角攻击恒为 1，第 `maxRounds` 回合强制「清除协议」，必定 defeat
+ *   —— 服务第一章金殿那场「打不赢」的剧情战；
+ * - `use-attack`：按 `player.attackDamage` 结算，敌方 HP 归零即 victory
+ *   —— 服务御膳房被巡逻发现后的遭遇战。
  *
  * 返回新 state（不修改传入对象），场景按 events 播放动画。
  */
@@ -70,8 +71,11 @@ export function applyBattleAction(
   let guarding = false;
 
   if (action === 'attack') {
-    // 剧情规则：固定 1，不读任何属性。
-    const amount = 1 as const;
+    // 默认剧情规则：固定 1，不读任何属性；遭遇战按 attackDamage 结算。
+    const amount =
+      setup.damageRule === 'use-attack'
+        ? Math.max(1, Math.floor(setup.player.attackDamage))
+        : 1;
     enemyHp = Math.max(0, enemyHp - amount);
     playerAttacks += 1;
     const bark = setup.attackBarks[Math.min(playerAttacks - 1, setup.attackBarks.length - 1)]
@@ -79,6 +83,24 @@ export function applyBattleAction(
       ?? '你的攻击只留下 1 点划痕。';
     events.push({ type: 'player-attack', amount, targetHp: enemyHp, text: bark });
     log = pushLog(log, state.round, bark, 'player');
+    if (enemyHp <= 0) {
+      const text = setup.victoryText ?? '它倒下了。';
+      events.push({ type: 'log', text, tone: 'player' });
+      log = pushLog(log, state.round, text, 'player');
+      return {
+        state: {
+          ...state,
+          phase: 'victory',
+          player: { ...state.player, hp: playerHp },
+          enemy: { ...state.enemy, hp: 0 },
+          guarding: false,
+          playerAttacks,
+          log,
+          events,
+        },
+        events,
+      };
+    }
   } else {
     guarding = true;
     events.push({ type: 'guard', text: setup.guardText });

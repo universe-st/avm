@@ -29,7 +29,7 @@ export type BattleAction = 'attack' | 'guard';
 export type BattleEvent =
   | {
       readonly type: 'player-attack';
-      readonly amount: 1;
+      readonly amount: number;
       readonly targetHp: number;
       readonly text: string;
     }
@@ -82,8 +82,8 @@ export interface ScriptedBattleSetup {
     readonly id: string;
     readonly name: string;
     readonly hp: number;
-    /** 剧情规则：本场主角攻击伤害恒为 1；保留字段方便后续替换。 */
-    readonly attackDamage: 1;
+    /** 主角每次攻击的伤害。未写 `damageRule` 的剧情战固定按 1 结算。 */
+    readonly attackDamage: number;
   };
   readonly enemy: {
     readonly id: string;
@@ -93,6 +93,14 @@ export interface ScriptedBattleSetup {
   };
   readonly maxRounds: number;
   readonly protocolDamage: number;
+  /**
+   * 伤害规则：
+   * - `fixed-one`（默认）：无论数值多少都只打 1，服务「打不赢的剧情战」；
+   * - `use-attack`：按 `player.attackDamage` 结算，可打赢（御膳房遭遇战用）。
+   */
+  readonly damageRule?: 'fixed-one' | 'use-attack';
+  /** 敌方 HP 归零时的收尾台词；只有 use-attack 的仗会用到。 */
+  readonly victoryText?: string;
   /** 每次主角攻击后按顺序取一句；不足时用最后一句。 */
   readonly attackBarks: readonly string[];
   readonly guardText: string;

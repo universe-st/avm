@@ -1,4 +1,5 @@
 import type { ModalHandle, MVVMPlugin } from '@phaser-mvvm/phaser';
+import { MODAL_NO_AUTOFOCUS } from './modal-guard';
 import { Button, Divider, Panel, Row, Text } from '@phaser-mvvm/widgets/compose';
 import { CH01_BATTLE_BANNER } from '../story/ch01-dorm';
 
@@ -10,22 +11,30 @@ import { CH01_BATTLE_BANNER } from '../story/ch01-dorm';
  */
 export function openBattleIntro(
   mvvm: MVVMPlugin,
-  callbacks: { onClose: () => void },
+  callbacks: {
+    onClose: () => void;
+    /** 遭遇战自定义开场：标题/目标/规则提示都由战斗数据决定，不再写死金殿那场。 */
+    readonly badge?: string;
+    readonly title?: string;
+    readonly target?: string;
+    readonly lines?: readonly string[];
+    readonly ruleText?: string;
+  },
 ): ModalHandle {
   let modal: ModalHandle | null = null;
   modal = mvvm.modal.open(
     () => {
       Panel({ width: 620, padding: 30, gap: 12, variant: 'surface' }, () => {
-        Text('PROTOCOL / CLEAR', { size: 'xs', tone: 'muted', align: 'center' });
-        Text('矿场清除协议', { size: 'xl', tone: 'danger', align: 'center' });
+        Text(callbacks.badge ?? 'PROTOCOL / CLEAR', { size: 'xs', tone: 'muted', align: 'center' });
+        Text(callbacks.title ?? '矿场清除协议', { size: 'xl', tone: 'danger', align: 'center' });
         Divider({});
-        Text(`目标：${CH01_BATTLE_BANNER.subtitle}`, { size: 'md', align: 'center' });
-        Text(CH01_BATTLE_BANNER.intro.join('\n'), {
+        Text(`目标：${callbacks.target ?? CH01_BATTLE_BANNER.subtitle}`, { size: 'md', align: 'center' });
+        Text((callbacks.lines ?? CH01_BATTLE_BANNER.intro).join('\n'), {
           size: 'sm',
           tone: 'muted',
           align: 'center',
         });
-        Text('你的攻击只能造成 1 点伤害。', { size: 'sm', tone: 'primary', align: 'center' });
+        Text(callbacks.ruleText ?? '你的攻击只能造成 1 点伤害。', { size: 'sm', tone: 'primary', align: 'center' });
         Row({ width: 'fill', justifyContent: 'center' }, () => {
           Button('迎战', {
             variant: 'primary',
@@ -39,6 +48,7 @@ export function openBattleIntro(
       });
     },
     {
+      ...MODAL_NO_AUTOFOCUS,
       dismissible: false,
       name: 'ch01-battle-intro',
       onClose: callbacks.onClose,
@@ -105,9 +115,51 @@ export function openBattleDefeat(
       });
     },
     {
+      ...MODAL_NO_AUTOFOCUS,
       dismissible: false,
       name: 'ch01-battle-defeat',
       onClose: options.onClose,
+    },
+  );
+  return modal;
+}
+
+/**
+ * 遭遇战打赢后的收尾卡。
+ *
+ * 御膳房的「被发现 → 打一场」是能赢的短仗，赢完直接回地图继续潜行，
+ * 所以这里只给一条主路径（回御膳房），不摆「返回标题」抢注意力。
+ */
+export function openBattleVictory(
+  mvvm: MVVMPlugin,
+  callbacks: { title: string; lines: readonly string[]; preview: boolean; onReturn: () => void; onClose: () => void },
+): ModalHandle {
+  let modal: ModalHandle | null = null;
+  modal = mvvm.modal.open(
+    () => {
+      Panel({ width: 640, padding: 32, gap: 14, variant: 'surface' }, () => {
+        Text('遭遇战 · 解决', { size: 'xs', tone: 'muted', align: 'center' });
+        Text(callbacks.title, { size: 'xl', tone: 'primary', align: 'center' });
+        Divider({});
+        Text(callbacks.lines.join('\n'), { size: 'md', align: 'center' });
+        Row({ width: 'fill', gap: 12, justifyContent: 'center' }, () => {
+          Button('回御膳房', {
+            variant: 'primary',
+            size: 'lg',
+            width: 260,
+            onClick: () => {
+              modal?.close();
+              callbacks.onReturn();
+            },
+          });
+        });
+      });
+    },
+    {
+      ...MODAL_NO_AUTOFOCUS,
+      dismissible: false,
+      name: 'ch01-battle-victory',
+      onClose: callbacks.onClose,
     },
   );
   return modal;

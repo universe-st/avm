@@ -10,6 +10,7 @@ export type ModuleId =
   | 'placeholder'
   | 'ch01Opening'
   | 'ch01Dorm'
+  | 'ch01Kitchen'
   | 'ch01Palace'
   | 'battleCh01';
 
@@ -66,6 +67,13 @@ export const MODULES: Record<ModuleId, GameModule> = {
     sceneKey: SCENE_KEYS.ch01Dorm,
     requires: ['core', 'ui', 'ch.01', 'cutscene.ch01phone'],
     gate: { title: '正在进入第一章 · 寝室' },
+  },
+  ch01Kitchen: {
+    id: 'ch01Kitchen',
+    kind: 'scene',
+    sceneKey: SCENE_KEYS.ch01Kitchen,
+    requires: ['core', 'ui', 'ch01.char', 'ch01.kitchen'],
+    gate: { title: '正在进入御膳房' },
   },
   ch01Palace: {
     id: 'ch01Palace',

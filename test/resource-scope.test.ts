@@ -56,7 +56,7 @@ describe('scene release plan', () => {
   it('releases chapter assets when returning to the title', () => {
     const loaded = expandBundleIds(['core', 'ui', 'ch.01']);
     const plan = planRelease(loaded, ['core', 'title']);
-    expect(plan.bundles).toEqual(['ch.01']);
+    expect(plan.bundles).toEqual(['ch01.char', 'ch.01']);
     const releasedKeys = plan.assets.map((asset) => asset.key);
     expect(releasedKeys).toContain('img.map.ch01.dorm_room');
     expect(releasedKeys).toContain('audio.bgm.ch01_dorm');

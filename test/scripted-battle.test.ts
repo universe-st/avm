@@ -107,6 +107,35 @@ describe('scripted first battle', () => {
     expect(first.get('after-2')?.log).toEqual(second.get('after-2')?.log);
   });
 
+  it('can actually be won when the setup opts into real damage', () => {
+    // 御膳房遭遇战：敌方 30 血、一刀 12 → 第三刀归零，必须走 victory 而不是清除协议。
+    const encounter = {
+      ...SETUP,
+      id: 'battle.ch01.kitchen',
+      damageRule: 'use-attack' as const,
+      player: { ...SETUP.player, hp: 60, attackDamage: 12 },
+      enemy: { ...SETUP.enemy, hp: 30, attackDamage: 9 },
+      maxRounds: 6,
+      victoryText: '幻影散尽。',
+    };
+    let state = createBattle(encounter);
+    for (let i = 0; i < 2; i += 1) state = applyBattleAction(state, 'attack', encounter).state;
+    expect(state.phase).toBe('player');
+    expect(state.enemy.hp).toBe(6);
+    const final = applyBattleAction(state, 'attack', encounter);
+    expect(final.state.phase).toBe('victory');
+    expect(final.state.enemy.hp).toBe(0);
+    expect(final.state.player.hp).toBeGreaterThan(0);
+  });
+
+  it('still forces defeat for the fixed-one scripted fight', () => {
+    // 金殿那场不能被胜利分支影响：1 伤害打不动 120 血，第 3 回合照样清除协议。
+    let state = createBattle(SETUP);
+    for (let i = 0; i < SETUP.maxRounds; i += 1) state = applyBattleAction(state, 'attack', SETUP).state;
+    expect(state.phase).toBe('defeat');
+    expect(state.enemy.hp).toBe(117);
+  });
+
   it('advances one round for the preview mid snapshot', () => {
     const mid = advanceForPreview(createBattle(SETUP), SETUP, 1);
     expect(mid.round).toBe(2);

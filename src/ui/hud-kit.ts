@@ -45,6 +45,15 @@ export interface StageHeaderModel {
 }
 
 const SMALL_BUTTON_WIDTH = 92;
+/**
+ * 顶部左侧信息栏的宽度预算（设计 px，720 宽减左右各 24 的内边距 = 672）。
+ *
+ * 对话时右上角会同时出现「跳过 / 自动 / 记录 / 菜单」四个 92px 按钮（4×92 + 3×8 = 392），
+ * 左侧只剩 672 - 392 - 8 = 272。不收窄的话目标文字会把按钮顶出 390 宽屏幕：
+ * 视线里就是「菜单」被切掉一半。
+ */
+const HEADER_TEXT_WIDE = 672 - SMALL_BUTTON_WIDTH - 8;
+const HEADER_TEXT_DIALOGUE = 672 - (SMALL_BUTTON_WIDTH * 4 + 8 * 3) - 8;
 
 /** 顶部信息条：左侧地点/目标，右侧操作按钮。 */
 export function buildStageHeader(model: StageHeaderModel): void {
@@ -57,15 +66,31 @@ export function buildStageHeader(model: StageHeaderModel): void {
     },
     () => {
       Row({ width: 'fill', justifyContent: 'space-between', alignItems: 'start' }, () => {
-        Column({ gap: 2, alignItems: 'start' }, () => {
-          Text(model.location, { size: 'xs', tone: 'muted' });
-          if (model.objective) {
-            Text(() => model.objective?.value ?? '', { size: 'md', tone: 'primary' });
-            if (model.subtitle) Text(model.subtitle, { size: 'xs', tone: 'muted' });
-          } else {
-            Text(model.chapter, { size: 'sm', tone: 'primary' });
-          }
-        });
+        Column(
+          {
+            gap: 2,
+            alignItems: 'start',
+            width: () =>
+              model.dialogueVisible?.value === true ? HEADER_TEXT_DIALOGUE : HEADER_TEXT_WIDE,
+          },
+          () => {
+            Text(model.location, { size: 'xs', tone: 'muted', maxLines: 1, ellipsis: true });
+            if (model.objective) {
+              Text(() => model.objective?.value ?? '', {
+                size: 'md',
+                tone: 'primary',
+                // 最宽也只有 272（对话时），长目标最多两行；三行会顶到右上角按钮。
+                maxLines: 2,
+                ellipsis: true,
+              });
+              if (model.subtitle) {
+                Text(model.subtitle, { size: 'xs', tone: 'muted', maxLines: 1, ellipsis: true });
+              }
+            } else {
+              Text(model.chapter, { size: 'sm', tone: 'primary', maxLines: 1, ellipsis: true });
+            }
+          },
+        );
 
         Row({ gap: 8, alignItems: 'center' }, () => {
           if (model.onSkip) {

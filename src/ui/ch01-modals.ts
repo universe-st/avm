@@ -1,4 +1,5 @@
 import type { ModalHandle, MVVMPlugin } from '@phaser-mvvm/phaser';
+import { MODAL_NO_AUTOFOCUS } from './modal-guard';
 import { Button, Column, Divider, Panel, Row, Text } from '@phaser-mvvm/widgets/compose';
 import { CH01_END_CARD } from '../story/ch01-dorm';
 
@@ -51,7 +52,7 @@ export function openCh01EndCard(
         });
       });
     },
-    { dismissible: false, name: 'ch01-end' },
+    { ...MODAL_NO_AUTOFOCUS, dismissible: false, name: 'ch01-end' },
   );
   return modal;
 }

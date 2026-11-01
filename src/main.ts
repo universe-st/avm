@@ -10,6 +10,7 @@ import { CgStageScene } from './scenes/cg-stage-scene';
 import { BattleSandboxScene } from './scenes/battle-sandbox-scene';
 import { BattleCh01Scene } from './scenes/battle-ch01-scene';
 import { Ch01DormScene } from './scenes/ch01-dorm-scene';
+import { Ch01KitchenScene } from './scenes/ch01-kitchen-scene';
 import { Ch01PalaceScene } from './scenes/ch01-palace-scene';
 import { PlaceholderScene } from './scenes/placeholder-scene';
 import { PrologueScene } from './scenes/prologue-scene';
@@ -86,6 +87,7 @@ const game = new Phaser.Game({
     Ch01OpeningScene,
     PlaceholderScene,
     Ch01DormScene,
+    Ch01KitchenScene,
     Ch01PalaceScene,
     BattleCh01Scene,
     CgStageScene,

@@ -24,16 +24,22 @@ export function moveWithCollision(
   let x = feet.x;
   let y = feet.y;
   let blocked = false;
+  /**
+   * 脱困兜底：脚盒已经被摆进非法位置（脚本瞬移、换房间尺寸、掩体贴墙）时，
+   * 再用 canStandAt 判目标只会把所有方向都判死——玩家会永久卡住。
+   * 当前位置非法就放行这一步，让玩家自己走出来；一旦合法立即恢复严格判定。
+   */
+  const stuck = !canStandAt(room, feet, foot);
 
   if (Number.isFinite(delta.x) && delta.x !== 0) {
     const nextX = x + delta.x;
-    if (canStandAt(room, { x: nextX, y }, foot)) x = nextX;
+    if (stuck || canStandAt(room, { x: nextX, y }, foot)) x = nextX;
     else blocked = true;
   }
 
   if (Number.isFinite(delta.y) && delta.y !== 0) {
     const nextY = y + delta.y;
-    if (canStandAt(room, { x, y: nextY }, foot)) y = nextY;
+    if (stuck || canStandAt(room, { x, y: nextY }, foot)) y = nextY;
     else blocked = true;
   }
 

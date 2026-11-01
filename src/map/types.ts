@@ -17,14 +17,15 @@ export type Facing =
   | 'upLeft';
 
 /**
- * ASCII 图例（与 `docs/DESIGN-MAP.md` 对齐，先只开放本期用到的字符）：
- * - `#` 墙 / 家具，不可走
+ * ASCII 图例（与 `docs/DESIGN-MAP.md` 对齐）：
+ * - `#` 墙 / 高家具，不可走，挡视线
  * - `.` 地板，可走
- * - `~` 装饰地面（地毯），可走
+ * - `~` 装饰地面（地毯/干草），可走
  * - `P` 默认出生点，可走
  * - `=` 门，可走（本期是交互物，不做切房）
+ * - `o` 矮障碍（案台/坛子），不可走，不挡视线
  */
-export type TileChar = '#' | '.' | '~' | 'P' | '=';
+export type TileChar = '#' | '.' | '~' | 'P' | '=' | 'o';
 
 export interface MapPoint {
   readonly x: number;
@@ -52,6 +53,48 @@ export interface RoomSpawn {
   readonly facing: Facing;
 }
 
+/** 一条巡逻/静止守卫。`path` 用 tile 坐标，必须轴对齐且可走。 */
+export interface PatrolDef {
+  readonly id: string;
+  /**
+   * 探索期的敌人一律是「梦中人」形态。
+   * 机器人形态只在战斗里出现（`battle-ch01` 自己挑机器人图），
+   * 所以这里不再有 `miner`——探索地图上不该出现铁皮怪物。
+   */
+  readonly kind: 'phantom' | 'guard';
+  readonly path: readonly (readonly [number, number])[];
+  /** 设计 px/s；0 = 原地站岗。 */
+  readonly speed: number;
+  readonly pauseMs: number;
+  /** 到点停顿时左右扫视的角度（总角度）。 */
+  readonly scanDeg: number;
+  readonly vision: { readonly fovDeg: number; readonly rangeTiles: number };
+  /** 头顶显示名，例如「御厨」「门卫」。 */
+  readonly label?: string;
+}
+
+export type HideKind = 'hay' | 'cabinet' | 'screen';
+
+/** 躲藏点：`at` 是玩家可站的格；橱柜/屏风本体在相邻的 `#` 上。 */
+export interface HideDef {
+  readonly id: string;
+  readonly at: readonly [number, number];
+  readonly kind: HideKind;
+  readonly peek: boolean;
+  readonly enterMs: number;
+  readonly exitMs: number;
+  /** 第三幕老肯/老麦的脚本搜索。 */
+  readonly scriptedSearch?: boolean;
+}
+
+/** 矩形触发区，坐标沿 tile 网格：[c0,r0,c1,r1]。 */
+export interface TriggerDef {
+  readonly id: string;
+  readonly rect: readonly [number, number, number, number];
+  readonly once: boolean;
+  readonly event: string;
+}
+
 export interface RoomDef {
   readonly id: string;
   readonly chapter: string;
@@ -67,6 +110,11 @@ export interface RoomDef {
   readonly ascii: readonly string[];
   readonly spawn: RoomSpawn;
   readonly interactables: readonly InteractableDef[];
+  /** 挡视线的 tile；省略时只认 `#`。 */
+  readonly sightBlockers?: readonly TileChar[];
+  readonly patrols?: readonly PatrolDef[];
+  readonly hides?: readonly HideDef[];
+  readonly triggers?: readonly TriggerDef[];
 }
 
 /** 脚底碰撞盒；坐标是脚底中心。 */

@@ -8,7 +8,7 @@ import {
   type TileChar,
 } from '../types';
 
-const VALID_TILES = new Set<string>(['#', '.', '~', 'P', '=']);
+const VALID_TILES = new Set<string>(['#', '.', '~', 'P', '=', 'o']);
 const WALKABLE = new Set<string>(['.', '~', 'P', '=']);
 
 export function tileAt(room: RoomDef, col: number, row: number): RoomTile | null {
@@ -209,5 +209,111 @@ export function validateRoom(room: RoomDef): string[] {
     }
   }
 
+  validatePatrols(room, reachable, errors);
+  validateHides(room, reachable, errors);
+  validateTriggers(room, errors);
+
   return errors;
+}
+
+function validatePatrols(
+  room: RoomDef,
+  reachable: ReadonlySet<string>,
+  errors: string[],
+): void {
+  const ids = new Set<string>();
+  for (const patrol of room.patrols ?? []) {
+    if (ids.has(patrol.id)) errors.push(`巡逻 id 重复：${patrol.id}`);
+    ids.add(patrol.id);
+
+    if (patrol.path.length === 0) {
+      errors.push(`巡逻 ${patrol.id} 路径为空`);
+      continue;
+    }
+    if (patrol.speed < 0) errors.push(`巡逻 ${patrol.id} 速度不能为负`);
+    if (patrol.vision.fovDeg <= 0 || patrol.vision.fovDeg > 360) {
+      errors.push(`巡逻 ${patrol.id} 视野角度越界：${patrol.vision.fovDeg}`);
+    }
+    if (patrol.vision.rangeTiles <= 0) {
+      errors.push(`巡逻 ${patrol.id} 视野距离必须为正`);
+    }
+
+    for (const [col, row] of patrol.path) {
+      if (col < 0 || row < 0 || col >= room.size[0] || row >= room.size[1]) {
+        errors.push(`巡逻 ${patrol.id} 路径点越界：(${col},${row})`);
+        continue;
+      }
+      if (!isWalkableTile(room, col, row)) {
+        errors.push(`巡逻 ${patrol.id} 路径点不可走：(${col},${row})`);
+      }
+      if (!reachable.has(`${col},${row}`)) {
+        errors.push(`巡逻 ${patrol.id} 路径点从出生点不可达：(${col},${row})`);
+      }
+    }
+
+    if (patrol.path.length === 1) continue;
+    for (let index = 0; index < patrol.path.length; index += 1) {
+      const from = patrol.path[index];
+      const to = patrol.path[(index + 1) % patrol.path.length];
+      if (!from || !to) continue;
+      if (from[0] !== to[0] && from[1] !== to[1]) {
+        errors.push(`巡逻 ${patrol.id} 路径段必须横/竖：(${from[0]},${from[1]})→(${to[0]},${to[1]})`);
+        continue;
+      }
+      const stepCol = Math.sign(to[0] - from[0]);
+      const stepRow = Math.sign(to[1] - from[1]);
+      let col = from[0];
+      let row = from[1];
+      while (col !== to[0] || row !== to[1]) {
+        col += stepCol;
+        row += stepRow;
+        if (!isWalkableTile(room, col, row)) {
+          errors.push(`巡逻 ${patrol.id} 路径段穿过障碍：(${col},${row})`);
+          break;
+        }
+      }
+    }
+  }
+}
+
+function validateHides(
+  room: RoomDef,
+  reachable: ReadonlySet<string>,
+  errors: string[],
+): void {
+  const ids = new Set<string>();
+  for (const hide of room.hides ?? []) {
+    if (ids.has(hide.id)) errors.push(`躲藏点 id 重复：${hide.id}`);
+    ids.add(hide.id);
+    const [col, row] = hide.at;
+    if (col < 0 || row < 0 || col >= room.size[0] || row >= room.size[1]) {
+      errors.push(`躲藏点 ${hide.id} 越界：(${col},${row})`);
+      continue;
+    }
+    if (!isWalkableTile(room, col, row)) {
+      errors.push(`躲藏点 ${hide.id} 的站位格不可走：(${col},${row})`);
+    }
+    if (!reachable.has(`${col},${row}`)) {
+      errors.push(`躲藏点 ${hide.id} 从出生点不可达`);
+    }
+    if (hide.enterMs < 0 || hide.exitMs < 0) {
+      errors.push(`躲藏点 ${hide.id} 的进入/退出时间不能为负`);
+    }
+  }
+}
+
+function validateTriggers(room: RoomDef, errors: string[]): void {
+  const ids = new Set<string>();
+  for (const trigger of room.triggers ?? []) {
+    if (ids.has(trigger.id)) errors.push(`触发区 id 重复：${trigger.id}`);
+    ids.add(trigger.id);
+    const [c0, r0, c1, r1] = trigger.rect;
+    if (c0 > c1 || r0 > r1) {
+      errors.push(`触发区 ${trigger.id} 的 rect 必须 c0<=c1、r0<=r1`);
+      continue;
+    }
+    if (c0 < 0 || r0 < 0 || c1 >= room.size[0] || r1 >= room.size[1]) {
+      errors.push(`触发区 ${trigger.id} 越界：(${c0},${r0},${c1},${r1})`);
+    }
+  }
 }

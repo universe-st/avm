@@ -8,6 +8,8 @@ export type BundleId =
   | 'ch.00'
   | 'cutscene.prologue'
   | 'ch.01'
+  | 'ch01.char'
+  | 'ch01.kitchen'
   | 'battle.common'
   | 'battle.ch01'
   | 'cutscene.ch01opening'

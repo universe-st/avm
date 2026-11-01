@@ -11,7 +11,8 @@ import {
   normalizeDirection,
 } from '../src/map/core/collision';
 import { CH01_DORM_ROOM } from '../src/map/rooms/ch01-dorm';
-import { PLAYER_FOOT } from '../src/map/player-foot';
+import { CH01_KITCHEN_ROOM } from '../src/map/rooms/ch01-kitchen';
+import { KITCHEN_PLAYER_FOOT, PLAYER_FOOT } from '../src/map/player-foot';
 
 const FOOT = PLAYER_FOOT;
 
@@ -21,22 +22,35 @@ describe('map collision', () => {
     expect(canStandAt(CH01_DORM_ROOM, tileCenter(CH01_DORM_ROOM, 16, 18), FOOT)).toBe(true);
   });
 
-  it('blocks a straight step into the bed', () => {
-    const start = tileCenter(CH01_DORM_ROOM, 19, 20);
-    const result = moveWithCollision(
-      CH01_DORM_ROOM,
-      start,
-      { x: 60, y: 0 },
-      FOOT,
-    );
+  it('blocks a straight step into a wall', () => {
+    // 起点必须是合法位置：寝室通道可站范围是 col 14-18，东西两侧都是墙。
+    const start = tileCenter(CH01_DORM_ROOM, 18, 12);
+    expect(canStandAt(CH01_DORM_ROOM, start, FOOT)).toBe(true);
+    const result = moveWithCollision(CH01_DORM_ROOM, start, { x: 40, y: 0 }, FOOT);
     expect(result.position).toEqual(start);
     expect(result.blocked).toBe(true);
   });
 
   it('stops at a concave corner instead of cutting through it', () => {
-    const start = tileCenter(CH01_DORM_ROOM, 3, 3);
+    // 起点必须是**合法**位置，否则测的是「起点本来就不合法」而不是拐角。
+    // (14,12) 是纵向通道西南角可站的角落：西边是墙、北边也是墙。
+    const start = tileCenter(CH01_DORM_ROOM, 14, 12);
+    expect(canStandAt(CH01_DORM_ROOM, start, FOOT)).toBe(true);
     const result = moveWithCollision(CH01_DORM_ROOM, start, { x: -24, y: -24 }, FOOT);
     expect(result.blocked).toBe(true);
+    expect(result.position).toEqual(start);
+  });
+
+  it('slides along a wall when only one axis is blocked', () => {
+    const start = tileCenter(CH01_DORM_ROOM, 16, 11);
+    expect(canStandAt(CH01_DORM_ROOM, start, FOOT)).toBe(false);
+    // 合法起点：通道里贴着北墙往西走，Y 被挡、X 继续。
+    const legal = tileCenter(CH01_DORM_ROOM, 16, 12);
+    expect(canStandAt(CH01_DORM_ROOM, legal, FOOT)).toBe(true);
+    const result = moveWithCollision(CH01_DORM_ROOM, legal, { x: -18, y: -18 }, FOOT);
+    expect(result.blocked).toBe(true);
+    expect(result.position.y).toBe(legal.y);
+    expect(result.position.x).toBeLessThan(legal.x);
   });
 
   it('moves freely on the central floor', () => {
@@ -83,5 +97,38 @@ describe('map collision', () => {
   it('treats the door tile as walkable but keeps the outer frame solid', () => {
     expect(isWalkableTile(CH01_DORM_ROOM, 16, 52)).toBe(true);
     expect(isWalkableTile(CH01_DORM_ROOM, 22, 52)).toBe(false);
+  });
+
+  it('keeps the kitchen foot narrower than one tile', () => {
+    // 屏风躲藏点 (18,6) 西边一格就是挡路柱 (17,5)-(17,6)。
+    // 脚盒（含 padding）一旦宽过一格，玩家被瞬移到格心后就再也走不动 —— 这是真发生过的软锁。
+    const footWidth = KITCHEN_PLAYER_FOOT.width + (KITCHEN_PLAYER_FOOT.padding ?? 0) * 2;
+    expect(footWidth).toBeLessThanOrEqual(CH01_KITCHEN_ROOM.tileSize);
+    const screenSpot = tileCenter(CH01_KITCHEN_ROOM, 18, 6);
+    expect(canStandAt(CH01_KITCHEN_ROOM, screenSpot, KITCHEN_PLAYER_FOOT)).toBe(true);
+    const step = moveWithCollision(
+      CH01_KITCHEN_ROOM,
+      screenSpot,
+      { x: 0, y: 8 },
+      KITCHEN_PLAYER_FOOT,
+    );
+    expect(step.blocked).toBe(false);
+    expect(step.position.y).toBeGreaterThan(screenSpot.y);
+  });
+
+  it('never hard-locks when the current foot is already illegal', () => {
+    // 脚本瞬移/掩体贴墙会把脚盒摆进非法位置；这时必须还能移动，否则只能重开。
+    const tile = CH01_KITCHEN_ROOM.tileSize;
+    const spot = tileCenter(CH01_KITCHEN_ROOM, 18, 6);
+    // 往西挪半格，脚盒左缘一定压进 (17,6) 的挡路柱。
+    const illegal = { x: spot.x - tile / 2, y: spot.y };
+    expect(canStandAt(CH01_KITCHEN_ROOM, illegal, KITCHEN_PLAYER_FOOT)).toBe(false);
+    const step = moveWithCollision(
+      CH01_KITCHEN_ROOM,
+      illegal,
+      { x: 8, y: 0 },
+      KITCHEN_PLAYER_FOOT,
+    );
+    expect([step.position.x, step.position.y]).not.toEqual([illegal.x, illegal.y]);
   });
 });

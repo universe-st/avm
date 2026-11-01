@@ -11,7 +11,9 @@ describe('render layers', () => {
   it('keeps the native stack ordered from background to debug', () => {
     expect(LAYERS.background).toBeLessThan(LAYERS.props);
     expect(LAYERS.props).toBeLessThan(LAYERS.markers);
-    expect(LAYERS.markers).toBeLessThan(LAYERS.characters);
+    expect(LAYERS.markers).toBeLessThan(LAYERS.fog);
+    // 迷雾是"地面上的黑暗"，必须垫在角色身下；否则 3.5 格高的角色头一伸进暗处就被黑幕切掉。
+    expect(LAYERS.fog).toBeLessThan(LAYERS.characters);
     expect(LAYERS.characters).toBeLessThan(LAYERS.effects);
     expect(LAYERS.effects).toBeLessThan(LAYERS.input);
     expect(LAYERS.input).toBeLessThan(LAYERS.cinematic);
@@ -33,10 +35,20 @@ describe('render layers', () => {
     expect(SCREEN_LAYERS.stamp).toBeLessThan(SCREEN_LAYERS.cut);
   });
 
+  it('keeps the fog under every character so nobody gets cut in half', () => {
+    for (const feetY of [0, 500, 1200, 2048, 4096, 6144]) {
+      expect(characterDepth(feetY, 6144), `feetY=${feetY}`).toBeGreaterThan(LAYERS.fog);
+    }
+  });
+
   it('sorts characters by feet Y without leaving the character band', () => {
     expect(characterDepth(0)).toBe(LAYERS.characters);
-    expect(characterDepth(1200)).toBe(LAYERS.characters + 1200);
+    expect(characterDepth(1200)).toBe(LAYERS.characters + 675);
+    expect(characterDepth(4096)).toBe(LAYERS.characters + 900);
+    expect(characterDepth(1200, 4096)).toBe(LAYERS.characters + Math.round((1200 / 4096) * 900));
     expect(characterDepth(Number.NaN)).toBe(LAYERS.characters);
+    // 最高处的角色（feetY = 地图底边）也必须画在迷雾之上。
+    expect(characterDepth(4096)).toBeGreaterThan(LAYERS.fog);
   });
 
   it('keeps every chapter key registered in a bundle', () => {
@@ -72,6 +84,7 @@ describe('layer discipline', () => {
     'src/ui/cinematic-director.ts',
     'src/ui/portrait-layer.ts',
     'src/scenes/ch01-palace-scene.ts',
+    'src/scenes/ch01-kitchen-scene.ts',
   ];
 
   it('never hardcodes a numeric depth in cinematic scene code', async () => {

@@ -12,6 +12,9 @@ export interface BattleCh01HudModel {
   readonly onAttack: () => void;
   readonly onGuard: () => void;
   readonly onMenu: () => void;
+  /** 遭遇战换掉金殿的抬头与副标题（省略时用金殿那场）。 */
+  readonly location?: string;
+  readonly subtitle?: string;
 }
 
 /**
@@ -31,10 +34,10 @@ export function buildBattleCh01Hud(model: BattleCh01HudModel): void {
     },
     () => {
       buildStageHeader({
-        location: '梦域 / 金殿',
+        location: model.location ?? '梦域 / 金殿',
         chapter: '第一章 · 权力之梦',
         objective: model.roundLabel,
-        subtitle: '剧情战 · 矿场清除协议',
+        subtitle: model.subtitle ?? '剧情战 · 矿场清除协议',
         onMenu: model.onMenu,
       });
 

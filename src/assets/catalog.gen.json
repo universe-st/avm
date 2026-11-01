@@ -27,6 +27,42 @@
     "bytes": 27316,
     "mtimeMs": 1793418943304
   },
+  "assets/audio/sfx/ch01_kitchen_alert.mp3": {
+    "bytes": 15309,
+    "mtimeMs": 1793448266103
+  },
+  "assets/audio/sfx/ch01_kitchen_ambience.mp3": {
+    "bytes": 540909,
+    "mtimeMs": 1793448265994
+  },
+  "assets/audio/sfx/ch01_kitchen_backstab.mp3": {
+    "bytes": 42957,
+    "mtimeMs": 1793448266149
+  },
+  "assets/audio/sfx/ch01_kitchen_door.mp3": {
+    "bytes": 55053,
+    "mtimeMs": 1793448266201
+  },
+  "assets/audio/sfx/ch01_kitchen_heartbeat.mp3": {
+    "bytes": 25101,
+    "mtimeMs": 1793448266268
+  },
+  "assets/audio/sfx/ch01_kitchen_latch.mp3": {
+    "bytes": 28269,
+    "mtimeMs": 1793448266307
+  },
+  "assets/audio/sfx/ch01_kitchen_step_a.mp3": {
+    "bytes": 31149,
+    "mtimeMs": 1793448266036
+  },
+  "assets/audio/sfx/ch01_kitchen_step_b.mp3": {
+    "bytes": 21069,
+    "mtimeMs": 1793448266072
+  },
+  "assets/audio/sfx/ch01_kitchen_transform.mp3": {
+    "bytes": 13005,
+    "mtimeMs": 1793448266231
+  },
   "assets/audio/sfx/ch01_metal.mp3": {
     "bytes": 6627,
     "mtimeMs": 1792886910856
@@ -162,6 +198,326 @@
   "assets/img/ch00/bg.png": {
     "bytes": 20708,
     "mtimeMs": 1792839029269
+  },
+  "assets/img/character/ch01/kitchen/cook/cook_down.png": {
+    "bytes": 61346,
+    "mtimeMs": 1793493878666
+  },
+  "assets/img/character/ch01/kitchen/cook/cook_down_left.png": {
+    "bytes": 65755,
+    "mtimeMs": 1793493878773
+  },
+  "assets/img/character/ch01/kitchen/cook/cook_down_right.png": {
+    "bytes": 71422,
+    "mtimeMs": 1793493878799
+  },
+  "assets/img/character/ch01/kitchen/cook/cook_left.png": {
+    "bytes": 86879,
+    "mtimeMs": 1793493878722
+  },
+  "assets/img/character/ch01/kitchen/cook/cook_right.png": {
+    "bytes": 77361,
+    "mtimeMs": 1793493878750
+  },
+  "assets/img/character/ch01/kitchen/cook/cook_up.png": {
+    "bytes": 62438,
+    "mtimeMs": 1793493878692
+  },
+  "assets/img/character/ch01/kitchen/cook/cook_up_left.png": {
+    "bytes": 79029,
+    "mtimeMs": 1793493878826
+  },
+  "assets/img/character/ch01/kitchen/cook/cook_up_right.png": {
+    "bytes": 76509,
+    "mtimeMs": 1793493878853
+  },
+  "assets/img/character/ch01/kitchen/cook/cook_walk_down.webp": {
+    "bytes": 251602,
+    "mtimeMs": 1793494468491
+  },
+  "assets/img/character/ch01/kitchen/cook/cook_walk_down_left.webp": {
+    "bytes": 258056,
+    "mtimeMs": 1793494585615
+  },
+  "assets/img/character/ch01/kitchen/cook/cook_walk_down_right.webp": {
+    "bytes": 249520,
+    "mtimeMs": 1793494621791
+  },
+  "assets/img/character/ch01/kitchen/cook/cook_walk_left.webp": {
+    "bytes": 200276,
+    "mtimeMs": 1793494527971
+  },
+  "assets/img/character/ch01/kitchen/cook/cook_walk_right.webp": {
+    "bytes": 296918,
+    "mtimeMs": 1793494548526
+  },
+  "assets/img/character/ch01/kitchen/cook/cook_walk_up.webp": {
+    "bytes": 243876,
+    "mtimeMs": 1793494500958
+  },
+  "assets/img/character/ch01/kitchen/cook/cook_walk_up_left.webp": {
+    "bytes": 275044,
+    "mtimeMs": 1793494653719
+  },
+  "assets/img/character/ch01/kitchen/cook/cook_walk_up_right.webp": {
+    "bytes": 244558,
+    "mtimeMs": 1793494679833
+  },
+  "assets/img/character/ch01/kitchen/eunuch/eunuch_down.png": {
+    "bytes": 68262,
+    "mtimeMs": 1793493878955
+  },
+  "assets/img/character/ch01/kitchen/eunuch/eunuch_down_left.png": {
+    "bytes": 68289,
+    "mtimeMs": 1793493879053
+  },
+  "assets/img/character/ch01/kitchen/eunuch/eunuch_down_right.png": {
+    "bytes": 71775,
+    "mtimeMs": 1793493879093
+  },
+  "assets/img/character/ch01/kitchen/eunuch/eunuch_left.png": {
+    "bytes": 60418,
+    "mtimeMs": 1793493879005
+  },
+  "assets/img/character/ch01/kitchen/eunuch/eunuch_right.png": {
+    "bytes": 64863,
+    "mtimeMs": 1793493879029
+  },
+  "assets/img/character/ch01/kitchen/eunuch/eunuch_up.png": {
+    "bytes": 58016,
+    "mtimeMs": 1793493878980
+  },
+  "assets/img/character/ch01/kitchen/eunuch/eunuch_up_left.png": {
+    "bytes": 60084,
+    "mtimeMs": 1793493879142
+  },
+  "assets/img/character/ch01/kitchen/eunuch/eunuch_up_right.png": {
+    "bytes": 57280,
+    "mtimeMs": 1793493879181
+  },
+  "assets/img/character/ch01/kitchen/eunuch/eunuch_walk_down.webp": {
+    "bytes": 288056,
+    "mtimeMs": 1793494704918
+  },
+  "assets/img/character/ch01/kitchen/eunuch/eunuch_walk_down_left.webp": {
+    "bytes": 278116,
+    "mtimeMs": 1793494813627
+  },
+  "assets/img/character/ch01/kitchen/eunuch/eunuch_walk_down_right.webp": {
+    "bytes": 277774,
+    "mtimeMs": 1793494841812
+  },
+  "assets/img/character/ch01/kitchen/eunuch/eunuch_walk_left.webp": {
+    "bytes": 263886,
+    "mtimeMs": 1793494758419
+  },
+  "assets/img/character/ch01/kitchen/eunuch/eunuch_walk_right.webp": {
+    "bytes": 275374,
+    "mtimeMs": 1793494783529
+  },
+  "assets/img/character/ch01/kitchen/eunuch/eunuch_walk_up.webp": {
+    "bytes": 270188,
+    "mtimeMs": 1793494735038
+  },
+  "assets/img/character/ch01/kitchen/eunuch/eunuch_walk_up_left.webp": {
+    "bytes": 251022,
+    "mtimeMs": 1793494855072
+  },
+  "assets/img/character/ch01/kitchen/eunuch/eunuch_walk_up_right.webp": {
+    "bytes": 242644,
+    "mtimeMs": 1793494871113
+  },
+  "assets/img/character/ch01/kitchen/guard/guard_down.png": {
+    "bytes": 79063,
+    "mtimeMs": 1793494886866
+  },
+  "assets/img/character/ch01/kitchen/guard/guard_down_left.png": {
+    "bytes": 85434,
+    "mtimeMs": 1793494887067
+  },
+  "assets/img/character/ch01/kitchen/guard/guard_down_right.png": {
+    "bytes": 91970,
+    "mtimeMs": 1793494887096
+  },
+  "assets/img/character/ch01/kitchen/guard/guard_left.png": {
+    "bytes": 75598,
+    "mtimeMs": 1793494886984
+  },
+  "assets/img/character/ch01/kitchen/guard/guard_right.png": {
+    "bytes": 66123,
+    "mtimeMs": 1793494887039
+  },
+  "assets/img/character/ch01/kitchen/guard/guard_up.png": {
+    "bytes": 77958,
+    "mtimeMs": 1793494886943
+  },
+  "assets/img/character/ch01/kitchen/guard/guard_up_left.png": {
+    "bytes": 68515,
+    "mtimeMs": 1793494887122
+  },
+  "assets/img/character/ch01/kitchen/guard/guard_up_right.png": {
+    "bytes": 75283,
+    "mtimeMs": 1793494887151
+  },
+  "assets/img/character/ch01/kitchen/guard/guard_walk_down.webp": {
+    "bytes": 307660,
+    "mtimeMs": 1793494902773
+  },
+  "assets/img/character/ch01/kitchen/guard/guard_walk_down_left.webp": {
+    "bytes": 191442,
+    "mtimeMs": 1793494991247
+  },
+  "assets/img/character/ch01/kitchen/guard/guard_walk_down_right.webp": {
+    "bytes": 266012,
+    "mtimeMs": 1793495007063
+  },
+  "assets/img/character/ch01/kitchen/guard/guard_walk_left.webp": {
+    "bytes": 295266,
+    "mtimeMs": 1793494946784
+  },
+  "assets/img/character/ch01/kitchen/guard/guard_walk_right.webp": {
+    "bytes": 332538,
+    "mtimeMs": 1793494974464
+  },
+  "assets/img/character/ch01/kitchen/guard/guard_walk_up.webp": {
+    "bytes": 274350,
+    "mtimeMs": 1793494916720
+  },
+  "assets/img/character/ch01/kitchen/guard/guard_walk_up_left.webp": {
+    "bytes": 230204,
+    "mtimeMs": 1793495020256
+  },
+  "assets/img/character/ch01/kitchen/guard/guard_walk_up_right.webp": {
+    "bytes": 283372,
+    "mtimeMs": 1793495039239
+  },
+  "assets/img/character/ch01/kitchen/old_ken/old_ken_down.png": {
+    "bytes": 61779,
+    "mtimeMs": 1793493878357
+  },
+  "assets/img/character/ch01/kitchen/old_ken/old_ken_down_left.png": {
+    "bytes": 63232,
+    "mtimeMs": 1793493878481
+  },
+  "assets/img/character/ch01/kitchen/old_ken/old_ken_down_right.png": {
+    "bytes": 60468,
+    "mtimeMs": 1793493878505
+  },
+  "assets/img/character/ch01/kitchen/old_ken/old_ken_left.png": {
+    "bytes": 78931,
+    "mtimeMs": 1793493878414
+  },
+  "assets/img/character/ch01/kitchen/old_ken/old_ken_right.png": {
+    "bytes": 79493,
+    "mtimeMs": 1793493878451
+  },
+  "assets/img/character/ch01/kitchen/old_ken/old_ken_up.png": {
+    "bytes": 47730,
+    "mtimeMs": 1793493878382
+  },
+  "assets/img/character/ch01/kitchen/old_ken/old_ken_up_left.png": {
+    "bytes": 64644,
+    "mtimeMs": 1793493878532
+  },
+  "assets/img/character/ch01/kitchen/old_ken/old_ken_up_right.png": {
+    "bytes": 57995,
+    "mtimeMs": 1793493878560
+  },
+  "assets/img/character/ch01/kitchen/old_ken/old_ken_walk_down.webp": {
+    "bytes": 226964,
+    "mtimeMs": 1793494211668
+  },
+  "assets/img/character/ch01/kitchen/old_ken/old_ken_walk_down_left.webp": {
+    "bytes": 246224,
+    "mtimeMs": 1793494332324
+  },
+  "assets/img/character/ch01/kitchen/old_ken/old_ken_walk_down_right.webp": {
+    "bytes": 229510,
+    "mtimeMs": 1793494366044
+  },
+  "assets/img/character/ch01/kitchen/old_ken/old_ken_walk_left.webp": {
+    "bytes": 222926,
+    "mtimeMs": 1793494274806
+  },
+  "assets/img/character/ch01/kitchen/old_ken/old_ken_walk_right.webp": {
+    "bytes": 247424,
+    "mtimeMs": 1793494307895
+  },
+  "assets/img/character/ch01/kitchen/old_ken/old_ken_walk_up.webp": {
+    "bytes": 184942,
+    "mtimeMs": 1793494242762
+  },
+  "assets/img/character/ch01/kitchen/old_ken/old_ken_walk_up_left.webp": {
+    "bytes": 266130,
+    "mtimeMs": 1793494389442
+  },
+  "assets/img/character/ch01/kitchen/old_ken/old_ken_walk_up_right.webp": {
+    "bytes": 197292,
+    "mtimeMs": 1793494415365
+  },
+  "assets/img/character/ch01/kitchen/old_mai/old_mai_down.png": {
+    "bytes": 96947,
+    "mtimeMs": 1793495349410
+  },
+  "assets/img/character/ch01/kitchen/old_mai/old_mai_down_left.png": {
+    "bytes": 97099,
+    "mtimeMs": 1793495349503
+  },
+  "assets/img/character/ch01/kitchen/old_mai/old_mai_down_right.png": {
+    "bytes": 98428,
+    "mtimeMs": 1793495349526
+  },
+  "assets/img/character/ch01/kitchen/old_mai/old_mai_left.png": {
+    "bytes": 102486,
+    "mtimeMs": 1793495349458
+  },
+  "assets/img/character/ch01/kitchen/old_mai/old_mai_right.png": {
+    "bytes": 73983,
+    "mtimeMs": 1793495349479
+  },
+  "assets/img/character/ch01/kitchen/old_mai/old_mai_up.png": {
+    "bytes": 79791,
+    "mtimeMs": 1793495349435
+  },
+  "assets/img/character/ch01/kitchen/old_mai/old_mai_up_left.png": {
+    "bytes": 77066,
+    "mtimeMs": 1793495349547
+  },
+  "assets/img/character/ch01/kitchen/old_mai/old_mai_up_right.png": {
+    "bytes": 89586,
+    "mtimeMs": 1793495349573
+  },
+  "assets/img/character/ch01/kitchen/old_mai/old_mai_walk_down.webp": {
+    "bytes": 276156,
+    "mtimeMs": 1793495362219
+  },
+  "assets/img/character/ch01/kitchen/old_mai/old_mai_walk_down_left.webp": {
+    "bytes": 492996,
+    "mtimeMs": 1793495425839
+  },
+  "assets/img/character/ch01/kitchen/old_mai/old_mai_walk_down_right.webp": {
+    "bytes": 350198,
+    "mtimeMs": 1793495442076
+  },
+  "assets/img/character/ch01/kitchen/old_mai/old_mai_walk_left.webp": {
+    "bytes": 374796,
+    "mtimeMs": 1793495394812
+  },
+  "assets/img/character/ch01/kitchen/old_mai/old_mai_walk_right.webp": {
+    "bytes": 331280,
+    "mtimeMs": 1793495406916
+  },
+  "assets/img/character/ch01/kitchen/old_mai/old_mai_walk_up.webp": {
+    "bytes": 318712,
+    "mtimeMs": 1793495377348
+  },
+  "assets/img/character/ch01/kitchen/old_mai/old_mai_walk_up_left.webp": {
+    "bytes": 353516,
+    "mtimeMs": 1793495455047
+  },
+  "assets/img/character/ch01/kitchen/old_mai/old_mai_walk_up_right.webp": {
+    "bytes": 367618,
+    "mtimeMs": 1793495470361
   },
   "assets/img/character/ch01/miner.png": {
     "bytes": 35653,
@@ -455,6 +811,10 @@
     "bytes": 68328,
     "mtimeMs": 1792894765574
   },
+  "assets/img/map/ch01/kitchen.webp": {
+    "bytes": 692058,
+    "mtimeMs": 1793459015760
+  },
   "assets/img/map/palace/hall.png": {
     "bytes": 2544329,
     "mtimeMs": 1793412751367
@@ -486,6 +846,30 @@
   "assets/img/title/title_bg.webp": {
     "bytes": 120660,
     "mtimeMs": 1793415881477
+  },
+  "assets/img/ui/ch01/kitchen/alert.png": {
+    "bytes": 6788,
+    "mtimeMs": 1793446818159
+  },
+  "assets/img/ui/ch01/kitchen/dagger.png": {
+    "bytes": 6610,
+    "mtimeMs": 1793446818119
+  },
+  "assets/img/ui/ch01/kitchen/eye.png": {
+    "bytes": 22601,
+    "mtimeMs": 1793446818107
+  },
+  "assets/img/ui/ch01/kitchen/footprints.png": {
+    "bytes": 27290,
+    "mtimeMs": 1793446818133
+  },
+  "assets/img/ui/ch01/kitchen/reply.png": {
+    "bytes": 24659,
+    "mtimeMs": 1793446818174
+  },
+  "assets/img/ui/ch01/kitchen/screen.png": {
+    "bytes": 30585,
+    "mtimeMs": 1793446818147
   },
   "assets/img/ui/icon_auto.png": {
     "bytes": 976,

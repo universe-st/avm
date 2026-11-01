@@ -519,7 +519,7 @@ export class TitleCard {
   private readonly date: Phaser.GameObjects.Text;
   private readonly school: Phaser.GameObjects.Text;
 
-  constructor(scene: Phaser.Scene, options: { depth?: number } = {}) {
+  constructor(scene: Phaser.Scene, options: { depth?: number; screenSpace?: boolean } = {}) {
     this.scene = scene;
     const plan = getViewportPlan();
     this.container = scene.add
@@ -527,6 +527,7 @@ export class TitleCard {
       .setDepth(options.depth ?? 12)
       .setAlpha(0)
       .setVisible(false);
+    if (options.screenSpace === true) this.container.setScrollFactor(0);
 
     this.rule = scene.add
       .rectangle(0, 0, 520, 3, GOLD, 1)
@@ -551,6 +552,11 @@ export class TitleCard {
       alpha: 0,
     });
     this.container.add([this.rule, this.date, this.school]);
+    if (options.screenSpace === true) {
+      this.rule.setScrollFactor(0);
+      this.date.setScrollFactor(0);
+      this.school.setScrollFactor(0);
+    }
   }
 
   show(lines: readonly string[]): void {

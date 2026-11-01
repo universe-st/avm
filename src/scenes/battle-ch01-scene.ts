@@ -13,7 +13,8 @@ import {
   stageParam,
   type StageLaunchContext,
 } from '../dev/stage-types';
-import { CH01_FIRST_BATTLE } from '../battle/data/ch01-first';
+import type { ScriptedBattleSetup } from '../battle/types';
+import { resolveBattleSetup } from '../battle/data/ch01-kitchen';
 import { CH01_ASSET_KEYS } from '../assets/keys';
 import { LAYERS, characterDepth } from '../render/layers';
 import {
@@ -37,7 +38,12 @@ import { hashSeed } from '../dev/random';
 import { addCoverImage } from '../ui/background';
 import { setLinearTextures, setPixelTextures } from '../ui/pixel';
 import { buildBattleCh01Hud } from '../ui/battle-ch01-hud';
-import { openBattleDefeat, openBattleExit, openBattleIntro } from '../ui/battle-ch01-modals';
+import {
+  openBattleDefeat,
+  openBattleExit,
+  openBattleIntro,
+  openBattleVictory,
+} from '../ui/battle-ch01-modals';
 
 type BattlePreviewPhase = 'opening' | 'mid' | 'defeat';
 
@@ -52,6 +58,12 @@ interface BattleLaunchData {
   readonly encounterId?: string;
   readonly seed?: number;
   readonly preview?: boolean;
+  /** 打完之后回到哪：默认金殿那场回寝室，御膳房遭遇战回御膳房。 */
+  readonly returnTo?: 'dorm' | 'kitchen';
+  /** 回御膳房时要记住"哪个巡逻已经被解决"。 */
+  readonly clearedEnemyId?: string;
+  /** 回御膳房时从哪个检查点重开。 */
+  readonly resumeAt?: 'explore' | 'gate';
 }
 
 function isBattleLaunchData(value: unknown): value is BattleLaunchData {
@@ -71,6 +83,11 @@ export class BattleCh01Scene extends UIScene {
   private seed = 1;
   private phaseParam: BattlePreviewPhase = 'opening';
   private state!: BattleState;
+  private setup: ScriptedBattleSetup = resolveBattleSetup(undefined);
+  private launchReturnTo: 'dorm' | 'kitchen' = 'dorm';
+  private launchClearedEnemyId: string | null = null;
+  private launchResumeAt: 'explore' | 'gate' = 'explore';
+  private victoryModal: ModalHandle | null = null;
   private enemySprite: Phaser.GameObjects.Image | null = null;
   private playerSprite: Phaser.GameObjects.Image | null = null;
   private hpGraphics: Phaser.GameObjects.Graphics | null = null;
@@ -92,7 +109,7 @@ export class BattleCh01Scene extends UIScene {
   private readonly enemyLabel = ref('');
   private readonly playerLabel = ref('');
   private readonly logText = ref('');
-  private readonly hintText = ref('你的攻击只能造成 1 点伤害。');
+  private readonly hintText = ref('');
   private readonly actionsDisabled = ref(true);
 
   constructor() {
@@ -115,11 +132,15 @@ export class BattleCh01Scene extends UIScene {
       }
     }
 
-    this.state = createBattle(CH01_FIRST_BATTLE);
+    this.setup = resolveBattleSetup(launch?.encounterId);
+    this.launchReturnTo = launch?.returnTo ?? 'dorm';
+    this.launchClearedEnemyId = launch?.clearedEnemyId ?? null;
+    this.launchResumeAt = launch?.resumeAt ?? 'explore';
+    this.state = createBattle(this.setup);
     if (this.preview && this.phaseParam === 'mid') {
-      this.state = advanceForPreview(this.state, CH01_FIRST_BATTLE, 1);
+      this.state = advanceForPreview(this.state, this.setup, 1);
     } else if (this.preview && this.phaseParam === 'defeat') {
-      this.state = advanceForPreview(this.state, CH01_FIRST_BATTLE, CH01_FIRST_BATTLE.maxRounds);
+      this.state = advanceForPreview(this.state, this.setup, this.setup.maxRounds);
     }
   }
 
@@ -130,6 +151,7 @@ export class BattleCh01Scene extends UIScene {
     this.introOpen = false;
     this.defeatModal = null;
     this.exitModal = null;
+    this.victoryModal = null;
     this.enemySprite = null;
     this.playerSprite = null;
     this.hpGraphics = null;
@@ -196,6 +218,9 @@ export class BattleCh01Scene extends UIScene {
         audioDirector.playClick();
         this.openExitConfirm();
       },
+      ...(this.setup.damageRule === 'use-attack'
+        ? { location: '梦域 / 御膳房', subtitle: '遭遇战 · 惊动' }
+        : {}),
     });
   }
 
@@ -287,7 +312,7 @@ export class BattleCh01Scene extends UIScene {
 
     this.busy = true;
     this.actionsDisabled.value = true;
-    const result = applyBattleAction(this.state, action, CH01_FIRST_BATTLE);
+    const result = applyBattleAction(this.state, action, this.setup);
     this.state = result.state;
     this.syncHud();
 
@@ -300,7 +325,10 @@ export class BattleCh01Scene extends UIScene {
       this.playerLunge();
       this.time.delayedCall(this.reduced ? 30 : 110, () => {
         this.hitEnemy();
-        this.floatNumber('1', this.enemySprite?.x ?? 360, (this.enemySprite?.y ?? 520) - 220, GOLD, '毫无作用');
+        // 固定 1 的那场是「毫无作用」，遭遇战要显示真实伤害。
+        const label = this.setup.damageRule === 'use-attack' ? String(attack.amount) : '1';
+        const note = this.setup.damageRule === 'use-attack' ? undefined : '毫无作用';
+        this.floatNumber(label, this.enemySprite?.x ?? 360, (this.enemySprite?.y ?? 520) - 220, GOLD, note);
       });
     } else {
       audioDirector.playClick();
@@ -350,6 +378,8 @@ export class BattleCh01Scene extends UIScene {
       this.busy = false;
       if (this.state.phase === 'defeat') {
         this.showDefeatOverlay();
+      } else if (this.state.phase === 'victory') {
+        this.showVictoryOverlay();
       } else {
         this.actionsDisabled.value = false;
         this.showTurnBanner('你的回合');
@@ -418,7 +448,9 @@ export class BattleCh01Scene extends UIScene {
     this.hintText.value =
       this.state.phase === 'defeat'
         ? '这不是你能赢的战斗。'
-        : '你的攻击只能造成 1 点伤害。';
+        : this.setup.damageRule === 'use-attack'
+          ? `你每刀造成 ${this.setup.player.attackDamage} 点伤害。`
+          : '你的攻击只能造成 1 点伤害。';
     this.drawHpBars();
   }
 
@@ -516,13 +548,54 @@ export class BattleCh01Scene extends UIScene {
     if (this.introOpen || this.ended) return;
     this.introOpen = true;
     this.actionsDisabled.value = true;
+    const isEncounter = this.setup.damageRule === 'use-attack';
     openBattleIntro(this.mvvm, {
+      // 遭遇战不是「清除协议」，开场卡文案跟着战斗数据走，别把金殿的规则搬过来。
+      ...(isEncounter
+        ? {
+            badge: 'ENCOUNTER / DREAM',
+            title: this.setup.title,
+            target: this.setup.enemy.name,
+            lines: [
+              '它是梦里的人，被惊醒时会露出铁皮。',
+              '这仗打得赢——但你不想在这里耗太久。',
+            ],
+            ruleText: `你每刀造成 ${this.setup.player.attackDamage} 点伤害。`,
+          }
+        : {}),
       onClose: () => {
         this.introOpen = false;
         if (!this.ended) {
           this.actionsDisabled.value = false;
           this.showTurnBanner('你的回合');
         }
+      },
+    });
+  }
+
+  /** 遭遇战打赢：收尾卡 → 回御膳房（并记住这个巡逻已经被解决）。 */
+  private showVictoryOverlay(): void {
+    if (this.victoryModal) return;
+    this.ended = true;
+    this.actionsDisabled.value = true;
+    this.victoryModal = openBattleVictory(this.mvvm, {
+      title: this.setup.title,
+      lines: [this.setup.victoryText ?? '它散成了齑粉。', '御膳房暂时安静下来。'],
+      preview: this.preview,
+      onReturn: () => {
+        audioDirector.playClick();
+        this.transitioning = true;
+        this.cameras.main.fadeOut(this.reduced ? 160 : 320, 8, 10, 16);
+        this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+          void enterModule(this, 'ch01Kitchen', {
+            retry: this.launchResumeAt,
+            cleared: this.launchClearedEnemyId ?? undefined,
+            preview: this.preview,
+          });
+        });
+      },
+      onClose: () => {
+        this.victoryModal = null;
       },
     });
   }
@@ -551,6 +624,14 @@ export class BattleCh01Scene extends UIScene {
         this.transitioning = true;
         this.cameras.main.fadeOut(this.reduced ? 160 : 360, 255, 255, 255);
         this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+          if (this.launchReturnTo === 'kitchen') {
+            // 御膳房遭遇战打输了：回地图，从检查点重来（不踢出梦域）。
+            void enterModule(this, 'ch01Kitchen', {
+              retry: this.launchResumeAt,
+              preview: this.preview,
+            });
+            return;
+          }
           void enterModule(this, 'ch01Dorm', { resume: 'afterBattle' });
         });
       },

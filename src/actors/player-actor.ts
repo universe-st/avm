@@ -30,6 +30,8 @@ export interface PlayerActorOptions {
   readonly headOffset?: number;
   /** Q 版等非像素素材用 LINEAR 采样。 */
   readonly linearTextures?: boolean;
+  /** 地图像素高度；大图必须传，否则角色 depth 会盖过迷雾/特效。 */
+  readonly depthMaxY?: number;
 }
 
 /**
@@ -57,6 +59,7 @@ export class PlayerActor {
   private readonly walkFrameCount: number;
   private readonly spriteScale: number;
   private readonly headOffset: number;
+  private readonly depthMaxY: number;
 
   constructor(scene: Phaser.Scene, room: RoomDef, options: PlayerActorOptions = {}) {
     this.scene = scene;
@@ -73,6 +76,7 @@ export class PlayerActor {
     this.walkFrameCount = options.walkFrameCount ?? CH01_WALK_FRAME_COUNT;
     this.spriteScale = options.spriteScale ?? 1;
     this.headOffset = options.headOffset ?? (this.sitting ? 64 : 96);
+    this.depthMaxY = options.depthMaxY ?? 1600;
 
     const keys: string[] = [
       ...Object.values(this.staticKeys),
@@ -112,7 +116,7 @@ export class PlayerActor {
            */
           .setOrigin(0.5, 0.985)
           .setScale(this.spriteScale)
-          .setDepth(characterDepth(this.feetPoint.y))
+          .setDepth(characterDepth(this.feetPoint.y, this.depthMaxY))
       : null;
   }
 
@@ -122,6 +126,11 @@ export class PlayerActor {
 
   get facing(): Facing {
     return this.facingValue;
+  }
+
+  /** 相机跟随/屏幕坐标换算用的显示对象；没有精灵时为 null。 */
+  get display(): Phaser.GameObjects.Image | null {
+    return this.sprite;
   }
 
   /** 头顶中心（精灵顶部），供表情气泡把尾巴钉在头上。 */
@@ -169,7 +178,7 @@ export class PlayerActor {
     // 上下起伏已经烘进 20 帧序列里，这里不再叠一层随机相位的 bob（会和步态打架）。
     const sittingOffset = this.sitting ? this.sittingOffsetY : 0;
     this.sprite.setPosition(this.feetPoint.x, this.feetPoint.y + sittingOffset);
-    this.sprite.setDepth(characterDepth(this.feetPoint.y));
+    this.sprite.setDepth(characterDepth(this.feetPoint.y, this.depthMaxY));
     this.shadow?.setPosition(this.feetPoint.x, this.feetPoint.y + sittingOffset + 2);
   }
 

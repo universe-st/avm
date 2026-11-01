@@ -12,3 +12,14 @@ import type { FootBox } from './types';
  *   角色能贴着床沿站，实机上看着就是「脚踩在床框上」。外扩 8px 让脚与床/墙之间留出一条看得见的缝（4px 在手机上只有 2 个 CSS 像素，看着仍像踩上去）。
  */
 export const PLAYER_FOOT: FootBox = { width: 56, height: 18, padding: 8 };
+
+/**
+ * 御膳房（`tileSize: 64`）的脚盒。
+ *
+ * 寝室那套按 21.8px 格子调的 56+2*8=**72px** 在这里比一格（64px）还宽：
+ * 屏风躲藏点 (18,6) 西边紧贴挡路柱 (17,5)-(17,6)，玩家被瞬移进去后
+ * 任一方向的目标点都仍然压着柱子，`canStandAt` 全 false —— 直接软锁。
+ * 收成 44+2*4=**52px** < 64px，既能挤进一格宽的缝，也不至于穿墙。
+ * 2026-10-31 地图放大到 `tileSize 96` 后整组按 1.5 同步放大（66+2*6=78px，仍是 0.81 格）。
+ */
+export const KITCHEN_PLAYER_FOOT: FootBox = { width: 66, height: 24, padding: 6 };
