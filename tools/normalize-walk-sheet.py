@@ -56,6 +56,16 @@ def normalize(static: Path, sheet: Path, out: Path, frame_w: int, frame_h: int) 
     sy = target_h / h_med
     sx = target_w / w_med
 
+    # 单帧宽度是硬约束（走路 sheet 要 20 帧并排，整张不能超 4096）。
+    # 若按目标比例放大会顶出帧宽，就**整体等比缩小**这一组 sx/sy ——
+    # 只压宽度会让角色变瘦/变胖，等比缩放后交给运行时 castScale 统一放大即可。
+    max_w = max(widths) if widths else w_med
+    max_h = max(heights) if heights else h_med
+    fit = min(frame_w / (max_w * sx), frame_h / (max_h * sy))
+    if fit < 1:
+        sx *= fit
+        sy *= fit
+
     cells = img.width // frame_w
     result = Image.new("RGBA", (cells * frame_w, frame_h), (0, 0, 0, 0))
     for i in range(cells):

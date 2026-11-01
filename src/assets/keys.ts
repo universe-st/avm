@@ -352,22 +352,22 @@ export const KITCHEN_CAST = {
   oldKen: kitchenCast(
     'old_ken',
     [371, 371, 371, 371, 371, 371, 371, 371],
-    [371, 370, 371, 371, 371, 366, 371, 371],
+    [351, 360, 371, 371, 338, 331, 371, 371],
   ),
   cook: kitchenCast(
     'cook',
     [371, 371, 371, 371, 371, 371, 371, 371],
-    [371, 371, 371, 371, 371, 371, 371, 371],
+    [324, 344, 371, 371, 325, 354, 371, 371],
   ),
   eunuch: kitchenCast(
     'eunuch',
     [371, 371, 371, 371, 371, 371, 371, 371],
-    [371, 371, 371, 371, 371, 371, 370, 371],
+    [371, 371, 371, 371, 371, 371, 371, 371],
   ),
   guard: kitchenCast(
     'guard',
     [371, 371, 371, 371, 371, 371, 371, 371],
-    [371, 371, 371, 371, 371, 370, 371, 371],
+    [362, 371, 371, 371, 371, 371, 371, 371],
   ),
 } as const;
 
@@ -378,5 +378,12 @@ export const KITCHEN_CAST_ADULT_BIAS = 1.04;
 
 export type KitchenCastId = keyof typeof KITCHEN_CAST;
 
-export const CH01_KITCHEN_FRAME = { width: 224, height: 400 } as const;
+/**
+ * 行走 sheet 的单帧尺寸。
+ *
+ * **宽不能随便加**：20 帧并排，整张纹理宽度 = 20 × width，必须 < GPU 的 `MAX_TEXTURE_SIZE`
+ * （手机常见上限 4096）。224 时整张 4480，真机上纹理创建失败 → 角色渲染成一块纯黑矩形；
+ * 桌面 GPU 上限 16384 所以本地看不出来。192 → 3840，留了余量。
+ */
+export const CH01_KITCHEN_FRAME = { width: 192, height: 400 } as const;
 export const CH01_KITCHEN_WALK_FRAME_COUNT = 20;
