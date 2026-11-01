@@ -30,7 +30,7 @@ pnpm android:release
 2. 新增 bundle/资源必须跑 `assets:scan` + `assets:check`，并在 `docs/RESOURCE-SPEC.md` 登记。
 3. 切换场景用 `from.scene.start()`（`enterModule` 已封装）；不要用全局 `game.scene.start()`，会留旧场景。唯一例外是 `src/dev/stage-runner.ts` 的显式预览跳转：它会先停掉所有内容场景再启动，别在别处模仿。
 4. 设计坐标按 **720 宽**写；不要读 `window.innerWidth` 做布局（视口在 `app/viewport.ts` 统一算）。
-5. 相机必须 `setZoom(scale)` **且** `centerOn(360, designH/2)`。
+5. 相机统一走 `applyCamera(scene)`：`setZoom(plan.scale)` **且** `centerOn(360, designH/2)`。`plan.scale` 现在固定为 1（见 §5 的倍率坑），不要自己算设备倍率。
 6. 像素素材纹理 NEAREST，UI 文本 LINEAR；不要非整数倍缩放像素 sprite。
 7. 不提交 `cordova/keys/`、`cordova/build.json`、`cordova/www/`、`cordova/platforms/`。
 8. vendor 的 phaser-mvvm 可以改，但每次改动写进 `vendor/phaser-mvvm/PATCHES.md`，并跑框架单测。
@@ -68,6 +68,9 @@ pnpm android:release
 - Android 首次启动 WebView 可能超过默认 20s 加载超时；已把 `LoadUrlTimeoutValue` 设 120000。
 - 系统「Viewing full screen」提示会盖住应用，点 Got it 后才是游戏。
 - 4:3 平板会留边；20:9 手机无黑边。
+- **渲染倍率固定 1**（`planViewport` 里 `scale = 1`）。别改回「物理像素/720」：UIRoot 不会跟着放大，
+  而相机会 `setZoom(scale)`，结果是手机上 HUD 整体偏移、摇杆飞出去（2026-11-02 实机复现）。
+- 真机 WebView 的 `innerHeight` 常在启动后变一次；`watchViewport` 会在显著变化时按新尺寸重载一次。
 - 标题主视觉是首版 AI 图 + 像素化后处理；M1 可重做。
 - 第一章素材由游戏素材大师生成；人物先出设定图，再以图为参考生成精灵/八方向/场景。寝室是零部件拼图，不画整张细图，也不铺地毯。
 - 角色精灵工具（sprite）的转圈视频一旦源图里混入第二个人物/剪影，截帧会带残影；源图必须是单人、全身、纯色背景。

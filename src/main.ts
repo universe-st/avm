@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { MVVMPlugin, installFactories } from '@phaser-mvvm/phaser';
 import { installWidgetFactories } from '@phaser-mvvm/widgets';
-import { planViewport, setViewportPlan, type ViewportPlan } from './app/viewport';
+import { applyCamera, planViewport, setViewportPlan, watchViewport, type ViewportPlan } from './app/viewport';
 import { SCENE_KEYS } from './app/scene-keys';
 import { applyTheme } from './theme/theme';
 import { UI_ROOT_DEPTH } from './render/layers';
@@ -93,6 +93,27 @@ const game = new Phaser.Game({
     CgStageScene,
     BattleSandboxScene,
   ],
+});
+
+// 真机上 innerHeight 常在启动后变一次（系统栏淡入/退出全屏）。设计框是启动那刻算的，
+// 不重算就会留黑边、HUD 按旧框排（对话框偏移、轮盘跑出屏幕）。
+watchViewport(game, {
+  onReplan: (next) => {
+    // 改了 gameSize 之后 Phaser 的 FIT 不会重算 CSS 尺寸（实测 refresh() 也不动），
+    // 只改缓冲会留下"新宽度 × 旧高度"的怪画布。最稳的是按新视口重新加载一次：
+    // 设计框、缓冲、Compose 页全部从干净状态重建。
+    // 每个尺寸只重载一次，避免尺寸抖动时来回刷。
+    const key = `avm.viewportReload.${next.cssWidth}x${next.cssHeight}`;
+    try {
+      if (sessionStorage.getItem(key) === '1') return;
+      sessionStorage.setItem(key, '1');
+    } catch {
+      // 隐私模式下 sessionStorage 可能不可用，退化成"只重排相机"。
+      for (const scene of game.scene.getScenes(true)) applyCamera(scene as Phaser.Scene);
+      return;
+    }
+    window.location.reload();
+  },
 });
 
 // Cordova：隐藏状态栏 + 硬件返回键接入框架的 back 链。
