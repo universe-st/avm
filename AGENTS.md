@@ -2,7 +2,14 @@
 
 ## 0. 当前阶段
 
-M1a。已交付：M0.9 的全部内容 + 第一章第一节《寝室》（单房间探索、小白登场、第一场剧情战、战后征召、结束卡）。第一章第二节《御膳房》P1 白盒已接入舞台预览（`scene.ch01.kitchen`）；正式流程、完整战斗系统、存档尚未接入；没有计划不要继续扩章节。
+M1a。已交付：M0.9 的全部内容 + 第一章第一节《寝室》（单房间探索、小白登场、第一场剧情战、战后征召、结束卡）
++ 第一章第二节《御膳房》（五幕探索、无限射程扇形视野与三层暗幕、遭遇战、结束卡）。
+
+**正式流程已串起来**：标题 → 开幕 → 寝室 → 金殿剧情战 → 结束卡「进入第二节」→ 御膳房 → 结束卡。
+检查点 `dorm.*` / `ch01.complete` / `kitchen.explore` / `kitchen.done`，标题「继续游戏」可直达御膳房。
+标题左下角有**游戏内测试入口**（见 `docs/STAGE-PREVIEW.md` §13），APK 里也能跳任意场景。
+
+尚未接入：完整战斗系统、多槽存档、第三节。没有计划不要继续扩章节。
 
 ## 1. 命令
 
@@ -31,7 +38,7 @@ pnpm android:release
 10. 新依赖先确认许可证；AI 素材必须登记 `docs/ASSET-CREDITS.md`。
 11. 剧情长文文案以 `src/story/` 为唯一真值；场景里不硬编码台词。过场时间线写成无 Phaser 的纯逻辑并补单测（参考 `prologue-player.ts`）。
 12. **所有可玩场景/CG/战斗都必须登记舞台目录**：`src/dev/stage-catalog.ts`；场景 key 还要进 `src/app/scene-keys.ts`。`pnpm check` 会检查模块/内容场景覆盖，不登记就失败。
-13. 预览/验收只走 `launchStage()`、`?stage=<id>` 或 `__AVM__.stages`；场景不要自己解析 query，也不要直接 `scene.start()` 做预览跳转。新增场景/CG/战斗照 `docs/STAGE-PREVIEW.md` 的三套接入步骤做。
+13. 预览/验收只走 `launchStage()`、`?stage=<id>` 或 `__AVM__.stages`；场景不要自己解析 query，也不要直接 `scene.start()` 做预览跳转。新增场景/CG/战斗照 `docs/STAGE-PREVIEW.md` 的接入步骤做。**游戏内测试入口在标题页左下角「测试」**，清单由 `STAGE_CATALOG` 自动生成——新增场景只登记目录，禁止在 UI 里手写第二份列表（见 STAGE-PREVIEW §13）。
 14. 预览模式（`StageLaunchContext.preview === true`）**不得写存档/进度/成就**；随机必须用 `seed`（`src/dev/random.ts`），禁止直接 `Math.random()`。同一 seed + params 必须能复现同一画面/开局。
 15. 原生渲染分层只能取 `src/render/layers.ts` 的 `LAYERS` / `SCREEN_LAYERS` / `characterDepth()`；资源 key 只能取 `src/assets/keys.ts` 的分组。**过场里推拉镜头只能缩放世界层容器（`worldRoot`），禁止改 `cameras.main.zoom`（会把 Compose 对话框一起放大、挤出屏幕）；屏幕层特效（立绘/遮幅/字卡/速度线）只能用 `SCREEN_LAYERS`。**地图、角色、UI、CG 的归属见 `docs/RENDER-LAYERS.md`，不要在场景里写魔法 depth 或手写资源 key。
 16. **资源随场景走**：内容场景只通过 `GameModule.requires` 声明资源，切场景必须走 `enterModule` / `launchStage`；`AssetService` 会在目标场景 `create` 后释放旧 bundle（`core`/`ui` 常驻）。禁止跨场景 `prefetch`，禁止场景里手工 `textures.remove` / `cache.*.remove`；验收看 `__AVM__.assets.bundles()`。
