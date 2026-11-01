@@ -111,7 +111,7 @@
 
 1. 本节无存档；刷新页面或返回标题后从头开始，「继续游戏」仍置灰。
 2. 第一场战斗是 1v1 剧情战，不是完整回合制；无技能/EP/背刺/核心/队伍。
-3. 寝室是单房间；门、巡逻、视线、潜行、善变、锚点、小地图未接入。
+3. 寝室是单房间；门、巡逻、视线、潜行、善变、小地图未接入。2026-10-31 起第二节《御膳房》P1 白盒已实现，预览地址 `?stage=scene.ch01.kitchen&phase=explore`；正式流程/存档/美术仍待接入，并**删除「锚点」说法**，见 [`DESIGN-CH01-EXPLORE.md`](DESIGN-CH01-EXPLORE.md)。
 4. 对话正文是 Phaser/Compose 文本，暂未接 DOM a11y 镜像。
 5. 寝室日常 BGM 已换成校园日常《午后小憩》；梦域/音效仍是程序化占位，后续用 music/sfx 模块重做。
 6. 周全行走使用四向行走 sheet（front/back/left/right，各 8 帧）；上半身取静态图、下半身取行走帧，并用并集 bbox 归一化，避免变瘦。四个斜向行走尚未接入地图。
@@ -223,3 +223,20 @@
 4. 视频填充需要两层同源解码，低端 Android 若掉帧，手机 CG 可改回 `layout:'contain'`。
 5. 对话记录用分页而非滚动（避免 ScrollView 在短生命周期弹窗里的焦点风险）。
 6. 仍无多槽存档；检查点只记「第一章走到哪一段」，不含战斗内状态。
+
+## 7. P1 白盒：第一章第二节《御膳房》
+
+- 预览：`?stage=scene.ch01.kitchen&phase=explore`（`phase=intro|explore|gate|hide|haystack|done|fail`；`debug=1` 画巡逻/躲藏/触发区；`spot=kitchen|backstab|hay|gate` 为验收定位）
+- 自动检查：`pnpm check` 通过，24 files / 192 tests；`assets:check` 509 / 1782 可走格一致。
+- 已验：32×64 连续灰盒地图、玩家 120°/7.5 格视锥 + 1.5 格环境光、三层 tile 迷雾、3 条巡逻 + 教学御厨 + 门卫、警戒 `?/!`、背后偷袭、屏风躲藏、双人进门、失败卡/重开、草堆偷袭老肯、善变染色、P1 结束卡。
+- 未验/待接：完整第四/五幕、正式进度/「继续游戏」、美术/音频、Android 包。
+
+| 图 | 说明 |
+| --- | --- |
+| [视锥/迷雾 390](screenshots/ch01-kitchen-fov-390.png) | 玩家面朝方向的扇形可见区，未探索区全黑、记忆区压暗 |
+| [背后偷袭 390](screenshots/ch01-kitchen-backstab-390.png) | 教学御厨背后的 `[J] 偷袭` 与右下高亮按钮 |
+| [草堆偷袭 390](screenshots/ch01-kitchen-haystack-390.png) | 善变前：藏在干草堆，老肯贴脸搜索，`[J] 偷袭` 就绪 |
+| [结束卡 390](screenshots/ch01-kitchen-end-390.png) | P1 第三幕到此；第四/五幕待接入 |
+| [失败重开 390](screenshots/ch01-kitchen-fail-390.png) | 被巡逻抓住 → 「再进去」回检查点 |
+| [门口躲藏 390](screenshots/ch01-kitchen-hide-390.png) | 第二幕门开，老麦/老肯/门卫进门，玩家躲屏风 |
+| [横屏 1200](screenshots/ch01-kitchen-fov-1200.png) | 1200×648 竖屏居留边（HUD 压在中部，横屏不是目标形态） |
