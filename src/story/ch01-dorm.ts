@@ -51,7 +51,7 @@ export const CH01_CHAPTER_CARD = ['第一章 权力之梦', '第一节 · 寝室
 export const CH01_END_CARD = {
   kicker: '第一章 · 权力之梦',
   title: '第一节 · 寝室',
-  subtitle: '第二节 · 待续',
+  subtitle: '第一节 · 完',
   hint: '下一次，小白会给他「解」。',
 } as const;
 

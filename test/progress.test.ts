@@ -80,6 +80,8 @@ describe('继续游戏的目标映射', () => {
       'dorm.palace': { module: 'ch01Palace' },
       'dorm.after': { module: 'ch01Dorm', resume: 'afterBattle' },
       'ch01.complete': { module: 'ch01Dorm', resume: 'complete' },
+      'kitchen.explore': { module: 'ch01Kitchen', resume: 'explore' },
+      'kitchen.done': { module: 'ch01Kitchen', resume: 'done' },
     };
     for (const checkpoint of CHECKPOINTS) {
       const destination = continueDestination(checkpoint);

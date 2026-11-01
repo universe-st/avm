@@ -22,6 +22,7 @@ import { LAYERS } from '../render/layers';
 import { SCENE_KEYS } from '../app/scene-keys';
 import { applyCamera, getViewportPlan } from '../app/viewport';
 import { enterModule } from '../app/director';
+import { saveProgress } from '../app/progress';
 import { CH01_KITCHEN_BATTLE_ID } from '../battle/data/ch01-kitchen';
 import { audioDirector } from '../audio/audio-director';
 import { CH01_KITCHEN_ASSET_KEYS, KITCHEN_CAST } from '../assets/keys';
@@ -185,6 +186,17 @@ export class Ch01KitchenScene extends UIScene {
    */
   private fogCanvas: Phaser.Textures.CanvasTexture | null = null;
   private fogKey = 'kitchen-fog';
+  /**
+   * 「已探索」遮罩（累积、永不回退）。
+   *
+   * 暗幕现在是三层，不再是"擦掉就完事"：
+   * 没探索 = 全黑；探索过但当前看不见 = 压暗（`EXPLORED_DIM`）；当前视野内 = 全亮。
+   * 所以每次都要用这张遮罩重画一遍暗幕，而不是直接往暗幕上擦。
+   */
+  private exploredCanvas: Phaser.Textures.CanvasTexture | null = null;
+  private exploredKey = 'kitchen-fog-explored';
+  /** 已探索区域的压暗程度：0 = 不压暗，1 = 和没探索一样黑。 */
+  private static readonly EXPLORED_DIM = 0.72;
   /** 玩家连续朝向（弧度）。`facing` 只有 8 档，扇形会每 45° 跳一下。 */
   private headingRad = -Math.PI / 2;
   /** 上次擦除时的位置/朝向，用来跳过无意义的整张纹理上传。 */
@@ -224,6 +236,8 @@ export class Ch01KitchenScene extends UIScene {
   private preview = false;
   private debug = false;
   private previewSpot: string | null = null;
+  /** 从检查点恢复时直接跳到哪一幕。 */
+  private resumePhase: 'explore' | 'done' | null = null;
   private ended = false;
   private cardVisible = false;
   private tutorialDismissed = false;
@@ -286,6 +300,7 @@ export class Ch01KitchenScene extends UIScene {
     this.retryPhase = 'explore';
     this.retried = false;
     this.previewSpot = null;
+    this.resumePhase = null;
 
     if (isStageLaunchContext(data)) {
       const context: StageLaunchContext = data;
@@ -298,6 +313,16 @@ export class Ch01KitchenScene extends UIScene {
         console.warn(`[ch01-kitchen] 未知 phase=${raw}，回退 intro`);
       }
       return;
+    }
+
+    // 从别的场景 enterModule 过来时带的是普通对象：先认 preview 标记，
+    // 否则"从预览里的结束卡进第二节"会被当成真实流程、写掉玩家进度。
+    if (data !== null && typeof data === 'object' && (data as { preview?: unknown }).preview === true) {
+      this.preview = true;
+    }
+    if (data !== null && typeof data === 'object' && 'resume' in data) {
+      const resume = (data as { resume?: unknown }).resume;
+      if (resume === 'explore' || resume === 'done') this.resumePhase = resume;
     }
 
     if (isKitchenRetryData(data)) {
@@ -695,6 +720,17 @@ export class Ch01KitchenScene extends UIScene {
       else this.beginExplore();
       return;
     }
+    // 从标题「继续游戏」回来：跳过开场卡直接进对应幕。
+    if (this.resumePhase === 'explore') {
+      this.revealAround(6, 55, 2);
+      this.beginExplore();
+      return;
+    }
+    if (this.resumePhase === 'done') {
+      this.revealAround(22, 26, 3);
+      this.showDone();
+      return;
+    }
     this.beginIntro();
   }
 
@@ -724,6 +760,8 @@ export class Ch01KitchenScene extends UIScene {
 
   private beginExplore(): void {
     this.phase = 'explore';
+    // 第二节正式开始：点亮「继续游戏」。预览模式不写盘（saveProgress 内部已挡）。
+    saveProgress('kitchen.explore', { preview: this.preview });
     this.objective.value = KITCHEN_OBJECTIVES.explore;
     this.tutorialVisible.value = !this.tutorialDismissed;
     this.joystick?.setEnabled(true);
@@ -1105,6 +1143,17 @@ export class Ch01KitchenScene extends UIScene {
     canvas.refresh();
     canvas.setFilter(Phaser.Textures.FilterMode.LINEAR);
     this.fogCanvas = canvas;
+
+    // 已探索遮罩：透明底，走一次擦一次，只增不减。
+    if (this.textures.exists(this.exploredKey)) this.textures.remove(this.exploredKey);
+    const mask = this.textures.createCanvas(this.exploredKey, width, height);
+    if (mask) {
+      mask.getContext().clearRect(0, 0, width, height);
+      mask.refresh();
+      mask.setFilter(Phaser.Textures.FilterMode.LINEAR);
+    }
+    this.exploredCanvas = mask;
+
     const image = this.add.image(0, 0, this.fogKey).setOrigin(0, 0).setDepth(LAYERS.fog);
     image.setDisplaySize(roomW, roomH);
     this.fog = image;
@@ -1122,10 +1171,15 @@ export class Ch01KitchenScene extends UIScene {
    * 擦除用 `destination-out` 合成，是累积的：走过的地方永远是亮的，
    * 边界就是历代扇形的并集——弧线，不是 96px 的台阶。
    */
+  /**
+   * 更新视野：把扇形记进「已探索」遮罩，然后重画暗幕。
+   *
+   * 三层暗幕：没探索 = 全黑，探索过但当前看不见 = `EXPLORED_DIM` 压暗，当前视野 = 全亮。
+   */
   private carveVision(polygonIn?: VisionPolygon): void {
-    const canvas = this.fogCanvas;
     const player = this.player;
-    if (!canvas || !player) return;
+    const mask = this.exploredCanvas;
+    if (!mask || !player) return;
     // 站着不动就别每 100ms 重传一次 384×768 的纹理（手机上这一下很贵）。
     // 第一次必须擦：`lastCarve` 是 NaN 时任何比较都是 false，不特判就永远不会开灯。
     const first = !Number.isFinite(this.lastCarve.x) || !Number.isFinite(this.lastCarve.heading);
@@ -1138,23 +1192,33 @@ export class Ch01KitchenScene extends UIScene {
       y: player.position.y,
       heading: this.headingRad,
     };
-    const tile = this.room.tileSize;
     const polygon =
       polygonIn ??
       castVisionPolygon(this.room, player.position, this.headingRad, {
         fovDeg: 120,
         range: this.playerVisionRange(),
-        ambientRange: 2.5 * tile,
+        ambientRange: 2.5 * this.room.tileSize,
         rays: 96,
       });
-    const ctx = canvas.getContext();
-    ctx.save();
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.fillStyle = 'rgba(0,0,0,1)';
+    const mctx = mask.getContext();
+    mctx.save();
+    // 遮罩记的是「看见过多少」：白色累积，0=没去过、1=去过。
+    // （反过来记"剩余黑暗"会让渲染时的 destination-out 越探索越黑。）
+    mctx.globalCompositeOperation = 'source-over';
+    this.paintVision(mctx, polygon, '255,255,255');
+    mctx.restore();
+    mask.refresh();
+    this.renderFog(polygon);
+  }
+
+  /** 把扇形（含脚下柔光）画到某个 2D 上下文里；擦除和重绘共用同一套几何。 */
+  private paintVision(ctx: CanvasRenderingContext2D, polygon: VisionPolygon, tint = '0,0,0'): void {
+    const player = this.player;
+    if (!player) return;
+    const origin = this.toFogSpace(player.position);
     if (polygon.points.length >= 3) {
       // 从脚下出发画「扇形」而不是「弓形」：`castVisionPolygon` 只给弧上的点，
       // 直接闭合会连成一道弦，把玩家自己那块擦不到（会出现一条贴脸的暗缝）。
-      const origin = this.toFogSpace(player.position);
       ctx.beginPath();
       ctx.moveTo(origin.x, origin.y);
       for (const point of polygon.points) {
@@ -1173,45 +1237,78 @@ export class Ch01KitchenScene extends UIScene {
         origin.y,
         rangeRt,
       );
-      falloff.addColorStop(0, 'rgba(0,0,0,1)');
-      falloff.addColorStop(1, 'rgba(0,0,0,0)');
+      falloff.addColorStop(0, `rgba(${tint},1)`);
+      falloff.addColorStop(1, `rgba(${tint},0)`);
       ctx.fillStyle = falloff;
       ctx.fill();
     }
     // 脚下环境光：径向渐变，边缘是渐隐的，不会转身时脚下忽明忽暗。
     if (polygon.ambient) {
-      const c = this.toFogSpace(player.position);
       const r = polygon.ambient.radius / Ch01KitchenScene.FOG_RT_SCALE;
-      const gradient = ctx.createRadialGradient(c.x, c.y, r * 0.55, c.x, c.y, r);
-      gradient.addColorStop(0, 'rgba(0,0,0,1)');
-      gradient.addColorStop(1, 'rgba(0,0,0,0)');
+      const gradient = ctx.createRadialGradient(origin.x, origin.y, r * 0.55, origin.x, origin.y, r);
+      gradient.addColorStop(0, `rgba(${tint},1)`);
+      gradient.addColorStop(1, `rgba(${tint},0)`);
       ctx.fillStyle = gradient;
       ctx.beginPath();
-      ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
+      ctx.arc(origin.x, origin.y, r, 0, Math.PI * 2);
       ctx.fill();
     }
+  }
+
+  /** 用「已探索遮罩 + 当前视野」重画整张暗幕。 */
+  private renderFog(polygon: VisionPolygon): void {
+    const canvas = this.fogCanvas;
+    const mask = this.exploredCanvas;
+    if (!canvas || !mask) return;
+    const ctx = canvas.getContext();
+    const width = canvas.width;
+    const height = canvas.height;
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = '#05060a';
+    ctx.fillRect(0, 0, width, height);
+    ctx.globalCompositeOperation = 'destination-out';
+    // ① 探索过的地方压暗（不是全亮，也不是全黑）
+    ctx.globalAlpha = Ch01KitchenScene.EXPLORED_DIM;
+    ctx.drawImage(mask.getSourceImage() as CanvasImageSource, 0, 0);
+    // ② 当前视野内全亮
+    ctx.globalAlpha = 1;
+    this.paintVision(ctx, polygon);
     ctx.restore();
     canvas.refresh();
   }
 
   /** 剧情要"先让他看见"时，直接在暗幕上挖一个柔边圆。 */
   private carveCircle(col: number, row: number, radius: number): void {
-    const canvas = this.fogCanvas;
-    if (!canvas) return;
+    const mask = this.exploredCanvas;
+    if (!mask) return;
     const center = this.toFogSpace(tileCenter(this.room, col, row));
     const r = ((radius + 0.5) * this.room.tileSize) / Ch01KitchenScene.FOG_RT_SCALE;
-    const ctx = canvas.getContext();
-    ctx.save();
-    ctx.globalCompositeOperation = 'destination-out';
-    const gradient = ctx.createRadialGradient(center.x, center.y, r * 0.5, center.x, center.y, r);
-    gradient.addColorStop(0, 'rgba(0,0,0,1)');
-    gradient.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(center.x, center.y, r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-    canvas.refresh();
+    const mctx = mask.getContext();
+    mctx.save();
+    mctx.globalCompositeOperation = 'source-over';
+    const gradient = mctx.createRadialGradient(center.x, center.y, r * 0.5, center.x, center.y, r);
+    gradient.addColorStop(0, 'rgba(255,255,255,1)');
+    gradient.addColorStop(1, 'rgba(255,255,255,0)');
+    mctx.fillStyle = gradient;
+    mctx.beginPath();
+    mctx.arc(center.x, center.y, r, 0, Math.PI * 2);
+    mctx.fill();
+    mctx.restore();
+    mask.refresh();
+    // 记进探索遮罩之后，暗幕要按新遮罩重画一遍（压暗档，不是全亮）。
+    const player = this.player;
+    if (!player) return;
+    this.renderFog(
+      castVisionPolygon(this.room, player.position, this.headingRad, {
+        fovDeg: 120,
+        range: this.playerVisionRange(),
+        ambientRange: 2.5 * this.room.tileSize,
+        rays: 96,
+      }),
+    );
   }
 
   /**
@@ -1845,6 +1942,7 @@ export class Ch01KitchenScene extends UIScene {
     if (this.ended) return;
     this.ended = true;
     this.phase = 'done';
+    saveProgress('kitchen.done', { preview: this.preview });
     this.clearActionHud();
     this.joystick?.setEnabled(false);
     this.promptText?.setVisible(false);
@@ -1922,6 +2020,8 @@ export class Ch01KitchenScene extends UIScene {
     this.fog = null;
     this.fogCanvas = null;
     if (this.textures.exists(this.fogKey)) this.textures.remove(this.fogKey);
+    this.exploredCanvas = null;
+    if (this.textures.exists(this.exploredKey)) this.textures.remove(this.exploredKey);
     this.cones?.destroy();
     this.cones = null;
     this.alertBorder?.destroy();

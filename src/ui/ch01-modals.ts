@@ -11,7 +11,7 @@ import { CH01_END_CARD } from '../story/ch01-dorm';
  */
 export function openCh01EndCard(
   mvvm: MVVMPlugin,
-  callbacks: { onRestart: () => void; onTitle: () => void },
+  callbacks: { onRestart: () => void; onTitle: () => void; onNext?: () => void },
 ): ModalHandle {
   let modal: ModalHandle | null = null;
   modal = mvvm.modal.open(
@@ -29,20 +29,32 @@ export function openCh01EndCard(
         Divider({});
         Text(CH01_END_CARD.hint, { size: 'sm', tone: 'muted', align: 'center' });
         Column({ width: 'fill', gap: 10, alignItems: 'center' }, () => {
+          // 第二节接好了：主按钮变成「进入第二节」，重看/返回降级为次要操作。
+          if (callbacks.onNext) {
+            Button('进入第二节 · 御膳房', {
+              variant: 'primary',
+              size: 'lg',
+              width: 300,
+              onClick: () => {
+                modal?.close();
+                callbacks.onNext?.();
+              },
+            });
+          }
           Row({ width: 'fill', gap: 12, justifyContent: 'center' }, () => {
             Button('重看本节', {
               variant: 'secondary',
               size: 'md',
-              width: 200,
+              width: callbacks.onNext ? 144 : 200,
               onClick: () => {
                 modal?.close();
                 callbacks.onRestart();
               },
             });
             Button('返回标题', {
-              variant: 'primary',
+              variant: callbacks.onNext ? 'ghost' : 'primary',
               size: 'md',
-              width: 200,
+              width: callbacks.onNext ? 144 : 200,
               onClick: () => {
                 modal?.close();
                 callbacks.onTitle();

@@ -39,8 +39,8 @@ export const KITCHEN_CHAPTER_CARD = ['第一章 权力之梦', '第二节 · 御
 export const KITCHEN_END_CARD = {
   kicker: '第一章 · 权力之梦',
   title: '第二节 · 御膳房',
-  subtitle: '白盒到此 · 你已经变成了老肯',
-  hint: '下一节接着演：跟着老麦传膳出门，把这张脸用到底。',
+  subtitle: '第二节 · 完',
+  hint: '你已经变成了老肯。下一节接着演：跟着老麦传膳出门，把这张脸用到底。',
 } as const;
 
 export const KITCHEN_INTERACTABLE_PROMPTS = {

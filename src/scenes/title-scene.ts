@@ -20,11 +20,15 @@ import { bgmManager } from '../audio/bgm-manager';
 import { addCoverImage, addScrims } from '../ui/background';
 import { addEmbers, addVignette } from '../ui/fx-kit';
 import { isStageLaunchContext } from '../dev/stage-types';
+import { launchStage } from '../dev/stage-runner';
+import { openStageListModal } from '../ui/stage-list-modal';
 
 export class TitleScene extends UIScene {
   private fx: Phaser.GameObjects.GameObject[] = [];
   /** 舞台预览启动的标题：继续游戏时要带 preview，避免写真实进度。 */
   private preview = false;
+  /** 测试入口的清单模态（保持引用，方便随场景关闭一起释放）。 */
+  private stageListModal: ModalHandle | null = null;
 
   constructor() {
     super(SCENE_KEYS.title);
@@ -86,6 +90,8 @@ export class TitleScene extends UIScene {
   shutdown(): void {
     for (const object of this.fx) object.destroy();
     this.fx = [];
+    if (this.stageListModal?.open === true) this.stageListModal.close();
+    this.stageListModal = null;
   }
 
   protected content(): void {
@@ -181,7 +187,19 @@ export class TitleScene extends UIScene {
         });
 
         Spacer({ grow: 0.35 });
-        Text('© 2026 Universest', { size: 18, tone: 'muted' });
+        // 底部一行：左下角是测试入口（直接跳到任意章节/场景），右下角是版权。
+        Row({ width: 'fill', justifyContent: 'space-between', alignItems: 'center' }, () => {
+          Button('测试', {
+            variant: 'ghost',
+            size: 'sm',
+            onClick: () => {
+              audioDirector.playClick();
+              this.openStageList();
+            },
+          });
+          Text('© 2026 Universest', { size: 18, tone: 'muted' });
+          Spacer({ width: 56 });
+        });
       },
     );
   }
@@ -190,6 +208,23 @@ export class TitleScene extends UIScene {
     // 设置/名单弹窗会先消费 back；到标题页就吞掉，避免 Cordova 在某些机型上
     // 把同一次返回再交给系统默认行为、直接退出应用。M1 会加「再按一次退出」确认。
     return true;
+  }
+
+  /**
+   * 测试入口：列出舞台目录里的全部场景/CG/战斗，点一条直接跳过去。
+   *
+   * 清单来自 `STAGE_CATALOG`，新增场景只要登记舞台目录就会自动出现
+   * （见 docs/STAGE-PREVIEW.md §11），不要在这里手写第二份列表。
+   */
+  private openStageList(): void {
+    const { modal } = openStageListModal(this.mvvm, {
+      onPick: (stage) => {
+        void launchStage(this.game, stage.id, { origin: 'hud' }).catch((error: unknown) => {
+          console.warn('[title] 打开舞台失败', error);
+        });
+      },
+    });
+    this.stageListModal = modal;
   }
 
   private openSettings(): void {

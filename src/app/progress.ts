@@ -17,6 +17,8 @@ export const CHECKPOINTS = [
   'dorm.palace',
   'dorm.after',
   'ch01.complete',
+  'kitchen.explore',
+  'kitchen.done',
 ] as const;
 
 export type CheckpointId = (typeof CHECKPOINTS)[number];
@@ -34,6 +36,8 @@ export const CHECKPOINT_LABELS: Readonly<Record<CheckpointId, string>> = {
   'dorm.palace': '梦域 · 金殿',
   'dorm.after': '战后 · 小白的征召',
   'ch01.complete': '第一章 · 第一节 完',
+  'kitchen.explore': '御膳房 · 摸清通往传膳门的路',
+  'kitchen.done': '第一章 · 第二节 完',
 };
 
 function isCheckpoint(value: unknown): value is CheckpointId {
@@ -74,7 +78,7 @@ export function serializeProgress(checkpoint: CheckpointId, now = Date.now()): s
 }
 
 export interface ContinueDestination {
-  readonly module: 'ch01Dorm' | 'ch01Palace';
+  readonly module: 'ch01Dorm' | 'ch01Palace' | 'ch01Kitchen';
   readonly data: Record<string, unknown>;
 }
 
@@ -87,6 +91,10 @@ export function continueDestination(checkpoint: CheckpointId): ContinueDestinati
       return { module: 'ch01Dorm', data: { resume: 'afterBattle' } };
     case 'ch01.complete':
       return { module: 'ch01Dorm', data: { resume: 'complete' } };
+    case 'kitchen.explore':
+      return { module: 'ch01Kitchen', data: { resume: 'explore' } };
+    case 'kitchen.done':
+      return { module: 'ch01Kitchen', data: { resume: 'done' } };
     default:
       return { module: 'ch01Dorm', data: { resume: 'explore' } };
   }

@@ -1042,6 +1042,14 @@ export class Ch01DormScene extends UIScene {
     this.stopAmbience();
     saveProgress('ch01.complete', { preview: this.preview });
     openCh01EndCard(this.mvvm, {
+      // 正式流程：结束卡直接送进第二节。`preview` 原样传给下游，预览不写进度。
+      onNext: () => {
+        audioDirector.playClick();
+        void enterModule(this, 'ch01Kitchen', {
+          ...(this.preview ? { preview: true } : {}),
+          seed: this.seed,
+        });
+      },
       onRestart: () => {
         audioDirector.playClick();
         // 「重看本节」= 从头开始；先把检查点退回寝室探索，避免继续游戏直接又跳结束卡。

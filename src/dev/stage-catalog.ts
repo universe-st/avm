@@ -108,12 +108,12 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     id: 'scene.ch01.kitchen',
     kind: 'scene',
     sceneKey: SCENE_KEYS.ch01Kitchen,
-    title: '第一章 · 第二节 御膳房（P1 白盒）',
+    title: '第一章 · 第二节 御膳房',
     status: 'ready',
     requires: ['core', 'ui', 'ch01.char', 'ch01.kitchen'],
     description:
-      '32×64 单张连续地图：玩家视野/迷雾、3 条巡逻、背后偷袭、躲藏、门开躲屏风、草堆偷袭老肯。phase=intro|explore|gate|hide|haystack|done|fail；debug=1 显示巡逻/躲藏/触发区；spot=kitchen|backstab|hay|gate 为验收定位。',
-    tags: ['ch01', 'map', 'whitebox'],
+      '32×64 单张连续地图：无限射程扇形视野、三层暗幕、3 条巡逻、背后偷袭、躲藏、门开躲屏风、草堆偷袭老肯，被抓进 battle.ch01.kitchen。phase=intro|explore|gate|hide|haystack|done|fail；debug=1 显示巡逻/躲藏/触发区；spot=kitchen|backstab|hay|gate 为验收定位。',
+    tags: ['ch01', 'map'],
   },
   {
     id: 'scene.ch01.palace',
