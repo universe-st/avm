@@ -398,3 +398,145 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
 
 - `tools/make-ch01-chime.py`：G5 784Hz / C6 1046.5Hz / G6 1568Hz 三个正弦钟音 + 二次/三次泛音，指数衰减，18ms 噪声槌子；2.2s，44.1kHz 单声道，mp3 96k。
 - 产物：`public/assets/audio/sfx/ch01_chapter_chime.mp3`（27 KB），章节卡与结束卡各播一次（音量 0.45 / 0.38）。
+
+## 12. 御膳房 P2 B1 地图风格样张（2026-10-31）
+
+- 生成：游戏素材大师 · 图片生成，`doubao-seedream-5-0-flash-260915`，自动审核；仅作 B2 拼合风格基准，未直接进游戏。
+- 任务与产物（原始件在 `assets-src/map/ch01/kitchen-map/raw/`）：
+
+| 用途 | 任务 id | 尺寸 | 原始文件 | 处理 |
+| --- | --- | --- | --- | --- |
+| 石砖地面 | `imvw9rbc433ada1` | 1024×2048 | `floor-stone.png` | 重跑一次去掉烤入的火光；无 keying |
+| 宫墙顶面 | `imvw9rbcc19bd52` | 1024×1024 | `wall-cap-white.png` | Pillow 去白底 → `wall-cap.png`；2×1 墙块 |
+| 灶台 | `imvw9rbcl063012` | 1024×1024 | `stove-green.png` | 宿主 keying → `stove.png`；4×2 |
+| 折叠屏风 | `imvw9rbcr3431c8` | 1024×1024 | `screen-green.png` | 宿主 keying → `screen.png`；旋转 90° → `screen-1x2.png`（1×2） |
+
+- 提示词见任务记录：正交俯视、32px/格、国风 HD-2D 像素、无人物/文字/阴影；地面/墙不绿幕，道具绿幕。
+- 备注：图像后端偶发 `下载生成结果失败：fetch failed`，重跑同一张即可；屏风/墙块模型倾向出正面立面，需在本机旋转/去白底后再拼。
+
+### 12.1 B2a 地图道具（2026-10-31）
+
+| 用途 | 任务 id | 原始尺寸 | 产物 | 备注 |
+| --- | --- | --- | --- | --- |
+| 长案岛 4×2 | `imvw9xu5qdb87d9` | 1024×1024 | `long-island.png` | 顶视砧板/菜刀/蔬菜，keyed |
+| 长案 4×1 | `imvw9xu5z92a16b` | 1024×1024 | `long-counter.png` | 模型出正面案几；作靠墙 2.5D 道具 |
+| 货架 2×2 | `imvw9xu6685a876` | 1024×1024 | `shelf.png` | 正面货架；作靠墙 2.5D |
+| 坛子 1×1 | `imvw9xu6gd2aa90` | 1024×1024 | `jar.png` | 顶视坛口/布封，keyed |
+| 挂肉架 2×2 | `imvw9xu6n86118d` | 1024×1024 | `meat-rack.png` | 正面横梁/腊肉；作靠墙 2.5D |
+| 干草堆 3×3 | `imvw9xu6va933e9` | 1024×1024 | `haystack.png` | 顶视草堆，keyed |
+
+- 同一模型，顶视平面道具（地面/灶台/坛子/长案岛）稳定；竖直道具（长案/货架/挂肉架/屏风）倾向出正面立面，地图按 2.5D 靠墙摆放，不强行改成俯视。
+- 失败重跑：长案首次 `fetch failed`，重跑 1 次成功。
+
+### 12.2 B2b 地图道具与拼图（2026-10-31）
+
+| 用途 | 任务 id | 原始尺寸 | 产物 | 备注 |
+| --- | --- | --- | --- | --- |
+| 橱柜 2×3 | `imvwa5g6h364eeb` | 1024×1024 | `cabinet.png` | 正面柜体/铜环；2.5D 靠墙 |
+| 传膳门 4×4 | `imvwa5g6saa8a07` | 1024×1024 | `gate.png` | 双扇门；门缝蓝光已调成冷月白 |
+| 后门 1×2 | `imvwa5g6z87dc7b` | 1024×1024 | `backdoor.png` | 单扇木门/石框；南墙门洞 |
+| 木箱 1×1 | `imvwa5g7739a246` | 1024×1024 | `crate.png` | 顶视；柴房/库房 |
+| 水缸 1×1 | `imvwa5g7d72ef9f` | 1024×1024 | `water-vat.png` | 顶视水面；灶房 |
+| 竹筐 1×1 | `imvwa5g7l19c206` | 1024×1024 | `basket.png` | 顶视青菜；备膳间/柴房 |
+
+- 拼图：`tools/compose-kitchen-map.py` → `assets-src/map/ch01/kitchen-map/map-final.png`（1024×2048，32px/格）、`map-manifest.json`、`map-pass.png`。
+- 墙：B1 `wall-cap.png` 取石顶纹理平铺，墙/地交界加 1px 暗金线；中央两个 4×10 石岛用 4×2 `long-island` 叠 5 段；竖道具按 2.5D 底边贴墙。
+- 入游戏：`public/assets/img/map/ch01/kitchen.png`；key `img.map.ch01.kitchen`；bundle `ch01.kitchen`；舞台/模块 requires 已加 `ch01.kitchen`；`Ch01KitchenRoomView` 有图用图、无图回退灰盒。
+- 验收：`pnpm check` 绿（192 tests / 24 files；assets 127 files）；390×844 实机截图见 `docs/screenshots/ch01-kitchen-art-390.png`、`ch01-kitchen-art-kitchen-390.png`。
+
+### 12.3 B3/B4 角色与 B5/B6 图标音效（2026-10-31）
+
+**B3 幻影（sprite 项目 `pmvwapwlq497958`）**
+- 源图：`assets-src/character/ch01/kitchen/phantom-source-green.png`（由 `assets-src/palace/raw/eunuch-green.png` 缩到 768，游戏素材大师 upload source）。
+- 转圈视频 ready（5.17s/32 候选帧），八向静态 8/8；四个斜向改 `direct` 重出，`upRight` 由 `upLeft` 水平镜像；行走视频生成中（1/8 ready）。
+- 阶段：静态八向、行走视频、抽帧、compose；完成后走 `make-static-sprite.py` / `make-walk-sheet.py`。
+
+**B4 老麦/老肯/矿工**
+- 老麦设定图：任务 `imvwc2i4bfa3d51`，1024 绿幕（中年矿工、矿灯帽、橙红围巾、铁锤），`assets-src/character/ch01/kitchen/old_mai-design.png`；老肯用同一底模绿色 tint；矿工门卫复用 `assets-src/palace/raw/miner-green.png`。
+- 后续：老麦/老肯、矿工各建 sprite 项目；B4 先出静态八向，行走视预算再决定。
+
+**B5 图标（6 张，已 128×128）**
+| 图标 | 任务 id | 产物 |
+| --- | --- | --- |
+| 眼 | `imvwau1hv0d969a` | `public/assets/img/ui/ch01/kitchen/eye.png` |
+| 匕首 | `imvwau1i6f63a63` | `dagger.png` |
+| 脚印 | `imvwau1ie2ea662` | `footprints.png` |
+| 屏风 | `imvwau1il432a22` | `screen.png` |
+| 警戒 | `imvwau1ipebd1bc` | `alert.png`（重跑，去印章） |
+| 应答 | `imvwau1iv631020` | `reply.png`（重跑，语音泡） |
+
+**B6 厨房音效（9 条，Seed-Audio）**
+| 用途 | 任务 id | 实得 |
+| --- | --- | --- |
+| 环境 | `fmvwbz1zg7c8fe2` | 45.00s |
+| 石砖脚步 A | `fmvwbz1zr2132cb` | 2.50s |
+| 石砖脚步 B | `fmvwbz1zye37cd5` | 1.68s |
+| 警戒 | `fmvwbz20567be04` | 1.20s |
+| 背刺 | `fmvwbz20c81526a` | 3.50s |
+| 门轴 | `fmvwbz20j08aa86` | 4.50s |
+| 善变 | `fmvwbz20qa42d83` | 1.00s |
+| 心跳 | `fmvwbz20v7dde9b` | 2.00s |
+| 门闩 | `fmvwbz211f8fefe` | 2.28s |
+
+- 首次 9 条并发触发火山上限 429；保留 5 条，环境/脚步 A/B/门轴按顺序重跑成功；失败不自动连发。
+- 产物在插件 `sfx-jobs/*/takes/*.wav`；下一步 export 到 `public/assets/audio/sfx/` 并接 bundle/场景。
+
+### 12.4 P2 接入与视野（2026-10-31）
+
+- B3 幻影：`pmvwapwlq497958` 八向静态 + 20 帧行走（`public/assets/img/character/ch01/kitchen/phantom/`），`KitchenEnemy` 按脚底位移切帧；四斜 direct，`upRight` 镜像 `upLeft`。
+- B4 老麦：`pmvwcqji2bd869c` 八向静态（`old_mai/`），老肯用 `0x9be7c8` tint；矿工：`pmvwcqjid41f8e8` 八向静态（`miner/`）；`PairActor`/`KitchenEnemy` 已换 sprite。
+- B5 图标：6 张 128×128，HUD 的潜行/偷袭/交互带图标；其余 eye/alert/reply 留在包里备用。
+- B6 音效：9 条 WAV 由插件 export，ffmpeg 转 mp3 96k 到 `public/assets/audio/sfx/ch01_kitchen_*.mp3`；场景接 ambience/step A/B/alert/backstab/door/transform/heartbeat；`latch` 备用。
+- 视野/淡入：`drawFog` 只给未探索格刷黑，探索过保持正常色；`KitchenEnemy`/`PairActor` 容器 alpha 180ms 向视线目标淡入淡出。
+- 验证：`pnpm check` 绿（192 tests / 24 files；assets 174 files）；390×844 实机截图 `docs/screenshots/phantom-ingame-2.png`、`fog-explored-1.png`。
+
+### 12.5 B7 共享角色包拆分（2026-10-31）
+
+- 新 bundle `ch01.char`：周全 Q 版八向静态（8）+ 20 帧行走（8）+ 小白（1），共 17 项；`ch.01` 与 `ch01.kitchen` 都 `dependsOn: ['ui','ch01.char']`。
+- 厨房模块/舞台 requires 由 `ch.01` 改为 `ch01.char`，寝室仍走 `ch.01`（依赖闭包会自动带上 `ch01.char`）。
+- `test/resource-scope.test.ts` 同步依赖释放：返回标题时释放 `['ch01.char','ch.01']`。
+- 验收：`pnpm check` 192 tests / 24 files、assets 174；B4 门口截图 `docs/screenshots/ch01-kitchen-b4-gate-390.png`（老麦/老肯/门卫在视野边缘，仅名牌可见，属正常淡入/出）。
+
+### 12.6 B4 角色归属纠正（2026-10-31，用户实测反馈）
+
+用户原话：「old_mai_down 是厨师的相貌。你这个『矿工』的形象不好。『矿工』在游戏里指的并不是现实里的矿工，这个记住了。」
+
+据此纠正 **12.3 / 12.4 的角色分配**（原记录把 `old_mai` 当成老麦、把老麦当成矿工，都是错的）：
+
+| 资产目录 | 身份 | 用在哪 |
+| --- | --- | --- |
+| `kitchen/old_mai/` | **厨师**（矿灯帽、围裙、铁锤、围巾的胖厨子） | `cook.tutorial`（御厨教学目标） |
+| `kitchen/miner/` | **游戏里的「矿工」**：因泰里的红眼机器人，双手矿镐。不是现实矿工 | 只给 `guard.miner`（传膳门门卫），scale 0.8 |
+| `kitchen/phantom/` | 人形幻影（光头蓝袍，阴鸷） | 3 条巡逻 + 老麦（`0xffb060`）+ 老肯（`0x9be7c8`） |
+
+- 「矿工」是游戏内专有实体，别再用现实矿工的设定图替代；`assets-src/palace/raw/miner-green.png` 就是它的底模。
+- 资源文件名 `old_mai` 是历史遗留，代码里注释已标明它其实是厨师；改名会牵动 keys/bundles，暂不动。
+- 白底/拉伸修复：`miner_up.png`、`miner_up_right.png` 之前残留 68.0% / 64.7% 不透明白底（转圈视频背景从绿掉成白），
+  `make-static-sprite.py` 加了「白边占比 >0.9 时做边界连通白泛洪」；同时 `width > FRAME_W` 时改成按宽缩放保比例、不再横向压扁。
+  复检：全部 24 张厨房角色 PNG 近白像素 ≤4.52%（`miner_up_right` 的是两把矿镐的刃，不是残留）。
+
+### 12.7 御膳房地图重出：48px/格 + 墙面（2026-10-31）
+
+- 触发：用户「地图应该整体放大，这种墙不如人高」。
+- `tools/compose-kitchen-map.py`：`TILE 32 → 48`，输出 **1536×3072**；**不重新生成任何素材**，全部由 `assets-src/map/ch01/kitchen-map/raw/` 里现有的 B1/B2 1024×1024 stamp 重新拼。
+- 墙体由「逐格平铺墙顶」改为**顶面 / 立面**两套：南邻可走的墙格画立面（`wall-cap.png` 抽一段石面，压暗 46%，两道砖缝 + 墙脚接缝阴影），其余画顶面。前提是 ASCII 墙带 ≥2 格厚（行 15/25/48 已向内加厚）。
+- 产物：`public/assets/img/map/ch01/kitchen.webp`（WebP q88，**692 KB**；同图 PNG 4.7 MB）；复查图 `assets-src/map/ch01/kitchen-map/map-final.png`（1536×3072）与 `map-pass.png`、`map-manifest.json`。
+- 旧文件 `public/assets/img/map/ch01/kitchen.png`（1024×2048）已删除，bundle url 改指 `.webp`。
+
+### 12.8 御膳房阵容重出：老麦/老肯/御厨/太监/门卫（2026-11-01）
+
+用户要求：「机器人形态的怪都去掉。打架的时候才变机器人。」「老麦是小丑形象……脸是小丑（扑克牌大王上面那种）。老肯是戴眼镜国字脸的老爷爷形象……并且画风要和主角一样，目前这些脑袋比主角都太小。」后续确认「各出一套」「需要行走动画」。
+
+| 角色 | 形象 | 设定图 job | sprite 项目 |
+| --- | --- | --- | --- |
+| 老麦 | 三尖铃铛小丑帽 + 扑克大王式小丑脸（白粉底/红笑嘴/红鼻头/泪滴纹）+ 暗红金线锦袍 | `imvx1p3hy1a21b3` | `pmvx27yj9c39786` |
+| 老肯 | 圆黑框老花镜 + 国字脸 + 白山羊胡 + 黛青长袍深灰外褂 | `imvx1ta7w921859` | `pmvx29apcbf8766` |
+| 御厨 | 白厨帽 + 蓝围裙 + 八字胡胖厨子 | `imvx25yuybc833a` | `pmvx29apnec8bef` |
+| 太监 | 瓜皮官帽 + 白面无须 + 深蓝团领袍补子 | `imvx25yv872d32a` | `pmvx29apx5002be` |
+| 门卫 | 红缨铁盔 + 暗红棉甲护心镜（人形，铁皮只在战斗里） | `imvx25yvh7eeadd` | `pmvx29aq4de8122` |
+
+- 每套：8 静态（160×400 PNG）+ 8 行走 sheet（20 帧 × 160×400，WebP q78）。产物在 `public/assets/img/character/ch01/kitchen/<slug>/`。
+- 提示词要点（第一版失败教训）：只说「Q 版」会得到半写实厚涂 + 成人头身比。必须写死「头高 ≈ 全身 1/3、脖子短、四肢短粗、单层硬阴影赛璐璐平涂、禁止渐变/照片纹理/厚涂/精细织锦」，并把主角设定图 `assets-src/character/ch01/q/zhou-qchibi-green.png` 作为 ref 上传（`game_material action:"upload" kind:"ref"`）。
+- 生成过程：`runTurnVideo`（每角色一次）→ 8 静态；`runVideos`（8 段）→ `runFrames` → `make-static-sprite.py` / `make-walk-sheet.py`。
+- 旧的 `phantom/`、`old_mai/`、`miner/` 三套厨房角色资源已删除（机器人图只在 `ch.01` 的 battle 资源里）。
+- 遗留：门卫的头身比略小于其他四人（约 1/4.5），其余四人都是 1/3。
