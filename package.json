@@ -1,6 +1,6 @@
 {
   "name": "assassins-vs-miners",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "type": "module",
   "description": "《刺客大战矿工》—— 竖屏回合制 RPG（Phaser 4 + phaser-mvvm）",

@@ -1,7 +1,7 @@
 {
   "assets/audio/bgm/ch01_crisis.mp3": {
     "bytes": 1345036,
-    "mtimeMs": 1793270879450
+    "mtimeMs": 1793527488408
   },
   "assets/audio/bgm/ch01_dorm.mp3": {
     "bytes": 1281273,
@@ -21,47 +21,47 @@
   },
   "assets/audio/sfx/ch01_ambience_day.mp3": {
     "bytes": 361197,
-    "mtimeMs": 1793410619526
+    "mtimeMs": 1793528194381
   },
   "assets/audio/sfx/ch01_chapter_chime.mp3": {
     "bytes": 27316,
-    "mtimeMs": 1793418943304
+    "mtimeMs": 1793528194854
   },
   "assets/audio/sfx/ch01_kitchen_alert.mp3": {
     "bytes": 15309,
-    "mtimeMs": 1793448266103
+    "mtimeMs": 1793528195914
   },
   "assets/audio/sfx/ch01_kitchen_ambience.mp3": {
     "bytes": 540909,
-    "mtimeMs": 1793448265994
+    "mtimeMs": 1793528195495
   },
   "assets/audio/sfx/ch01_kitchen_backstab.mp3": {
     "bytes": 42957,
-    "mtimeMs": 1793448266149
+    "mtimeMs": 1793528195915
   },
   "assets/audio/sfx/ch01_kitchen_door.mp3": {
     "bytes": 55053,
-    "mtimeMs": 1793448266201
+    "mtimeMs": 1793528195915
   },
   "assets/audio/sfx/ch01_kitchen_heartbeat.mp3": {
     "bytes": 25101,
-    "mtimeMs": 1793448266268
+    "mtimeMs": 1793528195916
   },
   "assets/audio/sfx/ch01_kitchen_latch.mp3": {
     "bytes": 28269,
-    "mtimeMs": 1793448266307
+    "mtimeMs": 1793528195916
   },
   "assets/audio/sfx/ch01_kitchen_step_a.mp3": {
     "bytes": 31149,
-    "mtimeMs": 1793448266036
+    "mtimeMs": 1793528195916
   },
   "assets/audio/sfx/ch01_kitchen_step_b.mp3": {
     "bytes": 21069,
-    "mtimeMs": 1793448266072
+    "mtimeMs": 1793528195917
   },
   "assets/audio/sfx/ch01_kitchen_transform.mp3": {
     "bytes": 13005,
-    "mtimeMs": 1793448266231
+    "mtimeMs": 1793528195917
   },
   "assets/audio/sfx/ch01_metal.mp3": {
     "bytes": 6627,
@@ -77,71 +77,71 @@
   },
   "assets/audio/sfx/ch01_snore.mp3": {
     "bytes": 97581,
-    "mtimeMs": 1793013381094
+    "mtimeMs": 1793527488409
   },
   "assets/audio/sfx/ch01_step_wood_a.mp3": {
     "bytes": 8877,
-    "mtimeMs": 1793410619665
+    "mtimeMs": 1793528194381
   },
   "assets/audio/sfx/ch01_step_wood_b.mp3": {
     "bytes": 8877,
-    "mtimeMs": 1793410619808
+    "mtimeMs": 1793528194381
   },
   "assets/audio/sfx/palace_blade_spin.mp3": {
     "bytes": 19053,
-    "mtimeMs": 1793401106215
+    "mtimeMs": 1793527488409
   },
   "assets/audio/sfx/palace_cloth_rustle.mp3": {
     "bytes": 9549,
-    "mtimeMs": 1793401106156
+    "mtimeMs": 1793527488409
   },
   "assets/audio/sfx/palace_crack_metal.mp3": {
     "bytes": 17901,
-    "mtimeMs": 1793401105618
+    "mtimeMs": 1793527488409
   },
   "assets/audio/sfx/palace_gasp.mp3": {
     "bytes": 11853,
-    "mtimeMs": 1793401106265
+    "mtimeMs": 1793527488409
   },
   "assets/audio/sfx/palace_hall_ambience.mp3": {
     "bytes": 97101,
-    "mtimeMs": 1793401105460
+    "mtimeMs": 1793527488410
   },
   "assets/audio/sfx/palace_heartbeat.mp3": {
     "bytes": 36909,
-    "mtimeMs": 1793401106051
+    "mtimeMs": 1793527488410
   },
   "assets/audio/sfx/palace_kneel_thud.mp3": {
     "bytes": 13005,
-    "mtimeMs": 1793401105561
+    "mtimeMs": 1793527488410
   },
   "assets/audio/sfx/palace_knock_head.mp3": {
     "bytes": 15309,
-    "mtimeMs": 1793401106109
+    "mtimeMs": 1793527488410
   },
   "assets/audio/sfx/palace_led_power.mp3": {
     "bytes": 10701,
-    "mtimeMs": 1793401105774
+    "mtimeMs": 1793527488410
   },
   "assets/audio/sfx/palace_rumble_hall.mp3": {
     "bytes": 31149,
-    "mtimeMs": 1793401105848
+    "mtimeMs": 1793527488410
   },
   "assets/audio/sfx/palace_servo_whir.mp3": {
     "bytes": 19053,
-    "mtimeMs": 1793401105677
+    "mtimeMs": 1793527488411
   },
   "assets/audio/sfx/palace_stamp_hit.mp3": {
     "bytes": 10701,
-    "mtimeMs": 1793401105725
+    "mtimeMs": 1793527488411
   },
   "assets/audio/sfx/palace_step_stone.mp3": {
     "bytes": 7533,
-    "mtimeMs": 1793401105510
+    "mtimeMs": 1793527488411
   },
   "assets/audio/sfx/palace_whoosh_heavy.mp3": {
     "bytes": 20205,
-    "mtimeMs": 1793401105910
+    "mtimeMs": 1793527488411
   },
   "assets/audio/sfx/type_blip_1.wav": {
     "bytes": 1366,
@@ -161,27 +161,27 @@
   },
   "assets/audio/sfx/voice_blip_narrator.wav": {
     "bytes": 2028,
-    "mtimeMs": 1793276198090
+    "mtimeMs": 1793527488411
   },
   "assets/audio/sfx/voice_blip_xiaobai.wav": {
     "bytes": 1278,
-    "mtimeMs": 1793276198091
+    "mtimeMs": 1793527488411
   },
   "assets/audio/sfx/voice_blip_zheng.wav": {
     "bytes": 1896,
-    "mtimeMs": 1793276198090
+    "mtimeMs": 1793527488411
   },
   "assets/audio/sfx/voice_blip_zhou.wav": {
     "bytes": 1454,
-    "mtimeMs": 1793276198090
+    "mtimeMs": 1793527488411
   },
   "assets/img/battle/ch01/miner_hall.webp": {
     "bytes": 69108,
-    "mtimeMs": 1793412771820
+    "mtimeMs": 1793528194382
   },
   "assets/img/cg/ch01/news.webp": {
     "bytes": 257370,
-    "mtimeMs": 1793270852103
+    "mtimeMs": 1793527488412
   },
   "assets/img/cg/ch01/phone.webp": {
     "bytes": 135344,
@@ -200,324 +200,324 @@
     "mtimeMs": 1792839029269
   },
   "assets/img/character/ch01/kitchen/cook/cook_down.png": {
-    "bytes": 61346,
-    "mtimeMs": 1793493878666
+    "bytes": 102471,
+    "mtimeMs": 1793528195649
   },
   "assets/img/character/ch01/kitchen/cook/cook_down_left.png": {
-    "bytes": 65755,
-    "mtimeMs": 1793493878773
+    "bytes": 110313,
+    "mtimeMs": 1793528195650
   },
   "assets/img/character/ch01/kitchen/cook/cook_down_right.png": {
-    "bytes": 71422,
-    "mtimeMs": 1793493878799
+    "bytes": 104429,
+    "mtimeMs": 1793528195651
   },
   "assets/img/character/ch01/kitchen/cook/cook_left.png": {
-    "bytes": 86879,
-    "mtimeMs": 1793493878722
+    "bytes": 89873,
+    "mtimeMs": 1793528195652
   },
   "assets/img/character/ch01/kitchen/cook/cook_right.png": {
-    "bytes": 77361,
-    "mtimeMs": 1793493878750
+    "bytes": 78384,
+    "mtimeMs": 1793528195917
   },
   "assets/img/character/ch01/kitchen/cook/cook_up.png": {
-    "bytes": 62438,
-    "mtimeMs": 1793493878692
+    "bytes": 95096,
+    "mtimeMs": 1793528195652
   },
   "assets/img/character/ch01/kitchen/cook/cook_up_left.png": {
-    "bytes": 79029,
-    "mtimeMs": 1793493878826
+    "bytes": 79976,
+    "mtimeMs": 1793528195918
   },
   "assets/img/character/ch01/kitchen/cook/cook_up_right.png": {
-    "bytes": 76509,
-    "mtimeMs": 1793493878853
+    "bytes": 86845,
+    "mtimeMs": 1793528195653
   },
   "assets/img/character/ch01/kitchen/cook/cook_walk_down.webp": {
-    "bytes": 251602,
-    "mtimeMs": 1793494468491
+    "bytes": 269964,
+    "mtimeMs": 1793628156067
   },
   "assets/img/character/ch01/kitchen/cook/cook_walk_down_left.webp": {
-    "bytes": 258056,
-    "mtimeMs": 1793494585615
+    "bytes": 274218,
+    "mtimeMs": 1793628174223
   },
   "assets/img/character/ch01/kitchen/cook/cook_walk_down_right.webp": {
-    "bytes": 249520,
-    "mtimeMs": 1793494621791
+    "bytes": 259002,
+    "mtimeMs": 1793628178440
   },
   "assets/img/character/ch01/kitchen/cook/cook_walk_left.webp": {
-    "bytes": 200276,
-    "mtimeMs": 1793494527971
+    "bytes": 288964,
+    "mtimeMs": 1793628165142
   },
   "assets/img/character/ch01/kitchen/cook/cook_walk_right.webp": {
-    "bytes": 296918,
-    "mtimeMs": 1793494548526
+    "bytes": 276262,
+    "mtimeMs": 1793628169637
   },
   "assets/img/character/ch01/kitchen/cook/cook_walk_up.webp": {
-    "bytes": 243876,
-    "mtimeMs": 1793494500958
+    "bytes": 246916,
+    "mtimeMs": 1793628160227
   },
   "assets/img/character/ch01/kitchen/cook/cook_walk_up_left.webp": {
-    "bytes": 275044,
-    "mtimeMs": 1793494653719
+    "bytes": 274086,
+    "mtimeMs": 1793628182961
   },
   "assets/img/character/ch01/kitchen/cook/cook_walk_up_right.webp": {
-    "bytes": 244558,
-    "mtimeMs": 1793494679833
+    "bytes": 251216,
+    "mtimeMs": 1793628186957
   },
   "assets/img/character/ch01/kitchen/eunuch/eunuch_down.png": {
-    "bytes": 68262,
-    "mtimeMs": 1793493878955
+    "bytes": 86646,
+    "mtimeMs": 1793658823277
   },
   "assets/img/character/ch01/kitchen/eunuch/eunuch_down_left.png": {
-    "bytes": 68289,
-    "mtimeMs": 1793493879053
+    "bytes": 87324,
+    "mtimeMs": 1793658846920
   },
   "assets/img/character/ch01/kitchen/eunuch/eunuch_down_right.png": {
-    "bytes": 71775,
-    "mtimeMs": 1793493879093
+    "bytes": 91173,
+    "mtimeMs": 1793658852039
   },
   "assets/img/character/ch01/kitchen/eunuch/eunuch_left.png": {
-    "bytes": 60418,
-    "mtimeMs": 1793493879005
+    "bytes": 77407,
+    "mtimeMs": 1793658835872
   },
   "assets/img/character/ch01/kitchen/eunuch/eunuch_right.png": {
-    "bytes": 64863,
-    "mtimeMs": 1793493879029
+    "bytes": 82345,
+    "mtimeMs": 1793658841404
   },
   "assets/img/character/ch01/kitchen/eunuch/eunuch_up.png": {
-    "bytes": 58016,
-    "mtimeMs": 1793493878980
+    "bytes": 74845,
+    "mtimeMs": 1793658830530
   },
   "assets/img/character/ch01/kitchen/eunuch/eunuch_up_left.png": {
-    "bytes": 60084,
-    "mtimeMs": 1793493879142
+    "bytes": 77826,
+    "mtimeMs": 1793658858092
   },
   "assets/img/character/ch01/kitchen/eunuch/eunuch_up_right.png": {
-    "bytes": 57280,
-    "mtimeMs": 1793493879181
+    "bytes": 73940,
+    "mtimeMs": 1793658863283
   },
   "assets/img/character/ch01/kitchen/eunuch/eunuch_walk_down.webp": {
-    "bytes": 288056,
-    "mtimeMs": 1793494704918
+    "bytes": 252436,
+    "mtimeMs": 1793658830522
   },
   "assets/img/character/ch01/kitchen/eunuch/eunuch_walk_down_left.webp": {
-    "bytes": 278116,
-    "mtimeMs": 1793494813627
+    "bytes": 249290,
+    "mtimeMs": 1793658852032
   },
   "assets/img/character/ch01/kitchen/eunuch/eunuch_walk_down_right.webp": {
-    "bytes": 277774,
-    "mtimeMs": 1793494841812
+    "bytes": 279502,
+    "mtimeMs": 1793658858085
   },
   "assets/img/character/ch01/kitchen/eunuch/eunuch_walk_left.webp": {
-    "bytes": 263886,
-    "mtimeMs": 1793494758419
+    "bytes": 242058,
+    "mtimeMs": 1793658841396
   },
   "assets/img/character/ch01/kitchen/eunuch/eunuch_walk_right.webp": {
-    "bytes": 275374,
-    "mtimeMs": 1793494783529
+    "bytes": 259720,
+    "mtimeMs": 1793658846914
   },
   "assets/img/character/ch01/kitchen/eunuch/eunuch_walk_up.webp": {
-    "bytes": 270188,
-    "mtimeMs": 1793494735038
+    "bytes": 246634,
+    "mtimeMs": 1793658835865
   },
   "assets/img/character/ch01/kitchen/eunuch/eunuch_walk_up_left.webp": {
-    "bytes": 251022,
-    "mtimeMs": 1793494855072
+    "bytes": 235756,
+    "mtimeMs": 1793658863277
   },
   "assets/img/character/ch01/kitchen/eunuch/eunuch_walk_up_right.webp": {
-    "bytes": 242644,
-    "mtimeMs": 1793494871113
+    "bytes": 235914,
+    "mtimeMs": 1793658868479
   },
   "assets/img/character/ch01/kitchen/guard/guard_down.png": {
-    "bytes": 79063,
-    "mtimeMs": 1793494886866
+    "bytes": 107629,
+    "mtimeMs": 1793528195685
   },
   "assets/img/character/ch01/kitchen/guard/guard_down_left.png": {
-    "bytes": 85434,
-    "mtimeMs": 1793494887067
+    "bytes": 109056,
+    "mtimeMs": 1793528195687
   },
   "assets/img/character/ch01/kitchen/guard/guard_down_right.png": {
-    "bytes": 91970,
-    "mtimeMs": 1793494887096
+    "bytes": 83887,
+    "mtimeMs": 1793528195925
   },
   "assets/img/character/ch01/kitchen/guard/guard_left.png": {
-    "bytes": 75598,
-    "mtimeMs": 1793494886984
+    "bytes": 69182,
+    "mtimeMs": 1793528195925
   },
   "assets/img/character/ch01/kitchen/guard/guard_right.png": {
-    "bytes": 66123,
-    "mtimeMs": 1793494887039
+    "bytes": 73412,
+    "mtimeMs": 1793528195926
   },
   "assets/img/character/ch01/kitchen/guard/guard_up.png": {
-    "bytes": 77958,
-    "mtimeMs": 1793494886943
+    "bytes": 94490,
+    "mtimeMs": 1793528195688
   },
   "assets/img/character/ch01/kitchen/guard/guard_up_left.png": {
-    "bytes": 68515,
-    "mtimeMs": 1793494887122
+    "bytes": 83692,
+    "mtimeMs": 1793528195926
   },
   "assets/img/character/ch01/kitchen/guard/guard_up_right.png": {
-    "bytes": 75283,
-    "mtimeMs": 1793494887151
+    "bytes": 89852,
+    "mtimeMs": 1793528195690
   },
   "assets/img/character/ch01/kitchen/guard/guard_walk_down.webp": {
-    "bytes": 307660,
-    "mtimeMs": 1793494902773
+    "bytes": 297442,
+    "mtimeMs": 1793628226606
   },
   "assets/img/character/ch01/kitchen/guard/guard_walk_down_left.webp": {
-    "bytes": 191442,
-    "mtimeMs": 1793494991247
+    "bytes": 273546,
+    "mtimeMs": 1793628244186
   },
   "assets/img/character/ch01/kitchen/guard/guard_walk_down_right.webp": {
-    "bytes": 266012,
-    "mtimeMs": 1793495007063
+    "bytes": 261902,
+    "mtimeMs": 1793628248684
   },
   "assets/img/character/ch01/kitchen/guard/guard_walk_left.webp": {
-    "bytes": 295266,
-    "mtimeMs": 1793494946784
+    "bytes": 218810,
+    "mtimeMs": 1793628234912
   },
   "assets/img/character/ch01/kitchen/guard/guard_walk_right.webp": {
-    "bytes": 332538,
-    "mtimeMs": 1793494974464
+    "bytes": 231298,
+    "mtimeMs": 1793628239590
   },
   "assets/img/character/ch01/kitchen/guard/guard_walk_up.webp": {
-    "bytes": 274350,
-    "mtimeMs": 1793494916720
+    "bytes": 217246,
+    "mtimeMs": 1793628230337
   },
   "assets/img/character/ch01/kitchen/guard/guard_walk_up_left.webp": {
-    "bytes": 230204,
-    "mtimeMs": 1793495020256
+    "bytes": 281354,
+    "mtimeMs": 1793628253436
   },
   "assets/img/character/ch01/kitchen/guard/guard_walk_up_right.webp": {
-    "bytes": 283372,
-    "mtimeMs": 1793495039239
+    "bytes": 253798,
+    "mtimeMs": 1793628257799
   },
   "assets/img/character/ch01/kitchen/old_ken/old_ken_down.png": {
-    "bytes": 61779,
-    "mtimeMs": 1793493878357
+    "bytes": 91564,
+    "mtimeMs": 1793528195703
   },
   "assets/img/character/ch01/kitchen/old_ken/old_ken_down_left.png": {
-    "bytes": 63232,
-    "mtimeMs": 1793493878481
+    "bytes": 100308,
+    "mtimeMs": 1793528195705
   },
   "assets/img/character/ch01/kitchen/old_ken/old_ken_down_right.png": {
-    "bytes": 60468,
-    "mtimeMs": 1793493878505
+    "bytes": 99025,
+    "mtimeMs": 1793528195705
   },
   "assets/img/character/ch01/kitchen/old_ken/old_ken_left.png": {
-    "bytes": 78931,
-    "mtimeMs": 1793493878414
+    "bytes": 90783,
+    "mtimeMs": 1793528195706
   },
   "assets/img/character/ch01/kitchen/old_ken/old_ken_right.png": {
-    "bytes": 79493,
-    "mtimeMs": 1793493878451
+    "bytes": 80506,
+    "mtimeMs": 1793528195927
   },
   "assets/img/character/ch01/kitchen/old_ken/old_ken_up.png": {
-    "bytes": 47730,
-    "mtimeMs": 1793493878382
+    "bytes": 66535,
+    "mtimeMs": 1793528195927
   },
   "assets/img/character/ch01/kitchen/old_ken/old_ken_up_left.png": {
-    "bytes": 64644,
-    "mtimeMs": 1793493878532
+    "bytes": 65566,
+    "mtimeMs": 1793528195928
   },
   "assets/img/character/ch01/kitchen/old_ken/old_ken_up_right.png": {
-    "bytes": 57995,
-    "mtimeMs": 1793493878560
+    "bytes": 68446,
+    "mtimeMs": 1793528195928
   },
   "assets/img/character/ch01/kitchen/old_ken/old_ken_walk_down.webp": {
-    "bytes": 226964,
-    "mtimeMs": 1793494211668
+    "bytes": 250008,
+    "mtimeMs": 1793628124468
   },
   "assets/img/character/ch01/kitchen/old_ken/old_ken_walk_down_left.webp": {
-    "bytes": 246224,
-    "mtimeMs": 1793494332324
+    "bytes": 256746,
+    "mtimeMs": 1793628140169
   },
   "assets/img/character/ch01/kitchen/old_ken/old_ken_walk_down_right.webp": {
-    "bytes": 229510,
-    "mtimeMs": 1793494366044
+    "bytes": 223054,
+    "mtimeMs": 1793628143675
   },
   "assets/img/character/ch01/kitchen/old_ken/old_ken_walk_left.webp": {
-    "bytes": 222926,
-    "mtimeMs": 1793494274806
+    "bytes": 238846,
+    "mtimeMs": 1793628131521
   },
   "assets/img/character/ch01/kitchen/old_ken/old_ken_walk_right.webp": {
-    "bytes": 247424,
-    "mtimeMs": 1793494307895
+    "bytes": 271908,
+    "mtimeMs": 1793628135957
   },
   "assets/img/character/ch01/kitchen/old_ken/old_ken_walk_up.webp": {
-    "bytes": 184942,
-    "mtimeMs": 1793494242762
+    "bytes": 183618,
+    "mtimeMs": 1793628127998
   },
   "assets/img/character/ch01/kitchen/old_ken/old_ken_walk_up_left.webp": {
-    "bytes": 266130,
-    "mtimeMs": 1793494389442
+    "bytes": 240446,
+    "mtimeMs": 1793628147754
   },
   "assets/img/character/ch01/kitchen/old_ken/old_ken_walk_up_right.webp": {
-    "bytes": 197292,
-    "mtimeMs": 1793494415365
+    "bytes": 198248,
+    "mtimeMs": 1793628151411
   },
   "assets/img/character/ch01/kitchen/old_mai/old_mai_down.png": {
-    "bytes": 96947,
-    "mtimeMs": 1793495349410
+    "bytes": 108641,
+    "mtimeMs": 1793528195721
   },
   "assets/img/character/ch01/kitchen/old_mai/old_mai_down_left.png": {
-    "bytes": 97099,
-    "mtimeMs": 1793495349503
+    "bytes": 109209,
+    "mtimeMs": 1793528195723
   },
   "assets/img/character/ch01/kitchen/old_mai/old_mai_down_right.png": {
-    "bytes": 98428,
-    "mtimeMs": 1793495349526
+    "bytes": 99066,
+    "mtimeMs": 1793528195724
   },
   "assets/img/character/ch01/kitchen/old_mai/old_mai_left.png": {
-    "bytes": 102486,
-    "mtimeMs": 1793495349458
+    "bytes": 108259,
+    "mtimeMs": 1793528195725
   },
   "assets/img/character/ch01/kitchen/old_mai/old_mai_right.png": {
-    "bytes": 73983,
-    "mtimeMs": 1793495349479
+    "bytes": 74715,
+    "mtimeMs": 1793528195929
   },
   "assets/img/character/ch01/kitchen/old_mai/old_mai_up.png": {
-    "bytes": 79791,
-    "mtimeMs": 1793495349435
+    "bytes": 80532,
+    "mtimeMs": 1793528195929
   },
   "assets/img/character/ch01/kitchen/old_mai/old_mai_up_left.png": {
-    "bytes": 77066,
-    "mtimeMs": 1793495349547
+    "bytes": 77783,
+    "mtimeMs": 1793528195930
   },
   "assets/img/character/ch01/kitchen/old_mai/old_mai_up_right.png": {
-    "bytes": 89586,
-    "mtimeMs": 1793495349573
+    "bytes": 90394,
+    "mtimeMs": 1793528195726
   },
   "assets/img/character/ch01/kitchen/old_mai/old_mai_walk_down.webp": {
-    "bytes": 276156,
-    "mtimeMs": 1793495362219
+    "bytes": 551224,
+    "mtimeMs": 1793628078826
   },
   "assets/img/character/ch01/kitchen/old_mai/old_mai_walk_down_left.webp": {
-    "bytes": 492996,
-    "mtimeMs": 1793495425839
+    "bytes": 548100,
+    "mtimeMs": 1793628104944
   },
   "assets/img/character/ch01/kitchen/old_mai/old_mai_walk_down_right.webp": {
-    "bytes": 350198,
-    "mtimeMs": 1793495442076
+    "bytes": 365568,
+    "mtimeMs": 1793628109950
   },
   "assets/img/character/ch01/kitchen/old_mai/old_mai_walk_left.webp": {
-    "bytes": 374796,
-    "mtimeMs": 1793495394812
+    "bytes": 463792,
+    "mtimeMs": 1793628091010
   },
   "assets/img/character/ch01/kitchen/old_mai/old_mai_walk_right.webp": {
-    "bytes": 331280,
-    "mtimeMs": 1793495406916
+    "bytes": 413924,
+    "mtimeMs": 1793628097488
   },
   "assets/img/character/ch01/kitchen/old_mai/old_mai_walk_up.webp": {
-    "bytes": 318712,
-    "mtimeMs": 1793495377348
+    "bytes": 304410,
+    "mtimeMs": 1793628083519
   },
   "assets/img/character/ch01/kitchen/old_mai/old_mai_walk_up_left.webp": {
-    "bytes": 353516,
-    "mtimeMs": 1793495455047
+    "bytes": 296892,
+    "mtimeMs": 1793628114450
   },
   "assets/img/character/ch01/kitchen/old_mai/old_mai_walk_up_right.webp": {
-    "bytes": 367618,
-    "mtimeMs": 1793495470361
+    "bytes": 379426,
+    "mtimeMs": 1793628120494
   },
   "assets/img/character/ch01/miner.png": {
     "bytes": 35653,
@@ -545,7 +545,7 @@
   },
   "assets/img/character/ch01/q/zhou_q_up.png": {
     "bytes": 50946,
-    "mtimeMs": 1793256402192
+    "mtimeMs": 1793527488412
   },
   "assets/img/character/ch01/q/zhou_q_up_left.png": {
     "bytes": 51024,
@@ -557,35 +557,35 @@
   },
   "assets/img/character/ch01/q/zhou_q_walk_down.webp": {
     "bytes": 407550,
-    "mtimeMs": 1793201001102
+    "mtimeMs": 1793527488412
   },
   "assets/img/character/ch01/q/zhou_q_walk_down_left.webp": {
     "bytes": 381052,
-    "mtimeMs": 1793201100196
+    "mtimeMs": 1793527488413
   },
   "assets/img/character/ch01/q/zhou_q_walk_down_right.webp": {
     "bytes": 400874,
-    "mtimeMs": 1793201111888
+    "mtimeMs": 1793527488413
   },
   "assets/img/character/ch01/q/zhou_q_walk_left.webp": {
     "bytes": 364216,
-    "mtimeMs": 1793201076944
+    "mtimeMs": 1793527488413
   },
   "assets/img/character/ch01/q/zhou_q_walk_right.webp": {
     "bytes": 370720,
-    "mtimeMs": 1793201088348
+    "mtimeMs": 1793527488414
   },
   "assets/img/character/ch01/q/zhou_q_walk_up.webp": {
     "bytes": 311282,
-    "mtimeMs": 1793257225406
+    "mtimeMs": 1793527488414
   },
   "assets/img/character/ch01/q/zhou_q_walk_up_left.webp": {
     "bytes": 337404,
-    "mtimeMs": 1793201122867
+    "mtimeMs": 1793527488414
   },
   "assets/img/character/ch01/q/zhou_q_walk_up_right.webp": {
     "bytes": 338580,
-    "mtimeMs": 1793201133948
+    "mtimeMs": 1793527488414
   },
   "assets/img/character/ch01/xiaobai.png": {
     "bytes": 14040,
@@ -633,163 +633,163 @@
   },
   "assets/img/character/palace/chu_gonggong_down.png": {
     "bytes": 76783,
-    "mtimeMs": 1793395077104
+    "mtimeMs": 1793527488415
   },
   "assets/img/character/palace/chu_gonggong_down_left.png": {
     "bytes": 77544,
-    "mtimeMs": 1793395077384
+    "mtimeMs": 1793527488415
   },
   "assets/img/character/palace/chu_gonggong_down_right.png": {
     "bytes": 77658,
-    "mtimeMs": 1793395078269
+    "mtimeMs": 1793527488415
   },
   "assets/img/character/palace/chu_gonggong_kneel.png": {
     "bytes": 68287,
-    "mtimeMs": 1793396863717
+    "mtimeMs": 1793527488415
   },
   "assets/img/character/palace/chu_gonggong_left.png": {
     "bytes": 59256,
-    "mtimeMs": 1793395077680
+    "mtimeMs": 1793527488415
   },
   "assets/img/character/palace/chu_gonggong_right.png": {
     "bytes": 59379,
-    "mtimeMs": 1793395078265
+    "mtimeMs": 1793527488415
   },
   "assets/img/character/palace/chu_gonggong_up.png": {
     "bytes": 66076,
-    "mtimeMs": 1793395078262
+    "mtimeMs": 1793527488416
   },
   "assets/img/character/palace/chu_gonggong_up_left.png": {
     "bytes": 62082,
-    "mtimeMs": 1793395077974
+    "mtimeMs": 1793527488416
   },
   "assets/img/character/palace/chu_gonggong_up_right.png": {
     "bytes": 62075,
-    "mtimeMs": 1793395078272
+    "mtimeMs": 1793527488416
   },
   "assets/img/character/palace/chu_walk_down.webp": {
     "bytes": 349372,
-    "mtimeMs": 1793397528484
+    "mtimeMs": 1793527488416
   },
   "assets/img/character/palace/chu_walk_down_left.webp": {
     "bytes": 335332,
-    "mtimeMs": 1793397831151
+    "mtimeMs": 1793527488417
   },
   "assets/img/character/palace/chu_walk_down_right.webp": {
     "bytes": 345248,
-    "mtimeMs": 1793397844949
+    "mtimeMs": 1793527488417
   },
   "assets/img/character/palace/chu_walk_left.webp": {
     "bytes": 304496,
-    "mtimeMs": 1793397570371
+    "mtimeMs": 1793527488417
   },
   "assets/img/character/palace/chu_walk_right.webp": {
     "bytes": 320406,
-    "mtimeMs": 1793397622197
+    "mtimeMs": 1793527488418
   },
   "assets/img/character/palace/chu_walk_up.webp": {
     "bytes": 317360,
-    "mtimeMs": 1793397542835
+    "mtimeMs": 1793527488418
   },
   "assets/img/character/palace/chu_walk_up_left.webp": {
     "bytes": 176138,
-    "mtimeMs": 1793397858054
+    "mtimeMs": 1793527488418
   },
   "assets/img/character/palace/chu_walk_up_right.webp": {
     "bytes": 300142,
-    "mtimeMs": 1793397871652
+    "mtimeMs": 1793527488419
   },
   "assets/img/character/palace/eunuch_crack.png": {
     "bytes": 96675,
-    "mtimeMs": 1793395271700
+    "mtimeMs": 1793527488419
   },
   "assets/img/character/palace/eunuch_down.png": {
     "bytes": 104875,
-    "mtimeMs": 1793376406041
+    "mtimeMs": 1793527488419
   },
   "assets/img/character/palace/miner.png": {
     "bytes": 71225,
-    "mtimeMs": 1793395272827
+    "mtimeMs": 1793527488419
   },
   "assets/img/character/palace/portrait_chu.png": {
     "bytes": 709934,
-    "mtimeMs": 1793401980310
+    "mtimeMs": 1793527488420
   },
   "assets/img/character/palace/portrait_zheng.png": {
     "bytes": 1006826,
-    "mtimeMs": 1793401979509
+    "mtimeMs": 1793527488421
   },
   "assets/img/character/palace/zheng_emperor_down.png": {
     "bytes": 108995,
-    "mtimeMs": 1793376404231
+    "mtimeMs": 1793527488421
   },
   "assets/img/character/palace/zheng_emperor_down_left.png": {
     "bytes": 108216,
-    "mtimeMs": 1793376404236
+    "mtimeMs": 1793527488421
   },
   "assets/img/character/palace/zheng_emperor_down_right.png": {
     "bytes": 109698,
-    "mtimeMs": 1793376404240
+    "mtimeMs": 1793527488421
   },
   "assets/img/character/palace/zheng_emperor_left.png": {
     "bytes": 87159,
-    "mtimeMs": 1793376404243
+    "mtimeMs": 1793527488421
   },
   "assets/img/character/palace/zheng_emperor_right.png": {
     "bytes": 89223,
-    "mtimeMs": 1793376404247
+    "mtimeMs": 1793527488422
   },
   "assets/img/character/palace/zheng_emperor_up.png": {
     "bytes": 89468,
-    "mtimeMs": 1793376404256
+    "mtimeMs": 1793527488422
   },
   "assets/img/character/palace/zheng_emperor_up_left.png": {
     "bytes": 79034,
-    "mtimeMs": 1793376404259
+    "mtimeMs": 1793527488422
   },
   "assets/img/character/palace/zheng_emperor_up_right.png": {
     "bytes": 76933,
-    "mtimeMs": 1793376404263
+    "mtimeMs": 1793527488422
   },
   "assets/img/character/palace/zheng_walk_down.webp": {
     "bytes": 450202,
-    "mtimeMs": 1793397467250
+    "mtimeMs": 1793527488422
   },
   "assets/img/character/palace/zheng_walk_down_left.webp": {
     "bytes": 503212,
-    "mtimeMs": 1793397719498
+    "mtimeMs": 1793527488423
   },
   "assets/img/character/palace/zheng_walk_down_right.webp": {
     "bytes": 441592,
-    "mtimeMs": 1793397775859
+    "mtimeMs": 1793527488423
   },
   "assets/img/character/palace/zheng_walk_left.webp": {
     "bytes": 412774,
-    "mtimeMs": 1793397499718
+    "mtimeMs": 1793527488424
   },
   "assets/img/character/palace/zheng_walk_right.webp": {
     "bytes": 407802,
-    "mtimeMs": 1793397513235
+    "mtimeMs": 1793527488424
   },
   "assets/img/character/palace/zheng_walk_up.webp": {
     "bytes": 379660,
-    "mtimeMs": 1793397484125
+    "mtimeMs": 1793527488424
   },
   "assets/img/character/palace/zheng_walk_up_left.webp": {
     "bytes": 362530,
-    "mtimeMs": 1793397793561
+    "mtimeMs": 1793527488425
   },
   "assets/img/character/palace/zheng_walk_up_right.webp": {
     "bytes": 448212,
-    "mtimeMs": 1793397815748
+    "mtimeMs": 1793527488425
   },
   "assets/img/character/palace/zhou_kneel_down.png": {
     "bytes": 48596,
-    "mtimeMs": 1793376404266
+    "mtimeMs": 1793527488425
   },
   "assets/img/character/palace/zhou_kneel_up.png": {
     "bytes": 41033,
-    "mtimeMs": 1793376404269
+    "mtimeMs": 1793527488425
   },
   "assets/img/core/white.png": {
     "bytes": 79,
@@ -805,7 +805,7 @@
   },
   "assets/img/map/ch01/dorm_q.png": {
     "bytes": 2409805,
-    "mtimeMs": 1793412751347
+    "mtimeMs": 1793528194384
   },
   "assets/img/map/ch01/dorm_room.png": {
     "bytes": 68328,
@@ -813,11 +813,11 @@
   },
   "assets/img/map/ch01/kitchen.webp": {
     "bytes": 692058,
-    "mtimeMs": 1793459015760
+    "mtimeMs": 1793528195508
   },
   "assets/img/map/palace/hall.png": {
     "bytes": 2544329,
-    "mtimeMs": 1793412751367
+    "mtimeMs": 1793528194385
   },
   "assets/img/prologue/01_night_sky.webp": {
     "bytes": 222848,
@@ -845,31 +845,31 @@
   },
   "assets/img/title/title_bg.webp": {
     "bytes": 120660,
-    "mtimeMs": 1793415881477
+    "mtimeMs": 1793528194388
   },
   "assets/img/ui/ch01/kitchen/alert.png": {
     "bytes": 6788,
-    "mtimeMs": 1793446818159
+    "mtimeMs": 1793528195930
   },
   "assets/img/ui/ch01/kitchen/dagger.png": {
     "bytes": 6610,
-    "mtimeMs": 1793446818119
+    "mtimeMs": 1793528195930
   },
   "assets/img/ui/ch01/kitchen/eye.png": {
     "bytes": 22601,
-    "mtimeMs": 1793446818107
+    "mtimeMs": 1793528195930
   },
   "assets/img/ui/ch01/kitchen/footprints.png": {
     "bytes": 27290,
-    "mtimeMs": 1793446818133
+    "mtimeMs": 1793528195931
   },
   "assets/img/ui/ch01/kitchen/reply.png": {
     "bytes": 24659,
-    "mtimeMs": 1793446818174
+    "mtimeMs": 1793528195931
   },
   "assets/img/ui/ch01/kitchen/screen.png": {
     "bytes": 30585,
-    "mtimeMs": 1793446818147
+    "mtimeMs": 1793528195931
   },
   "assets/img/ui/icon_auto.png": {
     "bytes": 976,
@@ -881,10 +881,10 @@
   },
   "assets/video/ch01-opening.mp4": {
     "bytes": 3526548,
-    "mtimeMs": 1793186744372
+    "mtimeMs": 1793527488432
   },
   "assets/video/ch01-phone.mp4": {
     "bytes": 4419386,
-    "mtimeMs": 1793366294427
+    "mtimeMs": 1793527488435
   }
 }
