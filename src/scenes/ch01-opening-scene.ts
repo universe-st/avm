@@ -4,13 +4,21 @@ import { UIScene } from '@phaser-mvvm/phaser';
 import { Branch, Button, Column, Row, Text } from '@phaser-mvvm/widgets/compose';
 import { SCENE_KEYS } from '../app/scene-keys';
 import { enterModule } from '../app/director';
+import { runCgHandoff } from '../app/cg-handoff';
+import { MODULES } from '../app/modules';
 import { applyCamera } from '../app/viewport';
 import { audioDirector } from '../audio/audio-director';
 import { bgmManager } from '../audio/bgm-manager';
+import { assetService } from '../resource/asset-service';
+import { mountPixelTransition, type PixelTransitionHandle } from '../ui/pixel-transition';
 import { mountVideoSurface, type VideoSurfaceHandle } from '../ui/video-surface';
 
 const VIDEO_KEY = 'video.ch01.opening';
 const CANVAS_Z = '2';
+/** 视频「卡住」判定：连续这么多次（每次 1.5s）时间不走，就当它播不动了。 */
+const STALL_CHECKS = 3;
+/** 被系统暂停后最多尝试续播几次，还不行就直接进寝室，别把人锁在最后一帧。 */
+const RESUME_ATTEMPTS = 2;
 
 /**
  * 开场动画（EP001）：开幕剧情之后、第一章寝室之前的竖屏 CG。
@@ -29,11 +37,30 @@ const CANVAS_Z = '2';
  *
  * 视频是 9:16，而手机视口常见 9:19.5；`video-surface` 用「前景 contain + 背景同源模糊 cover」
  * 填掉上下黑边，不裁掉靠边的床和窗。
+ *
+ * ## 收尾时间线（2026-11-03 修「播完马赛克定格很久」）
+ *
+ * 旧实现把「马赛克淡出」绑在 `enterModule()` resolve 上，而马赛克是 `z-index:9` 的全屏层，
+ * 把加载页和寝室首帧全盖住了：冷启动要真下载 `ch01Dorm` 的 14.5 MB，玩家就对着像素块干等。
+ * 现在：
+ * 1. **播放期间预取**寝室资源（`show:'never'`，绝不把加载页弹到 CG 上）；
+ * 2. **收尾只由定时器驱动**（`app/cg-handoff.ts`）：120ms 定格 → 320ms 溶解 → 移除，
+ *    `enterModule` 慢也好、失败也好，都不会让过渡层无限挂住；
+ * 3. 预取命中时 `enterModule` 静默切换（`skipGateWhenReady`），像素画直接溶进寝室首帧；
+ *    预取没命中就在溶解前把加载页亮起来，保证任何时刻都有进度可看。
  */
 export class Ch01OpeningScene extends UIScene {
   private surface: VideoSurfaceHandle | null = null;
   private leaving = false;
   private tapTimer: Phaser.Time.TimerEvent | null = null;
+  /** 收尾时间线持有的马赛克层；不跟着场景 shutdown 一起销毁（它要活过场景切换）。 */
+  private mosaic: PixelTransitionHandle | null = null;
+  /** 视频「播不动/被暂停」看门狗：ended 事件在个别 WebView 会丢。 */
+  private stallTimer: Phaser.Time.TimerEvent | null = null;
+  private hasStarted = false;
+  private lastVideoTime = -1;
+  private stalledChecks = 0;
+  private resumeAttempts = 0;
   private readonly needsTap = ref(false);
   private readonly muted = ref(false);
   private readonly statusText = ref('正在载入开场动画…');
@@ -64,7 +91,25 @@ export class Ch01OpeningScene extends UIScene {
       this.finish();
       return;
     }
+    if (!this.leaving) this.prefetchDormAssets();
     this.cameras.main.fadeIn(260, 5, 6, 10);
+  }
+
+  /**
+   * 视频播放期间预取寝室资源。
+   *
+   * `ch01Dorm.requires` 冷启动约 14.5 MB（`ch.01` 7.0 + `ch01.char` 3.2 + 手机 CG 4.2），
+   * 正好是整个 CG 的时长能覆盖的量。`show:'never'` 保证这次预取不会把加载页弹到视频上；
+   * 失败也不阻塞——真正进寝室时门禁会重试，并把错误页亮出来。
+   */
+  private prefetchDormAssets(): void {
+    const module = MODULES.ch01Dorm;
+    void assetService
+      .prefetch(module.requires)
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`[ch01-opening] 预取寝室资源失败，进入寝室时重试：${message}`);
+      });
   }
 
   private mountVideo(): void {
@@ -98,6 +143,9 @@ export class Ch01OpeningScene extends UIScene {
       },
     });
 
+    const video = this.surface.element;
+    video.addEventListener('playing', this.handlePlaying);
+
     void this.surface.play().then(() => {
       if (this.leaving) return;
       this.statusText.value = '';
@@ -113,7 +161,61 @@ export class Ch01OpeningScene extends UIScene {
       this.needsTap.value = true;
       this.statusText.value = '轻触屏幕开始播放';
     });
+
+    this.watchVideoProgress();
   }
+
+  /**
+   * 兜底看门狗：`ended` 事件在个别 WebView 上会丢，视频也可能被系统/播放策略悄悄暂停。
+   * 每 1.5s 看一眼：时间不走了就先尝试续播，连续几次都走不动就直接进寝室。
+   */
+  private watchVideoProgress(): void {
+    this.stallTimer?.remove();
+    this.lastVideoTime = -1;
+    this.stalledChecks = 0;
+    this.resumeAttempts = 0;
+    this.stallTimer = this.time.addEvent({
+      delay: 1500,
+      loop: true,
+      callback: this.checkVideoProgress,
+      callbackScope: this,
+    });
+  }
+
+  private checkVideoProgress = (): void => {
+    if (this.leaving) return;
+    const video = this.surface?.element;
+    if (!video || !this.hasStarted) return;
+    // 「轻触屏幕开始播放」挂着时是等玩家，不是卡住。
+    if (this.needsTap.value) return;
+    if (video.ended) {
+      this.finish();
+      return;
+    }
+    if (video.paused) {
+      this.resumeAttempts += 1;
+      if (this.resumeAttempts > RESUME_ATTEMPTS) {
+        console.warn('[ch01-opening] 视频被暂停且无法续播，直接进入第一章');
+        this.finish();
+        return;
+      }
+      void this.surface?.play();
+      return;
+    }
+    if (video.currentTime > this.lastVideoTime + 0.05) {
+      this.lastVideoTime = video.currentTime;
+      this.stalledChecks = 0;
+      return;
+    }
+    this.stalledChecks += 1;
+    if (this.stalledChecks < STALL_CHECKS) return;
+    console.warn('[ch01-opening] 视频画面停住超过 4.5s，直接进入第一章');
+    this.finish();
+  };
+
+  private handlePlaying = (): void => {
+    this.hasStarted = true;
+  };
 
   private handleEnded = (): void => {
     this.finish();
@@ -191,60 +293,71 @@ export class Ch01OpeningScene extends UIScene {
     );
   }
 
-  /**
-   * 抓当前视频帧，缩到 48×104 再放大成像素化定格。
-   *
-   * 这是「写实视频 → 像素游戏内」的画风切换说明：视频结束的一瞬间先定格成低分辨率像素画，
-   * 再淡出露出寝室，比直接 fade 更像同一部作品的转场。
-   * 只 drawImage、不读像素，所以不会触发跨域污染。
-   */
-  private capturePixelFrame(): HTMLCanvasElement | null {
-    const video = this.surface?.element;
-    if (!video || video.readyState < 2 || video.videoWidth === 0) return null;
-    try {
-      const canvas = document.createElement('canvas');
-      canvas.width = 48;
-      canvas.height = 104;
-      const context = canvas.getContext('2d');
-      if (!context) return null;
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      canvas.style.cssText =
-        'position:fixed;inset:0;width:100%;height:100%;object-fit:cover;' +
-        'image-rendering:pixelated;pointer-events:none;z-index:9;' +
-        'transition:opacity .45s ease;background:#05060a;';
-      document.body.appendChild(canvas);
-      return canvas;
-    } catch (error) {
-      console.warn('[ch01-opening] 像素化转场抓帧失败，退回普通淡出', error);
-      return null;
-    }
-  }
-
   private finish(): void {
     if (this.leaving) return;
     this.leaving = true;
     this.tapTimer?.remove();
     this.tapTimer = null;
-    const pixelFrame = this.capturePixelFrame();
+    this.stallTimer?.remove();
+    this.stallTimer = null;
+    this.statusText.value = '';
+
+    // 抓帧必须早于 pause / destroy：暂停之后的帧不一定已经画进 video 元素。
+    this.mosaic = mountPixelTransition(this.surface?.element ?? null);
     this.surface?.element.pause();
     this.cameras.main.fadeOut(240, 5, 6, 10);
-    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-      this.surface?.destroy();
-      this.surface = null;
-      void enterModule(this, 'ch01Dorm')
-        .then(() => {
-          if (!pixelFrame) return;
-          // 场景自己的 time 会在 shutdown 后停掉，这里用窗口计时器完成收尾。
-          window.setTimeout(() => {
-            pixelFrame.style.opacity = '0';
-            window.setTimeout(() => pixelFrame.remove(), 700);
-          }, 140);
-        })
-        .catch((error: unknown) => {
-          pixelFrame?.remove();
+
+    if (!this.mosaic) {
+      // 抓不到帧（老 WebView / 视频已销毁）：退回普通淡出，别为了转场多等。
+      void enterModule(this, 'ch01Dorm', undefined, { skipGateWhenReady: true }).catch(
+        (error: unknown) => {
           console.warn('[ch01-opening] 进入寝室失败', error);
-        });
+        },
+      );
+      return;
+    }
+
+    void runCgHandoff({
+      enter: () => enterModule(this, 'ch01Dorm', undefined, { skipGateWhenReady: true }),
+      afterPaint: (fn) => this.afterPaint(fn),
+      isReady: () => assetService.isReady(MODULES.ch01Dorm.requires),
+      reveal: () => {
+        assetService.revealLoading();
+      },
+      fadeOut: () => this.mosaic?.fadeOut(),
+      remove: () => {
+        this.mosaic?.remove();
+        this.mosaic = null;
+      },
+      // 场景 shutdown 之后 this.time 会停，收尾必须用窗口计时器。
+      schedule: (fn, ms) => {
+        window.setTimeout(fn, ms);
+      },
+      onError: (error) => {
+        console.warn('[ch01-opening] 进入寝室失败', error);
+      },
     });
+  }
+
+  /**
+   * 等浏览器把上一帧提交掉（马赛克的 opacity transition 已经进合成器）再起跑场景切换。
+   *
+   * 寝室首帧 `create()` 实测会堵主线程 160~200ms；如果同一帧里既改样式又切场景，
+   * 样式还没提交就被卡住，溶解会被一起推迟。后台标签页 rAF 不跑，用定时器兜底。
+   */
+  private afterPaint(fn: () => void): void {
+    let ran = false;
+    const run = (): void => {
+      if (ran) return;
+      ran = true;
+      fn();
+    };
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(run);
+      });
+    }
+    window.setTimeout(run, 140);
   }
 
   private onShutdown(): void {
@@ -253,13 +366,26 @@ export class Ch01OpeningScene extends UIScene {
     this.input.keyboard?.off('keydown-ESC', this.handleSkip);
     this.tapTimer?.remove();
     this.tapTimer = null;
+    this.stallTimer?.remove();
+    this.stallTimer = null;
 
     const canvas = this.game.canvas;
     canvas.style.position = '';
     canvas.style.zIndex = '';
 
+    this.surface?.element.removeEventListener('playing', this.handlePlaying);
     this.surface?.destroy();
     this.surface = null;
+
+    /**
+     * 正常收尾（`finish()` 已经交给 `runCgHandoff`）时**不能**在这里删马赛克：
+     * 场景会在 `enterModule` resolve 的那一刻 shutdown，而马赛克还要继续溶解。
+     * 只有非收尾路径（例如被外部强制停场景）才顺手清掉，避免全屏残影。
+     */
+    if (!this.leaving) {
+      this.mosaic?.remove();
+      this.mosaic = null;
+    }
   }
 
   protected override onBack(): boolean {

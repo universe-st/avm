@@ -3,6 +3,7 @@ import { SCENE_KEYS } from '../app/scene-keys';
 import { applyCamera, getViewportPlan } from '../app/viewport';
 import type { LoadState } from '../assets/types';
 import { assetService } from './asset-service';
+import { loaderVisibility } from './gate';
 
 const FONT = '"PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif';
 const GOLD = 0xd8b76a;
@@ -133,6 +134,15 @@ export class LoaderScene extends Phaser.Scene {
   }
 
   private apply(state: LoadState): void {
+    const visibility = loaderVisibility(state);
+    /**
+     * 静默批次（过场期间的预取）：不亮页、不抢文案。
+     * `ready` 仍然要过一次 `scheduleHide`，把上一个门禁留下的遮罩按原有节奏收掉。
+     */
+    if (visibility === 'hidden') {
+      if (state.phase === 'ready') this.scheduleHide(state);
+      return;
+    }
     if (state.phase === 'loading') {
       this.renderProgress(state);
       this.maybeShow(state);
@@ -168,7 +178,7 @@ export class LoaderScene extends Phaser.Scene {
   }
 
   private maybeShow(state: LoadState): void {
-    if (state.show === 'never') return;
+    // `show: 'never'` 的静默批次在 `apply()` 里就被拦掉了，这里只处理会亮页的两档。
     // 新批次开始时取消「准备淡出」，否则加载页会在加载中途消失。
     this.pendingHide?.remove();
     this.pendingHide = null;

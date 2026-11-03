@@ -57,3 +57,65 @@
 - 两层都由合成器直出，仍然不经过 canvas；跳过按钮在 DOM 层，带 `env(safe-area-inset-*)`。
 
 开场动画（canvas 透明、视频在下面）与手机 CG（视频盖在 canvas 上）共用这个模块，只是 `zIndex` 不同。代价是同源视频解码两份；低端 Android 若掉帧，可对非关键 CG 退回 `layout:'contain'`。
+
+## 7. 2026-11-03 修复：CG 播完「马赛克定格很久」才进寝室
+
+### 现象
+
+开场 CG 播完后画面停住并变成马赛克（像素块），要等一段时间才恢复、才进第一章。
+
+### 根因（三条叠加）
+
+1. 马赛克层是 `position:fixed; z-index:9` 的全屏 DOM，而加载页画在同一张 Phaser canvas 上（`z-index:2`）、
+   寝室首帧也在它下面 —— 等待期间玩家只看到一块不会动的像素画。
+2. 寝室资源**没有预取**：`ch01Dorm.requires` 冷启动约 14.5 MB（`ch.01` 7.0 + `ch01.char` 3.2 + 手机 CG 4.2），
+   而视频播放的 12.8s 里网络完全空闲。
+3. 马赛克淡出绑在 `enterModule()` 的 promise 上：`await enterModule().then(() => setTimeout(fade, 140))`，
+   加载多久就定格多久。
+
+### 修前 / 修后（本机实测，390×844，CDP 关缓存）
+
+| 时间点 | 修前 | 修后 |
+| --- | --- | --- |
+| video ended → 马赛克出现 | 0 ms | 1 ms |
+| **全屏马赛克定格**（只有马赛克、无任何进度） | **785 ms** | **121~131 ms** |
+| video ended → 寝室场景 create | 783 ms | 353~370 ms |
+| video ended → 马赛克完全消失 | 1264 ms | 564~568 ms |
+
+360×780 复测：定格 121~131 ms、寝室 create 353~368 ms、马赛克消失 564~573 ms；热缓存同量级（本机 localhost 冷/热差别可以忽略）。
+
+### 做法
+
+1. **播放期间预取**：`ch01-opening` 的 `create()` 里就 `assetService.prefetch(MODULES.ch01Dorm.requires)`
+   （`show:'never'`，绝不把加载页弹到 CG 上）。`prefetch()` 会给这批 bundle 打 pin，
+   `releaseExcept()` 不回收 —— 否则开场场景自己的那次回收（排在预取之后）会立刻把刚预取的资源删掉，
+   白白下载一遍。
+2. **收尾只由定时器驱动**：`src/app/cg-handoff.ts`（纯逻辑、可单测）：
+   `holdMs=120` 定格 → 预取没完成就先 `revealLoading()` 亮加载页 → `fadeOut()` → `fadeMs=320` 溶解 → 移除。
+   `enter()` 慢、卡住、直接 reject 都不影响这条时间线。
+3. **先淡出、隔一帧再切场景**（`afterPaint`）：寝室首帧 `create()` 实测要 160~200ms，
+   主线程一堵，CSS transition 还没提交就会被一起推迟。先让浏览器提交一帧，溶解交给合成器，
+   定格时间从此只由 `holdMs` 决定，与场景构建耗时解耦。
+4. **预取命中时静默切场景**：`enterModule(..., { skipGateWhenReady: true })` —— 资源都在 cache 里就不亮加载页、
+   不吃 520ms hold，像素画直接溶进寝室首帧。没命中则原样走门禁（加载页 + 进度）。
+5. **视频卡死兜底**：每 1.5s 看一次 `currentTime`，连续 3 次不走就判定播不动；被系统/策略暂停先尝试续播，
+   两次不行直接进寝室 —— 避免 `ended` 事件丢了以后永远停在最后一帧。
+
+### 被排除的方案
+
+- **把马赛克挪到 canvas 下面**：寝室 camera 背景不透明，第一帧就会把转场整块抹掉，等于删掉画风转场。
+- **只缩短加载页 holdMs**：马赛克是 `z-index:9`，加载页再短也在它下面，玩家还是只看得到像素块。
+- **把淡出绑在寝室 `CREATE` 事件上**：主线程被首帧构建堵住时，回调一样推迟；实测定格会被拉到 200ms+，
+  慢设备更容易超 250ms 预算。
+
+### 怎么验证
+
+- `?stage=scene.ch01.open&hud=0`，CDP 打点：`video ended` / 马赛克 canvas 出现 / `[assets] 释放 bundle` 日志 /
+  马赛克移除；`Network.setCacheDisabled(true)` 做冷缓存。
+- 断言：全屏定格 < 250ms；video ended → 寝室 create < 1200ms（本机冷/热都是 353~370ms —— 预取在播放期间就完成了）。
+- 慢网络/预取没命中时（把预取临时关掉复现）：定格仍只有 126ms，随后是**带进度条的加载页**
+  （`33-ch01-transition-loading-fallback.png`，截到 82%），不再有「只有马赛克」的空档。
+- 单测：`test/cg-handoff.test.ts`（进入失败 / 一直不返回时过渡层仍按时收掉）、
+  `test/loader-gate.test.ts`（预取批次 loading/error/ready 全程不亮页；`revealState` 只对进行中的批次生效）。
+- 证据：`docs/screenshots/ingame/30-ch01-opening-transition.gif`（12 帧 → 10 帧过渡）、
+  `31-ch01-opening-pixel-frame.png`、`32-ch01-dorm-first.png`。
