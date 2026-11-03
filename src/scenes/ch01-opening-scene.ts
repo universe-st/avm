@@ -10,8 +10,10 @@ import { applyCamera } from '../app/viewport';
 import { audioDirector } from '../audio/audio-director';
 import { bgmManager } from '../audio/bgm-manager';
 import { assetService } from '../resource/asset-service';
+import { gateOverlay } from '../resource/gate-overlay';
+import { startCgWhenRevealed, type CgRevealHandle } from '../app/cg-reveal';
 import { mountPixelTransition, type PixelTransitionHandle } from '../ui/pixel-transition';
-import { mountVideoSurface, type VideoSurfaceHandle } from '../ui/video-surface';
+import { mountVideoSurface, whenFirstFrameDecoded, type VideoSurfaceHandle } from '../ui/video-surface';
 
 const VIDEO_KEY = 'video.ch01.opening';
 const CANVAS_Z = '2';
@@ -38,6 +40,14 @@ const RESUME_ATTEMPTS = 2;
  * 视频是 9:16，而手机视口常见 9:19.5；`video-surface` 用「前景 contain + 背景同源模糊 cover」
  * 填掉上下黑边，不裁掉靠边的床和窗。
  *
+ * ## 起播时机（2026-11-03 修「开头近 1 秒被加载页吞掉」）
+ *
+ * 门禁遮罩（`show:'always'`，520ms hold + 120ms 排队 + 200ms 淡出）在场景 `create` 时还盖着，
+ * 旧实现一起跑就把前 0.84~0.96s 藏进了遮罩后面，玩家看到的是「中途切入」。
+ * 现在视频只预载 + 解码首帧（`readyState >= 2`）并保持 paused；首帧就绪时请门禁立刻撤罩
+ * （跳过 hold/淡出，见 `resource/gate-overlay.ts`），遮罩完全撤掉后才 `play()`
+ * （纯逻辑在 `app/cg-reveal.ts`）。没有遮罩的路径保持旧行为：立刻起播。
+ *
  * ## 收尾时间线（2026-11-03 修「播完马赛克定格很久」）
  *
  * 旧实现把「马赛克淡出」绑在 `enterModule()` resolve 上，而马赛克是 `z-index:9` 的全屏层，
@@ -57,6 +67,8 @@ export class Ch01OpeningScene extends UIScene {
   private mosaic: PixelTransitionHandle | null = null;
   /** 视频「播不动/被暂停」看门狗：ended 事件在个别 WebView 会丢。 */
   private stallTimer: Phaser.Time.TimerEvent | null = null;
+  /** 「等加载页撤罩再起播」的流程；shutdown / 跳过时取消，避免遮罩后面偷偷起播。 */
+  private reveal: CgRevealHandle | null = null;
   private hasStarted = false;
   private lastVideoTime = -1;
   private stalledChecks = 0;
@@ -131,10 +143,15 @@ export class Ch01OpeningScene extends UIScene {
     canvas.style.position = 'relative';
     canvas.style.zIndex = CANVAS_Z;
 
+    /**
+     * `autoPlay: false`：先只预载 + 解码首帧并保持 paused。起播交给下面的
+     * `startCgWhenRevealed()`——**遮罩完全撤掉那一刻**才 play，玩家看到的是第 0 秒构图。
+     */
     this.surface = mountVideoSurface({
       src,
       layout: 'fill',
       zIndex: 0,
+      autoPlay: false,
       skipLabel: null,
       onEnded: () => this.handleEnded(),
       onError: (reason) => this.handleVideoError(reason),
@@ -146,13 +163,38 @@ export class Ch01OpeningScene extends UIScene {
     const video = this.surface.element;
     video.addEventListener('playing', this.handlePlaying);
 
-    void this.surface.play().then(() => {
-      if (this.leaving) return;
-      this.statusText.value = '';
-      this.needsTap.value = false;
+    this.reveal = startCgWhenRevealed({
+      isGateHidden: () => !gateOverlay.isVisible,
+      whenGateHidden: () => gateOverlay.whenHidden(),
+      isFirstFrameReady: () => video.readyState >= 2,
+      whenFirstFrameReady: () => whenFirstFrameDecoded(video),
+      // 首帧没解码之前压住门禁（慢网下就停在加载页上，不黑屏）；
+      // 首帧就绪再放行，门禁立刻撤罩（不等 holdMs / 淡出），CG 才不会在遮罩后面偷播。
+      holdGate: () => gateOverlay.hold(),
+      releaseGate: () => gateOverlay.release(),
+      play: () => this.startPlayback(),
+      onWarn: (message) => console.warn(`[ch01-opening] ${message}`),
     });
 
-    // 浏览器可能连静音自动播放都拦（iOS 低电量模式）：1.6s 后还没动就让玩家点一下。
+    this.watchVideoProgress();
+  }
+
+  /**
+   * 遮罩撤掉之后才走到这里：起播，并在 1.6s 后确认它真的动了。
+   *
+   * 浏览器可能连静音自动播放都拦（iOS 低电量模式），那就退化成「轻触屏幕开始播放」——
+   * 和旧实现同一条降级路径，只是计时的起点从「场景创建」改成「遮罩撤掉」。
+   */
+  private async startPlayback(): Promise<void> {
+    if (this.leaving) return;
+    const surface = this.surface;
+    if (!surface) return;
+
+    this.statusText.value = '';
+    this.needsTap.value = false;
+    await surface.play();
+    if (this.leaving) return;
+
     this.tapTimer?.remove();
     this.tapTimer = this.time.delayedCall(1600, () => {
       this.tapTimer = null;
@@ -161,8 +203,6 @@ export class Ch01OpeningScene extends UIScene {
       this.needsTap.value = true;
       this.statusText.value = '轻触屏幕开始播放';
     });
-
-    this.watchVideoProgress();
   }
 
   /**
@@ -222,9 +262,17 @@ export class Ch01OpeningScene extends UIScene {
   };
 
   private handleVideoError = (reason: string): void => {
+    /**
+     * `play-rejected` 不是加载失败，只是自动播放被策略拦了：交给 `startPlayback` 的
+     * 1.6s 「轻触屏幕开始播放」降级，**不能**在这里放行门禁/取消流程。
+     */
+    if (reason.startsWith('play-rejected')) return;
     console.warn('[ch01-opening] 视频加载失败', reason);
     this.statusText.value = '开场动画加载失败，可以直接跳过';
     this.needsTap.value = false;
+    // 真失败：别把玩家锁在 hold 住的加载页上（Compose 的跳过按钮在遮罩下面点不到）。
+    this.reveal?.cancel();
+    this.reveal = null;
   };
 
   private handlePointer = (): void => {
@@ -300,6 +348,8 @@ export class Ch01OpeningScene extends UIScene {
     this.tapTimer = null;
     this.stallTimer?.remove();
     this.stallTimer = null;
+    this.reveal?.cancel();
+    this.reveal = null;
     this.statusText.value = '';
 
     // 抓帧必须早于 pause / destroy：暂停之后的帧不一定已经画进 video 元素。
@@ -308,7 +358,12 @@ export class Ch01OpeningScene extends UIScene {
     this.cameras.main.fadeOut(240, 5, 6, 10);
 
     if (!this.mosaic) {
-      // 抓不到帧（老 WebView / 视频已销毁）：退回普通淡出，别为了转场多等。
+      /**
+       * 抓不到帧（首帧还没解码就被跳过 / 老 WebView）：直接进寝室，不为了转场多等。
+       * 但预取可能还在跑——把进行中的批次亮成加载页，否则玩家会盯着黑屏干等，
+       * 直到排队中的寝室门禁开跑才有反馈（慢网下能等好几秒）。
+       */
+      assetService.revealLoading();
       void enterModule(this, 'ch01Dorm', undefined, { skipGateWhenReady: true }).catch(
         (error: unknown) => {
           console.warn('[ch01-opening] 进入寝室失败', error);
@@ -368,6 +423,8 @@ export class Ch01OpeningScene extends UIScene {
     this.tapTimer = null;
     this.stallTimer?.remove();
     this.stallTimer = null;
+    this.reveal?.cancel();
+    this.reveal = null;
 
     const canvas = this.game.canvas;
     canvas.style.position = '';

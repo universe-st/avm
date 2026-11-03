@@ -4,6 +4,7 @@ import { applyCamera, getViewportPlan } from '../app/viewport';
 import type { LoadState } from '../assets/types';
 import { assetService } from './asset-service';
 import { loaderVisibility } from './gate';
+import { gateOverlay } from './gate-overlay';
 
 const FONT = '"PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif';
 const GOLD = 0xd8b76a;
@@ -41,9 +42,12 @@ export class LoaderScene extends Phaser.Scene {
     assetService.attach(this);
     this.build();
     this.unsubscribe = assetService.onChange((state) => this.apply(state));
+    // 过场（开场 CG）首帧没就绪时会 hold 住门禁；release 时立刻补撤（跳过 holdMs/淡出）。
+    gateOverlay.setReleaseHandler(() => this.flushHeldHide());
     this.apply(assetService.state.value);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      gateOverlay.setReleaseHandler(null);
       this.unsubscribe?.();
       this.unsubscribe = null;
     });
@@ -201,6 +205,8 @@ export class LoaderScene extends Phaser.Scene {
     this.pendingHide?.remove();
     this.pendingHide = null;
     this.tweens.killTweensOf(this.overlay);
+    // 遮罩要盖住了：过场场景的「等撤罩」信号必须同步成 false。
+    gateOverlay.markShown();
 
     if (this.overlayVisible) {
       this.overlay.setVisible(true).setAlpha(1);
@@ -225,22 +231,53 @@ export class LoaderScene extends Phaser.Scene {
     const wait = Math.max(0, minVisible - elapsed) + 120;
     this.pendingHide = this.time.delayedCall(wait, () => {
       this.pendingHide = null;
+      /**
+       * 过场压着不让撤（首帧还没解码）：先不撤，等它 release。
+       * 不这么做的话，慢网下遮罩会先走完自己的时间表，露出还没解出首帧的视频（黑一下）。
+       */
+      if (gateOverlay.isHeld) return;
       this.hideNow();
     });
   }
 
-  private hideNow(): void {
+  /**
+   * 过场 release 后的补撤：首帧已经解码好了，立刻撤罩（不等 holdMs，也不淡出），
+   * 否则 CG 会在遮罩后面白白播掉一段。
+   */
+  private flushHeldHide(): void {
     if (!this.overlayVisible) return;
+    this.hideNow(true);
+  }
+
+  /**
+   * 收起遮罩。`instant` 供开场 CG 用：首帧已经解码时不必再等 200ms 淡出，
+   * 否则「等撤罩再起播」会把整条流程拉长一个淡出时长（见 `resource/gate-overlay.ts`）。
+   */
+  private hideNow(instant = false): void {
+    // 提前撤罩时要清掉还排着的「淡出」定时器，否则它以后可能误伤下一个门禁。
+    this.pendingHide?.remove();
+    this.pendingHide = null;
+    if (!this.overlayVisible) {
+      gateOverlay.markHidden();
+      return;
+    }
     this.tweens.killTweensOf(this.overlay);
+    const settle = (): void => {
+      this.overlay.setVisible(false);
+      this.backdrop.disableInteractive();
+      this.overlayVisible = false;
+      gateOverlay.markHidden();
+    };
+    if (instant) {
+      this.overlay.setAlpha(0);
+      settle();
+      return;
+    }
     this.tweens.add({
       targets: this.overlay,
       alpha: 0,
       duration: 200,
-      onComplete: () => {
-        this.overlay.setVisible(false);
-        this.backdrop.disableInteractive();
-        this.overlayVisible = false;
-      },
+      onComplete: settle,
     });
   }
 }

@@ -119,3 +119,81 @@
   `test/loader-gate.test.ts`（预取批次 loading/error/ready 全程不亮页；`revealState` 只对进行中的批次生效）。
 - 证据：`docs/screenshots/ingame/30-ch01-opening-transition.gif`（12 帧 → 10 帧过渡）、
   `31-ch01-opening-pixel-frame.png`、`32-ch01-dorm-first.png`。
+
+## 8. 2026-11-03 修复②：开头近 1 秒被加载页吞掉 + 马赛克纵向拉伸
+
+> 独立复验（#t4）报了两个非阻塞瑕疵，这次一并修掉。
+
+### ① 开场 CG 的前 0.84~0.96s 被加载页盖住
+
+**现象**：进 `ch01-opening` 时门禁遮罩（`show:'always'`，holdMs 520 + 120 排队 + 200 淡出）还盖着，
+视频在场景 `create` 里就已经 `play()`；遮罩撤掉时 CG 已经播掉近 1 秒，玩家看到的是「中途切入」。
+
+**根因**：`play()` 与「遮罩撤除」是两条互不相干的时间线，谁也没等谁。
+
+**做法**：把「起播」绑到遮罩上（纯逻辑在 `src/app/cg-reveal.ts`）：
+
+```text
+create          视频挂上、preload 解码首帧，保持 paused；同时 hold 住门禁
+loadeddata      首帧就绪 → release()（门禁立刻撤罩，跳过 holdMs / 淡出）
+遮罩隐藏        才 play()，currentTime 从 0 开始走
+```
+
+- `mountVideoSurface({ autoPlay: false })`（`src/ui/video-surface.ts`）：只预载，不自己起播。
+- `src/resource/gate-overlay.ts`：`LoaderScene` 上报「遮罩亮起 / 完全撤掉」，过场用 `whenHidden()` 等；
+  同时提供 `hold()` / `release()` 反向通道——首帧没好时**不让**门禁按 520ms 时间表撤罩（否则撤罩瞬间是黑的），
+  首帧一好 `release()` 让门禁**立刻**撤罩（不等 holdMs、不淡出），整条流程不会因为「等遮罩」变长。
+- 兜底：首帧 3000ms 不来就先撤罩能播就播；遮罩 2000ms 不撤就强行起播；真加载失败（`media-error`）立刻
+  取消 reveal 并放行门禁，玩家看到「开场动画加载失败，可以直接跳过」。
+- 降级路径原样保留：自动播放被拦 → 1.6s 后「轻触屏幕开始播放」；跳过按钮 / 空格 / ESC / 返回键都能在
+  hold 期间或播放中直接进第一章（取消时**一定** `release()`，否则下一个门禁会被压住）。
+
+**实测**（本机，`?stage=scene.prologue` → 点「跳过剧情」→ 走真实门禁进开场）：
+
+| 390×844 | 修前 | 修后 |
+| --- | --- | --- |
+| 遮罩可见时长 | 848 ms（`holdMs` 走满） | 102 ms（首帧就绪即撤罩） |
+| 遮罩隐藏时 video `currentTime` | 0.848 s | **0.000 s**（hide → play 间隔 0.6ms） |
+| 场景 create → 视频时钟起走 | 121 ms（play 在 create 就发出，但要等数据） | 77~182 ms（= 等首帧解码 + play，与旧实现同量级） |
+| video ended → 寝室 create | 391 ms | 375 ms |
+| video ended → 马赛克完全消失 | 564~580 ms | 570 ms |
+| 全屏「只有马赛克无反馈」 | 121~131 ms | 121~131 ms（未改 cg-handoff） |
+
+360×780 复测：遮罩隐藏时 `currentTime = 0`（hide → play 0.4ms）、ended → 寝室 create **398 ms**、
+马赛克 45×80 / 48×104、ended → 马赛克出现 11~30ms。
+冷缓存（CDP `Network.setCacheDisabled(true)`）390×844：遮罩 280 ms（= 等首帧解码）、hide → play **1.5 ms**
+（`currentTime = 0`）、ended → 寝室 create **380 ms**（预算 1200 ms）。
+
+慢网（CDP 限速）验证：视频下载期间遮罩**保持可见**（不再露出没解出首帧的黑屏），首帧一到就撤罩 + 从 0 起播；
+在 hold 期间点跳过，`reveal.cancel()` 会放行门禁，加载页亮起来显示真实进度，不会卡在「被压住的门禁」上。
+
+**为什么允许加载页只闪 100ms**：开场门禁这一步只解析视频 URL（Phaser 的 VideoFile 不下载字节），
+所以它本来就很快；「至少 520ms」的观感是给普通内容场景的。本机 390×844 冷/热都是 102~112ms。
+真机慢网下遮罩会一直留到首帧解码完（这是这次改动附带的收益）。
+
+### ② 马赛克铺满时纵向约 1.22x 拉伸
+
+**现象**：`src/ui/pixel-transition.ts` 把 720×1280（9:16）画进 48×104（9:19.5）再 `object-fit` 铺满，
+纵向被拉长约 1.22 倍，像素人物比视频帧「更近」，切到马赛克时构图会跳。
+
+**做法**：马赛克改成与 `video-surface` 同一套视觉契约的两层：
+
+- **前景**：整帧按原比例画进 **45×80（= 9:16）** 小 canvas，CSS `object-fit: contain` ——
+  与 `<video>` 前景层是同一个 containing block、同一条 contain 规则，几何完全一致；
+- **背景**：同一帧按 `cover` 裁切（保持比例、裁掉溢出）画进 48×104，再套
+  `VIDEO_BACKDROP_FILTER / VIDEO_BACKDROP_SCALE`（从 `video-surface` 导出，两边共用一份常量）填掉上下留边。
+
+纯逻辑抽成 `planMosaic()` / `coverCrop()`，单测直接断言「画布宽高比 = 源裁切宽高比」（不拉伸）。
+
+**实测**：马赛克前景 canvas 的 `getBoundingClientRect` 与 `<video>` 完全一致（0,0,390×844 → contain 后同一块 390×693.3）；
+把视频末段帧与马赛克定格帧做亮度剖面互相关，**纵向偏差 2px = 屏高 0.24%、横向 3px = 屏宽 0.77%**（预算 2% 屏高），
+块级（45×80）偏差 0 格、相关度 0.93。转场观感仍是「写实 → 像素 → 寝室」。
+
+### 证据
+
+- `docs/screenshots/ingame/34-ch01-opening-start-v3.png`：遮罩撤掉那一帧（`currentTime = 0` 的构图）。
+- `docs/screenshots/ingame/35-ch01-pixel-frame-v3.png`：新的马赛克定格帧（前景 9:16 + 模糊铺底）。
+- `docs/screenshots/ingame/36-ch01-pixel-compare-v3.png`：视频末帧 / 马赛克 / 50% 叠加三栏对比。
+- `docs/screenshots/ingame/37-ch01-opening-transition-v3.gif`：写实 → 像素 → 寝室（8 帧 / 240 宽 / 96 色）。
+- 单测：`test/cg-reveal.test.ts`（遮罩没撤前不得 play、首帧没好不撤罩、取消要放行门禁、超时兜底）、
+  `test/gate-overlay.test.ts`（遮罩信号与 hold/release）、`test/pixel-mosaic.test.ts`（像素层保持宽高比 + cover 裁切）。
