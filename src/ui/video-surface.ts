@@ -20,7 +20,8 @@
  *
  * ## 生命周期
  *
- * - `mountVideoSurface()` 立刻尝试自动播放（先带声音，被拦就静音重试并回调 `onMutedChange(true)`）。
+ * - `mountVideoSurface()` 默认立刻尝试自动播放（先带声音，被拦就静音重试并回调 `onMutedChange(true)`）；
+ *   传 `autoPlay: false` 时只预载、等调用方 `play()`。
  * - `onEnded` 只触发一次：自然播完或点跳过。**触发后不自动销毁**——调用方可能还要做溶解/淡出，
  *   由调用方在合适的时机 `destroy()`。
  * - `destroy()` 幂等：暂停、清 `src`、`load()`、移除两层元素与按钮；**不会**再触发 `onEnded`。
@@ -42,6 +43,12 @@ export interface VideoSurfaceOptions {
   readonly loop?: boolean;
   /** 跳过按钮文案；传 `null` 不显示按钮。默认「跳过」。 */
   readonly skipLabel?: string | null;
+  /**
+   * 挂载后是否立刻尝试起播。默认 `true`（手机 CG 等过场）。
+   * 开场 CG 传 `false`：先只解码首帧并保持 paused，等加载页撤罩后由调用方 `play()`
+   * （见 `app/cg-reveal.ts`），否则玩家会看到「中途切入」的 CG。
+   */
+  readonly autoPlay?: boolean;
   readonly onEnded?: () => void;
   /** 简短失败原因，例如 `media-error:decode · ...`、`play-rejected`、`missing-src`。 */
   readonly onError?: (reason: string) => void;
@@ -65,10 +72,14 @@ const BASE_LAYER_STYLE =
 /** 前景：严格构图，宁可留边也不裁画面。 */
 const FOREGROUND_STYLE = `${BASE_LAYER_STYLE}object-fit:contain;`;
 
-/** 背景：同一段画面铺满 + 模糊压暗，填掉上下黑边；放大 6% 让模糊边缘不露白。 */
+/** 背景层的视觉：模糊 + 压暗 + 微放大，填掉上下黑边。像素化转场层要沿用同一套（见 `pixel-transition`）。 */
+export const VIDEO_BACKDROP_FILTER = 'blur(28px) brightness(.55) saturate(.9)';
+export const VIDEO_BACKDROP_SCALE = 1.18;
+
+/** 背景：同一段画面铺满 + 模糊压暗，填掉上下黑边；放大一点让模糊边缘不露白。 */
 const BACKDROP_STYLE =
   `${BASE_LAYER_STYLE}object-fit:cover;` +
-  'filter:blur(28px) brightness(.55) saturate(.9);transform:scale(1.18);';
+  `filter:${VIDEO_BACKDROP_FILTER};transform:scale(${VIDEO_BACKDROP_SCALE});`;
 
 /** 跳过按钮：墨黑半透明底 + 1px 鎏金边框 + 宣纸白字，和游戏内 secondary 按钮同一套观感。 */
 const SKIP_BUTTON_STYLE = [
@@ -328,9 +339,28 @@ export function mountVideoSurface(options: VideoSurfaceOptions): VideoSurfaceHan
 
   if (src === '') {
     report('missing-src');
-  } else {
+  } else if (options.autoPlay !== false) {
     void handle.play();
   }
 
   return handle;
+}
+
+/**
+ * 等视频解出首帧（`readyState >= HAVE_CURRENT_DATA`，即 `loadeddata`）后 resolve。
+ *
+ * 开场 CG 用它决定「什么时候可以撤加载页」：首帧没好就撤罩会黑一下。
+ * 已经是就绪状态时同步 resolve（先查 `readyState`，避免事件早就发过）。
+ */
+export function whenFirstFrameDecoded(element: HTMLVideoElement): Promise<void> {
+  if (element.readyState >= 2) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    const done = (): void => {
+      element.removeEventListener('loadeddata', done);
+      element.removeEventListener('canplay', done);
+      resolve();
+    };
+    element.addEventListener('loadeddata', done);
+    element.addEventListener('canplay', done);
+  });
 }
