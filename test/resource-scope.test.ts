@@ -75,4 +75,18 @@ describe('scene release plan', () => {
     const plan = planRelease(['title'], ['title']);
     expect(plan).toEqual({ bundles: [], assets: [] });
   });
+
+  /**
+   * 回归用例：开场 CG 播放期间预取寝室资源，随后开场场景自己的 `releaseExcept`
+   * （keep = 开场自己的 requires）会把预取的 bundle 一起回收——预取白做，
+   * 视频播完仍然要重新下载。
+   */
+  it('keeps pinned (prefetched) bundles until a gate consumes them', () => {
+    const loaded = expandBundleIds(['core', 'ui', 'cutscene.ch01opening', 'ch.01']);
+    const pinned = expandBundleIds(['ch.01']);
+    const plan = planRelease(loaded, ['core', 'cutscene.ch01opening'], pinned);
+    expect(plan.bundles).not.toContain('ch.01');
+    expect(plan.bundles).not.toContain('ch01.char');
+    expect(plan.assets.map((asset) => asset.key)).not.toContain('img.map.ch01.dorm_room');
+  });
 });

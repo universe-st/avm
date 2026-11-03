@@ -12,6 +12,7 @@ import {
   weightOf,
   type Catalog,
 } from './plan';
+import { PREFETCH_LOAD_OPTIONS, revealState } from './gate';
 import { planRelease, type ReleasePlan } from './scope';
 
 const CATALOG = catalogJson as Catalog;
@@ -61,6 +62,8 @@ export class AssetService {
   private queue: Promise<unknown> = Promise.resolve();
   private readonly listeners = new Set<Listener>();
   private readonly loadedBundles = new Set<BundleId>();
+  /** 预取中、还没被任何门禁消费的 bundle：`releaseExcept` 不回收它们。 */
+  private readonly pinned = new Set<BundleId>();
 
   constructor() {
     this.hostReady = new Promise<void>((resolve) => {
@@ -87,13 +90,73 @@ export class AssetService {
   /** 加载一组 bundle（含依赖与常驻包）；返回时资源已就绪（可选资源失败除外）。 */
   ensure(bundleIds: readonly BundleId[], options: LoadOptions = {}): Promise<void> {
     const expanded = expandBundleIds([...bundleIds, ...persistentBundleIds()]);
-    const run = (): Promise<void> => this.runBatch(expanded, options);
+    // `pinned` 刻意留到批次真正开跑时再解除（见 `runBatch`）：队列里可能还排着
+    // 上一次场景的 `releaseExcept`，排队时提前解除就等于让那次回收把预取删掉。
+    return this.enqueue(expanded, options, false);
+  }
+
+  /**
+   * 预取：静默加载（绝不亮加载页），并在**被真正的门禁消费之前**不被释放。
+   *
+   * 为什么需要「不被释放」：过场通过 `enterModule` 进来时会注册
+   * `releaseExcept(过场自己的 requires)`。预取批次排在那次回收**前面**，
+   * 回收一跑就会把刚预取好的目标 bundle 删掉——白下载一遍，还会让视频播完时
+   * 仍然要重新加载（正是「马赛克定格很久」的根因之一）。
+   *
+   * 消费方式就是普通的 `ensure()`：**该批次真正开跑时** pin 解除
+   * （不能一排队就解除——队列里可能还排着上一次场景的 `releaseExcept`）。
+   */
+  prefetch(bundleIds: readonly BundleId[]): Promise<void> {
+    const expanded = expandBundleIds([...bundleIds, ...persistentBundleIds()]);
+    for (const id of expanded) this.pinned.add(id);
+    return this.enqueue(expanded, PREFETCH_LOAD_OPTIONS, true).catch((error: unknown) => {
+      // 预取失败不留下悬空的 pin：让这批资源回到正常的回收规则里。
+      for (const id of expanded) this.pinned.delete(id);
+      throw error;
+    });
+  }
+
+  private enqueue(
+    expanded: readonly BundleId[],
+    options: LoadOptions,
+    prefetch: boolean,
+  ): Promise<void> {
+    const run = (): Promise<void> => this.runBatch(expanded, options, prefetch);
     const next = this.queue.then(run, run);
     this.queue = next.then(
       () => undefined,
       () => undefined,
     );
     return next;
+  }
+
+  /**
+   * 目标 bundle 闭包（含依赖与常驻包）是否**已经全部在 cache 里**。
+   *
+   * 给「CG → 场景」这种画风转场用：资源已经预取好时可以直接静默切场景，
+   * 不让加载页插进「像素马赛克 → 寝室」之间（见 `enterModule` 的 `skipGateWhenReady`）。
+   * LoaderScene 还没挂载时一律返回 false（此时也谈不上预取命中）。
+   */
+  isReady(bundleIds: readonly BundleId[]): boolean {
+    if (!this.host) return false;
+    const all = collectAssets(expandBundleIds([...bundleIds, ...persistentBundleIds()]));
+    // 与门禁一致：可选资源失败不阻断，所以只要求必填资源都在。
+    const required = all.filter((asset) => asset.required !== false);
+    return missingAssets(required, (asset) => this.isLoaded(asset)).length === 0;
+  }
+
+  /**
+   * 把**正在进行中**的批次改成「显示加载页」，返回是否真的改到了。
+   *
+   * 场景：开场 CG 播放期间用 `show: 'never'` 预取寝室资源；如果视频播完时预取还没结束，
+   * 不把加载页亮出来玩家就只能对着一块马赛克干等。这里在马赛克淡出前补一次「亮页」，
+   * 让进度条立刻出现在马赛克底下。批次已结束/还没开始则返回 false，由随后的门禁自己亮页。
+   */
+  revealLoading(label?: string): boolean {
+    const next = revealState(this.state.value, label);
+    if (!next) return false;
+    this.setState(next);
+    return true;
   }
 
   /**
@@ -133,7 +196,7 @@ export class AssetService {
     const host = this.host;
     if (!host) return { bundles: [], assets: [] };
 
-    const plan = planRelease(this.loadedBundles, keep);
+    const plan = planRelease(this.loadedBundles, keep, this.pinned);
     if (plan.bundles.length === 0) return plan;
 
     for (const bundleId of plan.bundles) this.loadedBundles.delete(bundleId);
@@ -192,7 +255,12 @@ export class AssetService {
   private async runBatch(
     bundleIds: readonly BundleId[],
     options: LoadOptions,
+    prefetch: boolean,
   ): Promise<void> {
+    // 非预取批次 = 门禁开始消费：这批资源从此按正常场景生命周期管理。
+    if (!prefetch) {
+      for (const id of bundleIds) this.pinned.delete(id);
+    }
     if (bundleIds.length === 0) return;
     const host = this.host ?? (await this.hostReady.then(() => this.host));
     if (!host) throw new Error('AssetService: LoaderScene 尚未挂载');
