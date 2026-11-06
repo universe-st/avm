@@ -221,4 +221,34 @@ export function isCh01ResumeData(value: unknown): value is Ch01ResumeData {
   );
 }
 
+/**
+ * 「重看本节」restart 时传给场景的干净 data。
+ *
+ * Phaser 的 `ScenePlugin.restart(data?)` 在不传 data 时会**沿用上一次启动的 data**：
+ * 从标题「继续游戏」进 `ch01.complete` 检查点时 data 是 `{ resume: 'complete' }`，
+ * 点「重看本节」后 `init(data)` 又收到同一个 `{ resume: 'complete' }` → 又进结束状态 → 死循环。
+ *
+ * 这里显式给出 `resume: 'start'`（`isCh01ResumeData` 只认 afterBattle/explore/complete，
+ * 所以场景会解析成 `resumeMode = 'start'`，从章节卡/开场整段重演）。
+ *
+ * - `preview`：预览会话 restart 后必须还认得自己，否则会写进真实进度；正式流程不能带这个键。
+ * - `seed`：保住同一 seed 的确定性（预览选过的种子不该被 restart 换成默认值）。
+ */
+export interface Ch01EndCardRestartData {
+  readonly resume: 'start';
+  readonly preview?: true;
+  readonly seed?: number;
+}
+
+export function endCardRestartData(
+  options: { readonly preview?: boolean; readonly seed?: number } = {},
+): Ch01EndCardRestartData {
+  const seed = options.seed;
+  return {
+    resume: 'start',
+    ...(options.preview === true ? { preview: true as const } : {}),
+    ...(typeof seed === 'number' && Number.isFinite(seed) ? { seed } : {}),
+  };
+}
+
 export { CH01_BATTLE_ID };
