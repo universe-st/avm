@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   CH01_PREVIEW_PHASES,
   Ch01Flow,
+  endCardRestartData,
   isCh01ResumeData,
   normalizeCh01PreviewPhase,
 } from '../src/story/ch01-flow';
 import { CH01_OBJECTIVES } from '../src/story/ch01-dorm';
+import { isStageLaunchContext } from '../src/dev/stage-types';
 
 const types = (events: readonly { type: string }[]): string[] => events.map((event) => event.type);
 
@@ -174,6 +176,51 @@ describe('Ch01Flow', () => {
 
     expect(isCh01ResumeData({ resume: 'explore' })).toBe(true);
     expect(isCh01ResumeData({ resume: 'complete' })).toBe(true);
+  });
+
+  /** 场景 `init()` 的恢复模式判定（与 ch01-dorm-scene 里那行保持一致）。 */
+  const resumeModeOf = (
+    data: unknown,
+  ): 'start' | 'afterBattle' | 'explore' | 'complete' =>
+    isCh01ResumeData(data) ? data.resume : 'start';
+
+  it('C3 回归：结束卡「重看本节」不会把旧的 resume:complete 带回 restart', () => {
+    // Phaser 的 `restart()` 不传 data 时会沿用上次启动的 data——从「继续游戏」进来就是这个。
+    const stale: unknown = { resume: 'complete' };
+    expect(isCh01ResumeData(stale)).toBe(true);
+
+    const restart = endCardRestartData();
+    expect(restart).toEqual({ resume: 'start' });
+    expect(String(restart.resume)).not.toBe('complete');
+    // `isCh01ResumeData` 不认 'start'，场景才会回落到「从本节开头重演」。
+    expect(isCh01ResumeData(restart)).toBe(false);
+    expect(resumeModeOf(restart)).toBe('start');
+  });
+
+  it('C3 回归：restart 后状态机从开场重演，不再直接弹结束卡', () => {
+    const flow = new Ch01Flow({ resume: resumeModeOf(endCardRestartData()) });
+    const events = flow.start();
+    expect(types(events)).toEqual(['chapter-card', 'objective', 'dialogue']);
+    expect(flow.state.phase).toBe('intro');
+    expect(types(events)).not.toContain('complete');
+  });
+
+  it('C3 回归：预览会话 restart 后仍认得自己是预览', () => {
+    const restart = endCardRestartData({ preview: true });
+    expect(restart.preview).toBe(true);
+    expect(isCh01ResumeData(restart)).toBe(false);
+    expect(resumeModeOf(restart)).toBe('start');
+    // 普通对象（无 stageId 等字段）过不了舞台上下文校验，场景靠 preview 标记识别预览。
+    expect(isStageLaunchContext(restart)).toBe(false);
+  });
+
+  it('C3 回归：正式流程 restart 不带 preview 标记，也不串 seed', () => {
+    const normal = endCardRestartData({ preview: false });
+    expect('preview' in normal).toBe(false);
+    expect('seed' in endCardRestartData()).toBe(false);
+    const seeded = endCardRestartData({ preview: true, seed: 7 });
+    expect(seeded.seed).toBe(7);
+    expect('seed' in endCardRestartData({ seed: Number.NaN })).toBe(false);
   });
 
   it('dream 节点只负责推进战斗，不复述金殿台词', () => {

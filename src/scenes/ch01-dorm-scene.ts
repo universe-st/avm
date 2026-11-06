@@ -54,6 +54,7 @@ import {
 import {
   CH01_PREVIEW_PHASES,
   Ch01Flow,
+  endCardRestartData,
   isCh01ResumeData,
   normalizeCh01PreviewPhase,
   type Ch01Event,
@@ -183,9 +184,17 @@ export class Ch01DormScene extends UIScene {
 
   init(data: unknown): void {
     const context: StageLaunchContext | null = isStageLaunchContext(data) ? data : null;
-    this.preview = context?.preview === true;
+    // `scene.restart(data)` / `enterModule` 传的是普通对象时没有 stageId，过不了
+    // `isStageLaunchContext` 的校验。这里补认 `preview` / `seed` 标记（与御膳房一致），
+    // 否则「重看本节」这类 restart 会把自己当成正式流程、写掉玩家进度。
+    const plain =
+      context === null && data !== null && typeof data === 'object'
+        ? (data as { preview?: unknown; seed?: unknown })
+        : null;
+    const plainSeed = typeof plain?.seed === 'number' && Number.isFinite(plain.seed) ? plain.seed : 1;
+    this.preview = context?.preview === true || plain?.preview === true;
     this.debug = context ? stageBoolParam(context, 'debug', false) : false;
-    this.seed = context?.seed ?? 1;
+    this.seed = context?.seed ?? plainSeed;
     this.resumeMode = context === null && isCh01ResumeData(data) ? data.resume : 'start';
 
     const rawPhase = context ? stageParam(context, 'phase') : undefined;
@@ -1067,9 +1076,11 @@ export class Ch01DormScene extends UIScene {
       },
       onRestart: () => {
         audioDirector.playClick();
-        // 「重看本节」= 从头开始；先把检查点退回寝室探索，避免继续游戏直接又跳结束卡。
+        // 「重看本节」= 从本节开头重演：先把检查点退回寝室探索，避免「继续游戏」直接又跳结束卡。
         saveProgress('dorm.explore', { preview: this.preview });
-        this.scene.restart();
+        // restart 必须显式给 data：不传会沿用上次启动的 `{ resume: 'complete' }`，
+        // 于是又回到同一张结束卡（C3 死循环）。`endCardRestartData` 保证它解析成 resume:'start'。
+        this.scene.restart(endCardRestartData({ preview: this.preview, seed: this.seed }));
       },
       onTitle: () => {
         audioDirector.playClick();
