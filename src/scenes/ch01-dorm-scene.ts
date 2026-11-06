@@ -934,8 +934,10 @@ export class Ch01DormScene extends UIScene {
       const zheng = this.room.interactables.find((item) => item.id === 'zheng');
       if (!zheng) return;
       // 郑卿的判定点在枕头左侧（床沿）；+88 正好落到床上那颗脑袋的中心。
+      // 判定点 2026-11-06 从行 13 下移到 14，气泡底部要跟着回抬一格（-62 → -84），
+      // 否则尾巴（at.y - 52）会扎进头发里：行 14 时 at.y=412.1，头顶在 y≈340。
       const at = interactableCenter(this.room, zheng);
-      this.emotionBubble?.show(kind, at.x + 88, at.y - 62, 900);
+      this.emotionBubble?.show(kind, at.x + 88, at.y - 84, 900);
       return;
     }
 
