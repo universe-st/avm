@@ -17,6 +17,14 @@ export interface PlayerActorOptions {
   readonly sittingKey?: string;
   readonly sitting?: boolean;
   readonly sittingOffsetY?: number;
+  /**
+   * 坐姿贴图单独的显示缩放；省略 = 与站立相同。
+   *
+   * 坐姿素材常常和站立帧不是同一个画布尺寸（现有占位 `zhou_sit` 是 96×160，
+   * Q 版站立帧是 160×400）。共用一个缩放会让人坐下时突然缩成一小只，
+   * 所以按坐姿图自身的尺寸补一个比例。
+   */
+  readonly sittingScale?: number;
   /** 静态八向 key；省略用旧版 64×96 周全（斜向回退主轴）。 */
   readonly staticKeys?: Readonly<Record<Facing, string>>;
   /** 行走 sheet key；省略用旧版 64×96 周全。 */
@@ -52,6 +60,7 @@ export class PlayerActor {
   private sitting: boolean;
   private readonly sittingKey?: string;
   private readonly sittingOffsetY: number;
+  private readonly sittingScale: number;
   private readonly staticKeys: Readonly<Record<Facing, string>>;
   private readonly walkSheets: Readonly<Record<Facing, string>>;
   private readonly frameWidth: number;
@@ -75,6 +84,10 @@ export class PlayerActor {
     this.frameHeight = options.frameHeight ?? 96;
     this.walkFrameCount = options.walkFrameCount ?? CH01_WALK_FRAME_COUNT;
     this.spriteScale = options.spriteScale ?? 1;
+    this.sittingScale =
+      typeof options.sittingScale === 'number' && options.sittingScale > 0
+        ? options.sittingScale
+        : this.spriteScale;
     this.headOffset = options.headOffset ?? (this.sitting ? 64 : 96);
     this.depthMaxY = options.depthMaxY ?? 1600;
 
@@ -118,6 +131,9 @@ export class PlayerActor {
           .setScale(this.spriteScale)
           .setDepth(characterDepth(this.feetPoint.y, this.depthMaxY))
       : null;
+    // `sitting: true` 开局（战后回寝室）必须在这里就换成坐姿贴图；
+    // 否则第一帧会先闪一张站着的图，等下一次 sync 才坐下。
+    this.sync();
   }
 
   get position(): MapPoint {
@@ -126,6 +142,15 @@ export class PlayerActor {
 
   get facing(): Facing {
     return this.facingValue;
+  }
+
+  get isSitting(): boolean {
+    return this.sitting;
+  }
+
+  /** 当前贴图应有的显示缩放（坐姿和站立可能不同尺寸）。 */
+  get displayScale(): number {
+    return this.sitting ? this.sittingScale : this.spriteScale;
   }
 
   /** 相机跟随/屏幕坐标换算用的显示对象；没有精灵时为 null。 */
@@ -175,6 +200,8 @@ export class PlayerActor {
     } else {
       this.sprite.setTexture(this.staticKeys[this.facingValue], 0);
     }
+    // 坐姿素材画布尺寸和站立帧不同（96×160 vs 160×400），共用缩放会让人忽大忽小。
+    this.sprite.setScale(this.displayScale);
     // 上下起伏已经烘进 20 帧序列里，这里不再叠一层随机相位的 bob（会和步态打架）。
     const sittingOffset = this.sitting ? this.sittingOffsetY : 0;
     this.sprite.setPosition(this.feetPoint.x, this.feetPoint.y + sittingOffset);

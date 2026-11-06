@@ -11,6 +11,7 @@ import {
   CH01_Q_STATIC_SPRITES,
   CH01_Q_WALK_FRAME_COUNT,
   CH01_Q_WALK_SHEETS,
+  PALACE_ASSET_KEYS,
 } from '../assets/keys';
 import { PlayerActor } from '../actors/player-actor';
 import { Ch01DormRoomView } from '../world/ch01-dorm-room-view';
@@ -37,14 +38,14 @@ import {
 import {
   CH01_DORM_ROOM,
 } from '../map/rooms/ch01-dorm';
-import { findInteractableNear, interactableCenter } from '../map/core/room';
+import { findInteractableNear, interactableCenter, tileCenter } from '../map/core/room';
 import { PLAYER_FOOT } from '../map/player-foot';
 import {
   facingFromVector,
   moveWithCollision,
   normalizeDirection,
 } from '../map/core/collision';
-import type { InteractableDef, RoomDef } from '../map/types';
+import type { InteractableDef, MapPoint, RoomDef } from '../map/types';
 import {
   CH01_CHAPTER_CARD,
   CH01_INTERACTABLE_PROMPTS,
@@ -60,8 +61,28 @@ import {
   type Ch01Event,
   type Ch01PreviewPhase,
 } from '../story/ch01-flow';
+import {
+  CH01_DREAM_INTRO_PERFORMANCE,
+  CH01_SIT_TILE,
+  CH01_WAKE_PERFORMANCE,
+  CH01_XIAOBAI_OFFSET,
+  flashInMs,
+  flashOutMs,
+  resolveSittingKey,
+  resolveStandingKey,
+  stepDurationMs,
+  timelineDurationMs,
+  type FlashStep,
+  type MoveActorStep,
+  type PerformanceStep,
+  type PerformanceTimeline,
+  type SitStep,
+  type StandStep,
+  type WalkStep,
+} from '../story/ch01-performance';
 import { DialoguePlayer, type DialogueEvent } from '../story/dialogue-player';
 import { playCutsceneVideo, type CutsceneVideoHandle } from '../ui/cutscene-video';
+import { mountFlashOverlay, type FlashOverlayHandle } from '../ui/flash-overlay';
 import {
   DIALOGUE_TYPE_MS,
   speakerLabel,
@@ -100,6 +121,17 @@ const INTERACT_KEY = 'E';
 const PLAYER_SCALE = 0.6138;
 const PLAYER_HEAD_OFFSET = 232;
 
+/**
+ * 坐姿占位（`zhou_sit` 96×160）的显示缩放。
+ *
+ * 站立 Q 帧 160×400 × 0.6138 ≈ 98×245；坐姿图 96×160 直接乘 0.6138 只剩 59×98，
+ * 坐下时会「缩成一小只」。按 1.0 显示时肩宽与站立接近，坐高约 160，比例合理。
+ * 正式「坐地朝右」素材出来后按它的画布重算，或直接改成和站立同尺寸的 160×400。
+ */
+const ZHOU_SIT_SCALE = 1;
+/** 椅子占位图自带椅脚，脚底贴地即 offset 0；正式坐地素材若有裙摆/腿的余白再调。 */
+const ZHOU_SIT_OFFSET_Y = 0;
+
 
 /**
  * 第一章第一节 · 寝室。
@@ -113,6 +145,20 @@ export class Ch01DormScene extends UIScene {
   private roomView: Ch01DormRoomView | null = null;
   private player: PlayerActor | null = null;
   private xiaobai: Phaser.GameObjects.Image | null = null;
+  /** 小白的上下漂浮；移动位置前必须停掉，否则两个 tween 会抢同一个 y。 */
+  private xiaobaiBob: Phaser.Tweens.Tween | null = null;
+  /** 表演进行中：屏蔽移动/交互，也不推进对话逐字。 */
+  private performing = false;
+  private performanceTimers: Phaser.Time.TimerEvent[] = [];
+  /** 全屏白光层（DOM，盖住 HUD）；结束后必须移除，不能留白影。 */
+  private flashOverlay: FlashOverlayHandle | null = null;
+  private flashStep: FlashStep | null = null;
+  /** 入梦表演只跑一次（dream 空节点可能被重入）。 */
+  private dreamPerformanceDone = false;
+  /** 战后回来：等第一句征召台词打完，再播起身表演。 */
+  private wakePerformancePending = false;
+  /** 战后表演开始后不再让 `cg: wake` 把画面盖回去，否则起身动画看不见。 */
+  private suppressWakeCg = false;
   private promptText: Phaser.GameObjects.Text | null = null;
   /** 靠近可交互物时套在地上的金圈，比头顶文字更早被看到。 */
   private highlightRing: Phaser.GameObjects.Ellipse | null = null;
@@ -233,6 +279,8 @@ export class Ch01DormScene extends UIScene {
 
   override update(_time: number, delta: number): void {
     const dt = Math.min(50, Math.max(0, delta));
+    // 表演期间不要 sync：起身/坐下是直接改 sprite 的 y/scale，sync 会把它们重置。
+    if (this.performing) return;
     if (this.cardVisible) {
       this.player?.sync();
       return;
@@ -311,6 +359,16 @@ export class Ch01DormScene extends UIScene {
     this.roomView = null;
     this.player = null;
     this.xiaobai = null;
+    this.xiaobaiBob = null;
+    this.performing = false;
+    for (const timer of this.performanceTimers) timer.remove();
+    this.performanceTimers = [];
+    this.flashOverlay?.remove();
+    this.flashOverlay = null;
+    this.flashStep = null;
+    this.dreamPerformanceDone = false;
+    this.suppressWakeCg = false;
+    this.wakePerformancePending = this.isWakeStart();
     this.promptText = null;
     this.highlightRing = null;
     this.cg = null;
@@ -397,6 +455,12 @@ export class Ch01DormScene extends UIScene {
       addVignette(this, { alpha: 0.3 }),
     );
     const opening = this.isOpening();
+    const wakeStart = this.isWakeStart();
+    /**
+     * 坐姿贴图走候选回退（缺新素材时用椅子占位，再缺就用朝右立绘，绝不白屏）。
+     * 不管是不是战后回来都要带上：入梦表演也要在房间中心坐下。
+     */
+    const sittingKey = resolveSittingKey((key) => this.textures.exists(key));
     this.player = new PlayerActor(this, this.room, {
       staticKeys: CH01_Q_STATIC_SPRITES,
       walkSheets: CH01_Q_WALK_SHEETS,
@@ -406,23 +470,39 @@ export class Ch01DormScene extends UIScene {
       spriteScale: PLAYER_SCALE,
       headOffset: PLAYER_HEAD_OFFSET,
       linearTextures: true,
-      // 开局站在书桌下方、靠左侧床的一侧。
-      ...(opening ? { spawn: { at: [14, 12] as const, facing: 'down' as const } } : {}),
+      ...(sittingKey === null
+        ? {}
+        : {
+            sittingKey,
+            sittingOffsetY: ZHOU_SIT_OFFSET_Y,
+            sittingScale: ZHOU_SIT_SCALE,
+          }),
+      ...(wakeStart
+        ? // 战后回来：进场就坐在房间中心，不是先站着再瞬移坐下。
+          { spawn: { at: CH01_SIT_TILE, facing: 'right' as const }, sitting: true }
+        : // 开局站在书桌下方、靠左侧床的一侧。
+          opening
+          ? { spawn: { at: [14, 12] as const, facing: 'down' as const } }
+          : {}),
     });
     this.cg = new CgOverlay(this, this.reduced);
     this.emotionBubble = new EmotionBubble(this, this.reduced);
 
     const phone = this.room.interactables.find((item) => item.id === 'phone');
     const xiaobaiKey = CH01_ASSET_KEYS.characters.xiaobai;
-    if (phone && this.textures.exists(xiaobaiKey)) {
+    if (this.textures.exists(xiaobaiKey) && (wakeStart || phone)) {
       setPixelTexture(this, xiaobaiKey);
-      const at = interactableCenter(this.room, phone);
+      // 正常开场：小白先在手机上方成形；战后回来：它已经浮在坐在原地的主角右侧。
+      const at = wakeStart
+        ? this.xiaobaiSpotNearPlayer()
+        : interactableCenter(this.room, phone as InteractableDef);
       this.xiaobai = this.add
-        .image(at.x + 56, at.y - 44, xiaobaiKey)
+        .image(wakeStart ? at.x : at.x + 56, wakeStart ? at.y : at.y - 44, xiaobaiKey)
         .setDepth(LAYERS.effects)
         .setScale(0.45)
-        .setAlpha(0)
-        .setVisible(false);
+        .setAlpha(wakeStart ? 1 : 0)
+        .setVisible(wakeStart);
+      if (wakeStart) this.startXiaobaiBob();
     }
 
     this.promptText = makeSceneText(this, 0, 0, '', {
@@ -523,6 +603,11 @@ export class Ch01DormScene extends UIScene {
     this.stepDistance += distance;
     if (this.stepDistance < 34) return;
     this.stepDistance = 0;
+    this.playFootstep();
+  }
+
+  /** 左右脚交替 + 轻微音高差，避免机械感。 */
+  private playFootstep(): void {
     this.stepFlip = !this.stepFlip;
     const key = this.stepFlip
       ? CH01_ASSET_KEYS.audio.stepWoodB
@@ -554,7 +639,12 @@ export class Ch01DormScene extends UIScene {
   }
 
   private updateNear(): void {
-    const active = this.flow?.state.phase === 'explore' && !this.dialogue && !this.cardVisible && !this.ended;
+    const active =
+      this.flow?.state.phase === 'explore' &&
+      !this.dialogue &&
+      !this.cardVisible &&
+      !this.ended &&
+      !this.performing;
     const near = active && this.player ? this.pickNear(this.player.position) : null;
     this.near = near;
     this.interactAvailable.value = near !== null;
@@ -584,13 +674,13 @@ export class Ch01DormScene extends UIScene {
 
   private onInteractKey(event: KeyboardEvent): void {
     event.preventDefault();
-    if (this.cutscene) return;
+    if (this.cutscene || this.performing) return;
     this.interact();
   }
 
   private onAdvanceKey(event: KeyboardEvent): void {
     event.preventDefault();
-    if (this.cutscene) return;
+    if (this.cutscene || this.performing) return;
     if (this.cardVisible) {
       this.hideChapterCard();
       return;
@@ -609,7 +699,7 @@ export class Ch01DormScene extends UIScene {
    * 判定用设计坐标：UI 相机 1:1，`worldX/worldY` 就是设计像素。
    */
   private onScenePointerDown(pointer: Phaser.Input.Pointer): void {
-    if (this.cutscene) return;
+    if (this.cutscene || this.performing) return;
     if (this.historyModal?.open === true) return;
     const plan = getViewportPlan();
     const inTopRightButtons = pointer.worldY < 150 && pointer.worldX > plan.designWidth - 230;
@@ -632,13 +722,14 @@ export class Ch01DormScene extends UIScene {
 
   /** 「跳过」：整段对话直接结束，后续事件照常发（目标更新、镜头等）。 */
   private skipDialogue(): void {
-    if (!this.dialogue) return;
+    // 表演期间「跳过」不该把流程推过正在播放的走位/起身。
+    if (!this.dialogue || this.performing) return;
     this.cancelAutoAdvance();
     this.finishDialogue();
   }
 
   private interact(): void {
-    if (this.transitioning || this.ended || this.cutscene) return;
+    if (this.transitioning || this.ended || this.cutscene || this.performing) return;
     if (this.cardVisible) {
       this.hideChapterCard();
       return;
@@ -675,9 +766,16 @@ export class Ch01DormScene extends UIScene {
           }
           break;
         case 'dialogue':
-          // 空台词节点（现在的 `dream`）只用来把流程推到下一拍，不弹空白面板。
+          // 空台词节点（现在的 `dream`）只用来把流程推进到下一拍。
           if (event.lines.length === 0) {
-            this.finishDialogue();
+            // 入梦表演：小白台词段已经整段走完，先演「走过去坐下 → 小白到右侧 → 白光」，
+            // 演完再 `finishDialogue()` 让流程发出 battle 事件（beginPalace 的转场照旧）。
+            if (event.nodeId === 'dream' && !this.dreamPerformanceDone) {
+              this.dreamPerformanceDone = true;
+              this.startPerformance(CH01_DREAM_INTRO_PERFORMANCE, () => this.finishDialogue());
+            } else {
+              this.finishDialogue();
+            }
             break;
           }
           if (event.nodeId === 'phone' && !this.phoneCutsceneSeen) {
@@ -790,6 +888,18 @@ export class Ch01DormScene extends UIScene {
           audioDirector.playTypeBlip(typeVoiceForSpeaker(event.speaker, this.dialogueRole ?? undefined));
         }
         this.lastTyped = event.typedCount;
+        // 战后回来的第一句征召台词打完 → 收起醒来 CG、演起身；演完玩家再点「继续」。
+        if (
+          event.done &&
+          this.wakePerformancePending &&
+          event.index === 0 &&
+          event.pageIndex === event.pageCount - 1
+        ) {
+          this.wakePerformancePending = false;
+          this.cancelAutoAdvance();
+          this.startWakePerformance();
+          return;
+        }
         if (event.done) this.scheduleAutoAdvance();
         else this.cancelAutoAdvance();
       } else if (event.type === 'complete') {
@@ -825,7 +935,7 @@ export class Ch01DormScene extends UIScene {
    */
   private scheduleAutoAdvance(): void {
     this.cancelAutoAdvance();
-    if (!settings.autoAdvance || !this.dialogue) return;
+    if (this.performing || !settings.autoAdvance || !this.dialogue) return;
     if (this.dialogue.state.phase !== 'waiting') return;
     const chars = Array.from(this.dialogue.pageText).length;
     const delay = autoAdvanceDelay(chars, settings.textSpeed);
@@ -837,6 +947,7 @@ export class Ch01DormScene extends UIScene {
   }
 
   private openHistory(): void {
+    if (this.performing) return;
     if (this.historyModal?.open === true) return;
     this.cancelAutoAdvance();
     this.historyModal = openDialogueHistory(this.mvvm, this.history.entries, {
@@ -849,13 +960,20 @@ export class Ch01DormScene extends UIScene {
   }
 
   private advanceDialogue(): void {
-    if (!this.dialogue) return;
+    if (!this.dialogue || this.performing) return;
     this.cancelAutoAdvance();
     this.handleDialogueEvents(this.dialogue.requestAdvance());
   }
 
   private finishDialogue(): void {
     this.cancelAutoAdvance();
+    // 玩家用「跳过」提前结束征召段时，起身表演还没播过；至少把坐姿切回站立，
+    // 别让后面的结束卡背后还坐着一个已经「站起来」说过话的人。
+    if (this.wakePerformancePending) {
+      this.wakePerformancePending = false;
+      this.suppressWakeCg = true;
+      this.player?.setSitting(false);
+    }
     this.dialogue = null;
     // 回忆段一旦开始，《危机来临》就保持到离开寝室（梦域战斗会接手切曲）；
     // 即使玩家中途点「跳过」也不切回日常，情绪不能断。
@@ -882,7 +1000,8 @@ export class Ch01DormScene extends UIScene {
       this.dialogue === null &&
       !this.cardVisible &&
       !this.ended &&
-      !this.transitioning;
+      !this.transitioning &&
+      !this.performing;
     this.joystick?.setEnabled(canExplore);
     if (canExplore) {
       this.startExploreAudio();
@@ -896,7 +1015,11 @@ export class Ch01DormScene extends UIScene {
 
   private applyLineCue(line: DialogueLine): void {
     if (line.bgm !== undefined) bgmManager.play(line.bgm);
-    if (line.cg !== undefined) {
+    // 战后第一句会先盖着「趴在地上」的醒来 CG；起身表演开始后不再让后续 `cg: wake`
+    // 把画面重新盖上，否则坐→站的过程全在 CG 底下，玩家根本看不见。
+    const suppressedWakeCg =
+      this.suppressWakeCg && line.cg === CH01_ASSET_KEYS.cg.wake;
+    if (line.cg !== undefined && !suppressedWakeCg) {
       this.cg?.show(line.cg, line.fx);
     } else if (this.flow?.state.currentNode !== 'after') {
       // 战后整段征召都发生在「趴在地板上」的画面里；中途切回站着的寝室会穿帮，
@@ -1006,6 +1129,45 @@ export class Ch01DormScene extends UIScene {
     return this.resumeMode === 'start' && this.previewPhase === 'opening';
   }
 
+  /**
+   * 是否从「战后回来」进入本节：正式流程传 `resume: 'afterBattle'`；
+   * 舞台预览对应 `?stage=scene.ch01.dorm&phase=after`。两条路都要先进坐姿。
+   */
+  private isWakeStart(): boolean {
+    return (
+      this.resumeMode === 'afterBattle' ||
+      (this.resumeMode === 'start' && this.previewPhase === 'after')
+    );
+  }
+
+  /** 小白该浮的位置：主角脚底 + 时间线里的 tile 偏移（不写死像素）。 */
+  private xiaobaiSpotNearPlayer(): MapPoint {
+    const at = this.player?.position ?? tileCenter(this.room, CH01_SIT_TILE[0], CH01_SIT_TILE[1]);
+    return {
+      x: at.x + CH01_XIAOBAI_OFFSET[0] * this.room.tileSize,
+      y: at.y + CH01_XIAOBAI_OFFSET[1] * this.room.tileSize,
+    };
+  }
+
+  private startXiaobaiBob(): void {
+    const xiaobai = this.xiaobai;
+    if (!xiaobai || this.reduced || this.xiaobaiBob) return;
+    const baseY = xiaobai.y;
+    this.xiaobaiBob = this.tweens.add({
+      targets: xiaobai,
+      y: baseY - 8,
+      duration: 1400,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+  }
+
+  private stopXiaobaiBob(): void {
+    this.xiaobaiBob?.remove();
+    this.xiaobaiBob = null;
+  }
+
   private showXiaobai(): void {
     if (!this.xiaobai || this.xiaobai.visible) return;
     this.xiaobai.setVisible(true).setAlpha(0);
@@ -1015,13 +1177,267 @@ export class Ch01DormScene extends UIScene {
       duration: this.reduced ? 120 : 520,
       ease: 'Sine.easeOut',
     });
+    this.startXiaobaiBob();
+  }
+
+  /**
+   * 按纯数据时间线执行表演。
+   *
+   * 每一步在自己的开始时间触发，最后一次性收尾（白场淡出 + 恢复输入 + onDone）。
+   * 期间 `performing` 为真：不推进对话、不吃输入、不 sync 角色（起身/坐下会直接改 sprite）。
+   */
+  private startPerformance(timeline: PerformanceTimeline, onDone: () => void): void {
+    if (this.performing || this.shuttingDown) return;
+    this.performing = true;
+    this.cancelAutoAdvance();
+    this.joystick?.setEnabled(false);
+    this.promptText?.setVisible(false);
+    this.highlightRing?.setVisible(false);
+    this.interactAvailable.value = false;
+
+    let at = 0;
+    for (const step of timeline.steps) {
+      const duration = stepDurationMs(step, this.reduced);
+      const startAt = at;
+      this.performanceTimers.push(
+        this.time.delayedCall(startAt, () => {
+          if (this.shuttingDown) return;
+          this.runPerformanceStep(step, duration);
+        }),
+      );
+      at += duration;
+    }
+
+    this.performanceTimers.push(
+      this.time.delayedCall(timelineDurationMs(timeline, this.reduced), () => {
+        if (this.shuttingDown) return;
+        this.finishPerformance();
+        onDone();
+      }),
+    );
+  }
+
+  private runPerformanceStep(step: PerformanceStep, duration: number): void {
+    switch (step.kind) {
+      case 'walk':
+        this.performWalk(step, duration);
+        break;
+      case 'sit':
+        this.performSit(step, duration);
+        break;
+      case 'move-actor':
+        this.performMoveActor(step, duration);
+        break;
+      case 'wait':
+        break;
+      case 'flash':
+        this.performFlash(step);
+        break;
+      case 'stand':
+        this.performStand(step, duration);
+        break;
+    }
+  }
+
+  /** 走到 tile 中心：边挪脚底边推进行走帧 + 木地板脚步。 */
+  private performWalk(step: WalkStep, duration: number): void {
+    const player = this.player;
+    if (!player) return;
+    const target = tileCenter(this.room, step.to[0], step.to[1]);
+    const proxy = { x: player.position.x, y: player.position.y };
+    /**
+     * 表演走位的速度比日常移动快（约 375px/s vs 140px/s），如果沿用 `advanceFootsteps`
+     * 的「每 34px 一步」，1.6 秒会踩出十几下，像打字机。
+     * 这里改成按时间踩点（约每 500ms 一步），和 20 帧步态的脚落地节奏接近。
+     */
+    let stepClock = 0;
     this.tweens.add({
-      targets: this.xiaobai,
-      y: this.xiaobai.y - 8,
-      duration: 1400,
-      yoyo: true,
-      repeat: -1,
+      targets: proxy,
+      x: target.x,
+      y: target.y,
+      duration,
       ease: 'Sine.easeInOut',
+      onUpdate: () => {
+        player.moveTo({ x: proxy.x, y: proxy.y }, step.facing, true, this.game.loop.delta);
+        stepClock += this.game.loop.delta;
+        if (stepClock >= 500) {
+          stepClock -= 500;
+          this.playFootstep();
+        }
+      },
+      onComplete: () => player.moveTo(target, step.facing, false, 0),
+    });
+  }
+
+  /** 坐下：切坐姿贴图 + 轻微下沉；reduced-motion 时省略下沉和尘土。 */
+  private performSit(step: SitStep, duration: number): void {
+    const player = this.player;
+    if (!player) return;
+    if (step.from === 'sit') return; // 已经坐着，这一拍只是让玩家看清构图
+    player.moveTo(player.position, step.facing, false, 0);
+    player.setSitting(true);
+    audioDirector.playSfxAt(PALACE_ASSET_KEYS.sfx.kneel, { volume: 0.22, rate: 0.92 });
+    if (this.reduced) return;
+
+    const sprite = player.display;
+    if (sprite) {
+      const baseY = sprite.y;
+      sprite.setY(baseY - 6);
+      this.tweens.add({
+        targets: sprite,
+        y: baseY,
+        duration: Math.min(duration, 200),
+        ease: 'Back.easeOut',
+      });
+    }
+    if (step.dust) this.spawnSitDust(player.position);
+  }
+
+  /** 坐下时脚边一圈淡出的浅色尘土（纯 Graphics，不占额外资源）。 */
+  private spawnSitDust(at: MapPoint): void {
+    for (let i = 0; i < 5; i += 1) {
+      const dx = (i - 2) * 10;
+      const puff = this.add
+        .ellipse(at.x + dx, at.y + 2, 12, 6, 0xd8c9a8, 0.42)
+        .setDepth(LAYERS.effects);
+      this.tweens.add({
+        targets: puff,
+        x: puff.x + dx * 0.9,
+        y: puff.y - 8,
+        alpha: 0,
+        scaleX: 1.9,
+        scaleY: 1.9,
+        duration: 460,
+        ease: 'Sine.easeOut',
+        onComplete: () => puff.destroy(),
+      });
+    }
+  }
+
+  /** 小白平移到主角右侧；移动前停掉漂浮 bob，落位后从新位置继续 bob。 */
+  private performMoveActor(step: MoveActorStep, duration: number): void {
+    const xiaobai = this.xiaobai;
+    const player = this.player;
+    if (!xiaobai || !player) return;
+    // 玩家跳过手机对话时小白可能还没登场；表演里必须让它出现，否则「在他右边」落空。
+    this.showXiaobai();
+    const target = {
+      x: player.position.x + step.offset[0] * this.room.tileSize,
+      y: player.position.y + step.offset[1] * this.room.tileSize,
+    };
+    this.stopXiaobaiBob();
+    this.tweens.add({
+      targets: xiaobai,
+      x: target.x,
+      y: target.y,
+      duration,
+      ease: 'Sine.easeInOut',
+      onComplete: () => this.startXiaobaiBob(),
+    });
+  }
+
+  /** 全屏白场：DOM 层淡入（盖住 HUD），淡出留到 finishPerformance 与金殿转场重叠。 */
+  private performFlash(step: FlashStep): void {
+    this.flashStep = step;
+    const fade = flashInMs(step, this.reduced);
+    this.flashOverlay = mountFlashOverlay({ color: '#ffffff' });
+    this.flashOverlay?.fadeIn(fade);
+    if (!this.flashOverlay && !this.reduced) {
+      // 没有 DOM（极老 WebView/单测）：退回相机闪白，至少还有一下。
+      this.cameras.main.flash(fade, 255, 255, 255);
+    }
+    audioDirector.playSfxAt(PALACE_ASSET_KEYS.sfx.rumble, { volume: 0.32, rate: 0.85 });
+    audioDirector.playSfxAt(PALACE_ASSET_KEYS.sfx.whoosh, { volume: 0.26 });
+  }
+
+  /** 起身：坐 → 半蹲（换站立贴图压扁）→ 站直；三段 tween，约 380–520ms。 */
+  private performStand(_step: StandStep, duration: number): void {
+    const player = this.player;
+    if (!player) return;
+    const sprite = player.display;
+    if (!sprite) {
+      player.setSitting(false);
+      return;
+    }
+    audioDirector.playSfxAt(PALACE_ASSET_KEYS.sfx.cloth, { volume: 0.3 });
+    // 站立贴图也走回退：Q 版朝右 → 旧版朝右；解析不到就保持现有贴图。
+    const standKey = resolveStandingKey('right', (key) => this.textures.exists(key));
+    const sitScale = player.displayScale;
+    const feet = player.position;
+    const baseY = sprite.y;
+    const halfMs = Math.max(120, Math.round(duration * 0.4));
+    const standMs = Math.max(120, duration - halfMs);
+
+    // 第 1 段：坐姿前倾/下沉。
+    this.tweens.add({
+      targets: sprite,
+      y: baseY + 6,
+      scaleX: sitScale * 0.9,
+      scaleY: sitScale * 0.9,
+      duration: halfMs,
+      ease: 'Sine.easeIn',
+      onComplete: () => {
+        // 第 2 段：切站立贴图，压成半蹲高度。
+        player.setSitting(false);
+        if (standKey !== null) sprite.setTexture(standKey, 0);
+        sprite.setScale(PLAYER_SCALE * 0.55);
+        sprite.setPosition(feet.x, feet.y + 12);
+        audioDirector.playSfxAt(CH01_ASSET_KEYS.audio.stepWoodB, { volume: 0.22 });
+        // 第 3 段：半蹲 → 站直。
+        this.tweens.add({
+          targets: sprite,
+          y: feet.y,
+          scaleX: PLAYER_SCALE,
+          scaleY: PLAYER_SCALE,
+          duration: standMs,
+          ease: 'Back.easeOut',
+          onComplete: () => {
+            player.sync();
+            if (standKey !== null) sprite.setTexture(standKey, 0);
+          },
+        });
+      },
+    });
+  }
+
+  /** 表演收尾：白场开始淡出（与 beginPalace 的转场重叠），恢复输入，再交给调用方。 */
+  private finishPerformance(): void {
+    const flash = this.flashStep;
+    const overlay = this.flashOverlay;
+    this.flashStep = null;
+    if (overlay) {
+      if (flash) {
+        const out = flashOutMs(flash, this.reduced);
+        overlay.fadeOut(out);
+        // 淡出结束再摘层；场景 shutdown 也会兜底 remove。
+        this.performanceTimers.push(
+          this.time.delayedCall(out + 60, () => {
+            overlay.remove();
+            if (this.flashOverlay === overlay) this.flashOverlay = null;
+          }),
+        );
+      } else {
+        overlay.remove();
+        this.flashOverlay = null;
+      }
+    }
+    this.performing = false;
+    this.syncControls();
+    this.updateNear();
+  }
+
+  /**
+   * 战后起身表演：醒来 CG 收起 → 坐一拍 → 起身。
+   *
+   * 坐姿图缺失（`PlayerActor` 起不来）时直接跳过，不能把流程卡在表演里。
+   */
+  private startWakePerformance(): void {
+    if (this.player?.isSitting !== true) return;
+    this.suppressWakeCg = true;
+    this.cg?.hide();
+    this.startPerformance(CH01_WAKE_PERFORMANCE, () => {
+      this.player?.setSitting(false);
+      if (settings.autoAdvance) this.scheduleAutoAdvance();
     });
   }
 
@@ -1109,6 +1525,15 @@ export class Ch01DormScene extends UIScene {
   private onShutdown(): void {
     this.shuttingDown = true;
     this.cancelAutoAdvance();
+    // 表演：停掉所有延时步骤，白光层必须现在摘掉（DOM 层不会跟着 Phaser 场景消失）。
+    this.performing = false;
+    for (const timer of this.performanceTimers) timer.remove();
+    this.performanceTimers = [];
+    this.flashOverlay?.remove();
+    this.flashOverlay = null;
+    this.flashStep = null;
+    this.xiaobaiBob?.remove();
+    this.xiaobaiBob = null;
     // 循环音必须在 SHUTDOWN 里停：Phaser 的 SoundManager 是 game 级的，场景关闭不会自动停。
     this.stopSceneAudio();
     this.cutscene?.destroy();

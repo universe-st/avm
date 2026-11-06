@@ -65,7 +65,9 @@ export const MODULES: Record<ModuleId, GameModule> = {
     id: 'ch01Dorm',
     kind: 'scene',
     sceneKey: SCENE_KEYS.ch01Dorm,
-    requires: ['core', 'ui', 'ch.01', 'cutscene.ch01phone'],
+    // 入梦/起身表演要用金殿那套 whoosh/rumble/cloth/kneel 做占位音效；它们本来就在
+    // 下一个场景的包里，预先带上，免得表演中途静音（代价约 340KB）。
+    requires: ['core', 'ui', 'ch.01', 'cutscene.ch01phone', 'cutscene.ch01palace.sfx'],
     gate: { title: '正在进入第一章 · 寝室' },
   },
   ch01Kitchen: {
