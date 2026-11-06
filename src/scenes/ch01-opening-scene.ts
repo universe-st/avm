@@ -4,7 +4,7 @@ import { UIScene } from '@phaser-mvvm/phaser';
 import { Branch, Button, Column, Row, Text } from '@phaser-mvvm/widgets/compose';
 import { SCENE_KEYS } from '../app/scene-keys';
 import { enterModule } from '../app/director';
-import { runCgHandoff } from '../app/cg-handoff';
+import { planCgExit, runCgHandoff, type CgExitReason } from '../app/cg-handoff';
 import { MODULES } from '../app/modules';
 import { applyCamera } from '../app/viewport';
 import { audioDirector } from '../audio/audio-director';
@@ -12,7 +12,11 @@ import { bgmManager } from '../audio/bgm-manager';
 import { assetService } from '../resource/asset-service';
 import { gateOverlay } from '../resource/gate-overlay';
 import { startCgWhenRevealed, type CgRevealHandle } from '../app/cg-reveal';
-import { mountPixelTransition, type PixelTransitionHandle } from '../ui/pixel-transition';
+import {
+  canCaptureFrame,
+  mountPixelTransition,
+  type PixelTransitionHandle,
+} from '../ui/pixel-transition';
 import { mountVideoSurface, whenFirstFrameDecoded, type VideoSurfaceHandle } from '../ui/video-surface';
 
 const VIDEO_KEY = 'video.ch01.opening';
@@ -58,13 +62,33 @@ const RESUME_ATTEMPTS = 2;
  *    `enterModule` 慢也好、失败也好，都不会让过渡层无限挂住；
  * 3. 预取命中时 `enterModule` 静默切换（`skipGateWhenReady`），像素画直接溶进寝室首帧；
  *    预取没命中就在溶解前把加载页亮起来，保证任何时刻都有进度可看。
+ *
+ * ## 两种退出意图（2026-11-06 修「点跳过时先闪一下马赛克」）
+ *
+ * 旧实现 `finish()` 不区分「播完」和「跳过」，一律抓当前帧像素化：跳过时抓的是随机一帧，
+ * 表现成「突然变像素块 → 定住 120ms → 再溶 320ms」，想快点走的人反而被 440ms 转场绊住。
+ *
+ * 现在由 `planCgExit({ reason, frameReady })`（`app/cg-handoff.ts`，纯函数、有单测）决定：
+ * - `ended` + 抓得到末帧 → 马赛克定格 120ms + 溶解 320ms（**原样保留**，这是有意设计的衔接）；
+ * - `skip`（跳过按钮 / SPACE / ESC / 返回键 / 素材缺失 / 卡住兜底）→ 不做像素化：
+ *   整帧原样盖住（抓不到帧就纯黑 `#05060a`），立刻开始 120ms 淡出。
+ *
+ * 跳过路径的三条硬约束：
+ * 1. **不出现马赛克层**：连 `mountPixelTransition` 都传 `mode:'frame'`；
+ * 2. **不露 `<video>` 最后一帧**：过渡层挂上之后立刻 `surface.hide()`，并把相机底色
+ *    换成不透明墨黑，半透明阶段底下永远是干净画面；
+ * 3. **额外延迟 ≤200ms**：定格 0 + 淡出 120 + 「隔一帧再切场景」，装配时间是固定的，
+ *    `enterModule` 慢只会让加载页多亮一会儿（`runCgHandoff` 的 `reveal`），不会拉长这段。
  */
 export class Ch01OpeningScene extends UIScene {
   private surface: VideoSurfaceHandle | null = null;
   private leaving = false;
   private tapTimer: Phaser.Time.TimerEvent | null = null;
-  /** 收尾时间线持有的马赛克层；不跟着场景 shutdown 一起销毁（它要活过场景切换）。 */
-  private mosaic: PixelTransitionHandle | null = null;
+  /**
+   * 收尾时间线持有的过渡层：播完 = 马赛克层，跳过 = 整帧层（抓不到帧时是纯黑）。
+   * 不跟着场景 shutdown 一起销毁——它要活过场景切换，由 `runCgHandoff` 的定时器移除。
+   */
+  private transition: PixelTransitionHandle | null = null;
   /** 视频「播不动/被暂停」看门狗：ended 事件在个别 WebView 会丢。 */
   private stallTimer: Phaser.Time.TimerEvent | null = null;
   /** 「等加载页撤罩再起播」的流程；shutdown / 跳过时取消，避免遮罩后面偷偷起播。 */
@@ -100,7 +124,7 @@ export class Ch01OpeningScene extends UIScene {
 
     if (missing) {
       console.warn('[ch01-opening] 缺少开场动画素材，直接进入第一章');
-      this.finish();
+      this.finish('skip');
       return;
     }
     if (!this.leaving) this.prefetchDormAssets();
@@ -130,7 +154,7 @@ export class Ch01OpeningScene extends UIScene {
     const src = entry?.url;
     if (!src) {
       console.warn('[ch01-opening] 视频缓存里没有可用地址，直接进入第一章');
-      this.finish();
+      this.finish('skip');
       return;
     }
 
@@ -229,14 +253,14 @@ export class Ch01OpeningScene extends UIScene {
     // 「轻触屏幕开始播放」挂着时是等玩家，不是卡住。
     if (this.needsTap.value) return;
     if (video.ended) {
-      this.finish();
+      this.finish('ended');
       return;
     }
     if (video.paused) {
       this.resumeAttempts += 1;
       if (this.resumeAttempts > RESUME_ATTEMPTS) {
         console.warn('[ch01-opening] 视频被暂停且无法续播，直接进入第一章');
-        this.finish();
+        this.finish('skip');
         return;
       }
       void this.surface?.play();
@@ -250,7 +274,7 @@ export class Ch01OpeningScene extends UIScene {
     this.stalledChecks += 1;
     if (this.stalledChecks < STALL_CHECKS) return;
     console.warn('[ch01-opening] 视频画面停住超过 4.5s，直接进入第一章');
-    this.finish();
+    this.finish('skip');
   };
 
   private handlePlaying = (): void => {
@@ -258,7 +282,7 @@ export class Ch01OpeningScene extends UIScene {
   };
 
   private handleEnded = (): void => {
-    this.finish();
+    this.finish('ended');
   };
 
   private handleVideoError = (reason: string): void => {
@@ -286,7 +310,7 @@ export class Ch01OpeningScene extends UIScene {
 
   private handleSkip = (): void => {
     audioDirector.playClick();
-    this.finish();
+    this.finish('skip');
   };
 
   protected content(): void {
@@ -333,7 +357,7 @@ export class Ch01OpeningScene extends UIScene {
             size: 'sm',
             onClick: () => {
               audioDirector.playClick();
-              this.finish();
+              this.finish('skip');
             },
           });
         });
@@ -341,7 +365,19 @@ export class Ch01OpeningScene extends UIScene {
     );
   }
 
-  private finish(): void {
+  /**
+   * 收尾：`reason` 决定这次走哪种转场（见 `app/cg-handoff.ts` 的 `planCgExit()`）。
+   *
+   * - `ended`：末帧 → 马赛克定格 120ms → 溶解 320ms（原手感，别动）；
+   * - `skip`：整帧原样盖住（抓不到就纯黑）→ **立刻**开始 120ms 淡出，全程不出现像素块。
+   *
+   * 两条路径共用的不变量：
+   * 1. 抓帧/挂层**早于** `pause()` 与 `hide()`——暂停之后的帧不一定已经画进 video 元素；
+   * 2. 过渡层一挂上，`<video>` 就被藏起来（跳过）或停在原地（播完），
+   *    半透明阶段底下不会露出「另一个版本」的画面；
+   * 3. 收尾只由 `runCgHandoff` 的定时器驱动，过渡层最终一定被 `remove()`。
+   */
+  private finish(reason: CgExitReason): void {
     if (this.leaving) return;
     this.leaving = true;
     this.tapTimer?.remove();
@@ -352,14 +388,34 @@ export class Ch01OpeningScene extends UIScene {
     this.reveal = null;
     this.statusText.value = '';
 
-    // 抓帧必须早于 pause / destroy：暂停之后的帧不一定已经画进 video 元素。
-    this.mosaic = mountPixelTransition(this.surface?.element ?? null);
-    this.surface?.element.pause();
+    const surface = this.surface;
+    const video = surface?.element ?? null;
+    const plan = planCgExit({ reason, frameReady: canCaptureFrame(video) });
+
+    // 抓帧必须早于 pause / hide：暂停之后的帧不一定已经画进 video 元素。
+    this.transition = mountPixelTransition(video, {
+      mode: plan.mosaic ? 'mosaic' : 'frame',
+      fadeMs: plan.fadeMs,
+    });
+
+    if (!plan.mosaic) {
+      /**
+       * 跳过：让 canvas 底色变成不透明墨黑，再把 `<video>` 藏起来。
+       *
+       * 过渡层底下从此是一块稳定的黑：淡出过程中不会透出 body 的径向渐变、
+       * 也不会在寝室首帧（`create` 实测 160~200ms）还没跟上时露出视频最后一帧。
+       * 预取没命中时 `runCgHandoff` 会在淡出前把加载页亮起来，玩家看到的是
+       * 「定格帧 → 加载页 → 寝室」，而不是一块不动的像素画。
+       */
+      this.cameras.main.setBackgroundColor('#05060a');
+      surface?.hide();
+    }
+    surface?.element.pause();
     this.cameras.main.fadeOut(240, 5, 6, 10);
 
-    if (!this.mosaic) {
+    if (!this.transition) {
       /**
-       * 抓不到帧（首帧还没解码就被跳过 / 老 WebView）：直接进寝室，不为了转场多等。
+       * 连过渡层都建不出来（DOM 缺失 / 极端 WebView）：直接进寝室，不为了转场多等。
        * 但预取可能还在跑——把进行中的批次亮成加载页，否则玩家会盯着黑屏干等，
        * 直到排队中的寝室门禁开跑才有反馈（慢网下能等好几秒）。
        */
@@ -373,16 +429,18 @@ export class Ch01OpeningScene extends UIScene {
     }
 
     void runCgHandoff({
+      holdMs: plan.holdMs,
+      fadeMs: plan.fadeMs,
       enter: () => enterModule(this, 'ch01Dorm', undefined, { skipGateWhenReady: true }),
       afterPaint: (fn) => this.afterPaint(fn),
       isReady: () => assetService.isReady(MODULES.ch01Dorm.requires),
       reveal: () => {
         assetService.revealLoading();
       },
-      fadeOut: () => this.mosaic?.fadeOut(),
+      fadeOut: () => this.transition?.fadeOut(),
       remove: () => {
-        this.mosaic?.remove();
-        this.mosaic = null;
+        this.transition?.remove();
+        this.transition = null;
       },
       // 场景 shutdown 之后 this.time 会停，收尾必须用窗口计时器。
       schedule: (fn, ms) => {
@@ -395,7 +453,7 @@ export class Ch01OpeningScene extends UIScene {
   }
 
   /**
-   * 等浏览器把上一帧提交掉（马赛克的 opacity transition 已经进合成器）再起跑场景切换。
+   * 等浏览器把上一帧提交掉（过渡层的 opacity transition 已经进合成器）再起跑场景切换。
    *
    * 寝室首帧 `create()` 实测会堵主线程 160~200ms；如果同一帧里既改样式又切场景，
    * 样式还没提交就被卡住，溶解会被一起推迟。后台标签页 rAF 不跑，用定时器兜底。
@@ -435,18 +493,18 @@ export class Ch01OpeningScene extends UIScene {
     this.surface = null;
 
     /**
-     * 正常收尾（`finish()` 已经交给 `runCgHandoff`）时**不能**在这里删马赛克：
+     * 正常收尾（`finish()` 已经交给 `runCgHandoff`）时**不能**在这里删过渡层：
      * 场景会在 `enterModule` resolve 的那一刻 shutdown，而马赛克还要继续溶解。
      * 只有非收尾路径（例如被外部强制停场景）才顺手清掉，避免全屏残影。
      */
     if (!this.leaving) {
-      this.mosaic?.remove();
-      this.mosaic = null;
+      this.transition?.remove();
+      this.transition = null;
     }
   }
 
   protected override onBack(): boolean {
-    this.finish();
+    this.finish('skip');
     return true;
   }
 }

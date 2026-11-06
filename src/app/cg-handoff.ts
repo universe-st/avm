@@ -33,6 +33,48 @@
  *    先让浏览器提交一帧，溶解就交给合成器，定格时间从此只由 `holdMs` 决定。
  */
 
+/**
+ * CG 是「怎么走的」：`ended` = 自然播完，`skip` = 玩家主动跳过（按钮 / SPACE / ESC / 返回键）
+ * 以及所有兜底退出（素材缺失、视频加载失败、卡住不动、被暂停且续播不回来）。
+ */
+export type CgExitReason = 'ended' | 'skip';
+
+/** 一次退出的转场编排（纯数据，供 `ui/pixel-transition` 画、供场景排时间线）。 */
+export interface CgExitPlan {
+  /** 是否走「末帧像素化定格 → 溶解」这套画风转场。 */
+  readonly mosaic: boolean;
+  /** 定格时长（ms）：过渡层完全不动的那一段。 */
+  readonly holdMs: number;
+  /** 溶解时长（ms）：过渡层从全不透明到透明的 CSS transition。 */
+  readonly fadeMs: number;
+}
+
+/**
+ * 补一条 2026-11-06 的反馈：**点「跳过」时会先闪一下马赛克**。
+ *
+ * 原因是 `finish()` 把「播完」和「跳过」当成同一件事：跳过时抓的是随机一帧，
+ * 于是「突然变像素块 → 定住 120ms → 再溶 320ms」全砸在玩家脸上——想快点走的人
+ * 反而被一段 440ms 的画风转场绊住。
+ *
+ * 现在按意图分开：
+ * - **播完**：末帧像素化定格 120ms + 溶解 320ms（原样保留，这是有意设计的「视频 → 像素游戏」衔接）；
+ * - **跳过**：不做像素化，抓一整帧原样盖住（抓不到就纯黑 `#05060a`），**立刻**开始 ≤160ms 的淡出。
+ *   定格 0ms + 淡出 120ms ⇒ 玩家点完「跳过」到寝室首帧之间，我们只额外加 ≤ 一帧 + 120ms。
+ *
+ * 纯函数：不 import Phaser / DOM，单测直接断言四种组合。
+ */
+export function planCgExit(input: {
+  readonly reason: CgExitReason;
+  /** 视频当前帧能否抓取（`readyState >= HAVE_CURRENT_DATA` 且 `videoWidth > 0`）。 */
+  readonly frameReady: boolean;
+}): CgExitPlan {
+  // 只有「自然播完 + 抓得到末帧」才配得上像素转场：跳过没有末帧可言，抓到的只是随机画面。
+  if (input.reason === 'ended' && input.frameReady) {
+    return { mosaic: true, holdMs: CG_HANDOFF_HOLD_MS, fadeMs: CG_HANDOFF_FADE_MS };
+  }
+  return { mosaic: false, holdMs: 0, fadeMs: CG_SKIP_FADE_MS };
+}
+
 export interface CgHandoffDeps {
   /** 场景切换：淡出提交之后才调用。失败只回调 `onError`，不打断收尾时间线。 */
   readonly enter: () => Promise<void>;
@@ -58,6 +100,11 @@ export interface CgHandoffDeps {
 export const CG_HANDOFF_HOLD_MS = 120;
 /** 溶解时长：240ms 太硬，450ms 太拖；320ms 和视频本身的镜头切换同量级。 */
 export const CG_HANDOFF_FADE_MS = 320;
+/**
+ * 跳过时的淡出时长：120ms。硬指标 ≤160ms——跳过要像一次剪切，
+ * 慢过 160ms 就会被感知成「卡了一下」；再快（<100ms）又显得画面在抽搐。
+ */
+export const CG_SKIP_FADE_MS = 120;
 /** CSS transition 结束后再等一小段，避免元素在过渡中途被删掉。 */
 export const CG_HANDOFF_CLEANUP_MS = 120;
 

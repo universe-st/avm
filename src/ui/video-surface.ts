@@ -62,6 +62,13 @@ export interface VideoSurfaceHandle {
   readonly backdrop: HTMLVideoElement | null;
   readonly muted: boolean;
   setMuted(muted: boolean): void;
+  /**
+   * 把两层视频一起藏起来（`visibility:hidden`，不摘 DOM、不动解码器）。
+   *
+   * 跳过 CG 时用：先把当前帧抓到过渡层上盖住，再藏视频——这样无论淡出快慢、
+   * 无论场景何时 shutdown，`<video>` 的最后一帧都不会从半透明的过渡层底下露出来。
+   */
+  hide(): void;
   play(): Promise<void>;
   destroy(): void;
 }
@@ -315,6 +322,11 @@ export function mountVideoSurface(options: VideoSurfaceOptions): VideoSurfaceHan
     play(): Promise<void> {
       playBackdrop();
       return playForeground();
+    },
+    hide(): void {
+      if (destroyed) return;
+      foreground.style.visibility = 'hidden';
+      if (backdrop) backdrop.style.visibility = 'hidden';
     },
     destroy(): void {
       if (destroyed) return;
