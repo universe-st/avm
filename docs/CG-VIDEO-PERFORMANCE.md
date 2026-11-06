@@ -197,3 +197,54 @@ loadeddata      首帧就绪 → release()（门禁立刻撤罩，跳过 holdMs 
 - `docs/screenshots/ingame/37-ch01-opening-transition-v3.gif`：写实 → 像素 → 寝室（8 帧 / 240 宽 / 96 色）。
 - 单测：`test/cg-reveal.test.ts`（遮罩没撤前不得 play、首帧没好不撤罩、取消要放行门禁、超时兜底）、
   `test/gate-overlay.test.ts`（遮罩信号与 hold/release）、`test/pixel-mosaic.test.ts`（像素层保持宽高比 + cover 裁切）。
+
+## 9. 2026-11-06 修复：点「跳过」时先闪一下马赛克
+
+### 现象
+
+在开场 CG 点「跳过」（屏幕按钮 / SPACE / ESC / 返回键）时，画面**先变成像素块、定住、再溶进寝室**，
+像是「想快反而被一段转场绊住」。
+
+### 根因（`src/scenes/ch01-opening-scene.ts:344` 旧 `finish()`）
+
+「自然播完」和「跳过」共用同一个收尾函数，无条件执行：
+
+```ts
+this.mosaic = mountPixelTransition(this.surface?.element ?? null);  // 抓当前帧像素化
+this.surface?.element.pause();
+this.cameras.main.fadeOut(240, 5, 6, 10);
+// → runCgHandoff({ holdMs: 120, fadeMs: 320 })
+```
+
+马赛克转场是给「播完 → 像素定格 → 溶进寝室」设计的；跳过时抓到的是**随机一帧**，
+于是表现成「突然变像素块 → 定住 120ms → 再溶 320ms」（合计 440ms）。
+
+### 做法
+
+1. **意图进纯函数**：`src/app/cg-handoff.ts` 新增 `planCgExit({ reason, frameReady })`
+   → `{ mosaic, holdMs, fadeMs }`。不 import Phaser / DOM，单测直接断言四种组合。
+   - `ended` + 抓得到末帧 → `120 / 320`（原手感，一点没动）；
+   - `skip`（含素材缺失、卡住、被暂停等兜底）→ `mosaic: false`、`holdMs: 0`、`fadeMs: 120`（≤160ms）。
+2. **跳过不出现马赛克**：`src/ui/pixel-transition.ts` 的 `mountPixelTransition()` 增加
+   `mode: 'mosaic' | 'frame'` + `fadeMs` 参数。`frame` 模式按当前帧**原分辨率**（长边 ≤1280）
+   画一块整帧 canvas，不 `image-rendering:pixelated`，几何仍与 `<video>` 的 contain 一致
+   （纯逻辑 `planFrameTransition()`，有单测）；抓不到帧时**不返回 null**，退化成纯黑 `#05060a` 层。
+3. **不露 `<video>` 最后一帧**：跳过路径在挂上过渡层之后立刻
+   `cameras.main.setBackgroundColor('#05060a')` + `surface.hide()`（`visibility:hidden`，`VideoSurfaceHandle` 新增）。
+   半透明阶段底下是稳定的墨黑；场景 shutdown 时 `destroy()` 摘掉视频元素也仍有过渡层压着。
+4. **收尾纪律不变**：仍由 `runCgHandoff` 的定时器驱动、`fadeOut()` 之后隔一帧再 `enter()`，
+   过渡层在 `fadeMs + 120ms` 时 `remove()`；预取没命中照样先亮加载页。
+
+### 待实机验证（合并后统一回归）
+
+| 时刻 | 要抓的 DOM / 现象 | 期望 |
+| --- | --- | --- |
+| 视频播到一半点「跳过」 | `document.querySelector('[data-avm="pixel-transition"]')` | **null**（跳过不挂马赛克） |
+| 同上 | `[data-avm="frame-transition"]` 的 `getBoundingClientRect` | 全屏 390×844，覆盖 `<video>` |
+| 同上 | 点下到寝室首帧 `create` | ≤ 200ms 的额外延迟（不含资源下载），全屏过渡层从出现到移除约 240ms |
+| 跳过时 `<video>` 状态 | `video.style.visibility` | `hidden`；过渡层移除后视频节点已被 `destroy()` 摘掉 |
+| 播放到自然结束 | `[data-avm="pixel-transition"]` + 45×80 / 48×104 两块 canvas | 与本次改动前一致（120ms 定格 + 320ms 溶解） |
+| 首帧还没解码就按 SPACE | 过渡层存在但只有纯黑底（无 canvas） | 正常进寝室，不卡住、不留全屏残影 |
+
+剩余风险：个别 WebView 对 `visibility:hidden` 的 `<video>` 会重排一帧；
+因为隐藏发生在不透明过渡层挂上之后，这一帧被盖住，理论上不可见，但需实机确认。
