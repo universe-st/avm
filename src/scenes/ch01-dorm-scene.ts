@@ -27,6 +27,7 @@ import { typeVoiceForSpeaker } from '../audio/type-voice';
 import { autoAdvanceDelay, resolveReducedMotion, settings, textSpeedFactor } from '../app/settings';
 import { saveProgress } from '../app/progress';
 import { bgmManager } from '../audio/bgm-manager';
+import { SCENE_SILENT } from '../audio/bgm-tracks';
 import {
   isStageLaunchContext,
   stageBoolParam,
@@ -201,7 +202,9 @@ export class Ch01DormScene extends UIScene {
     this.createWorld();
     super.create();
     audioDirector.attach(this);
-    bgmManager.enterScene(this);
+    // 默认绑定是校园日常《午后小憩》（见 `bgm-tracks.ts` 的 SCENE_BGM）；只有「睡觉戏」开场
+    // 明确静场（只有呼噜声），进探索时再由 startExploreAudio 切曲。
+    bgmManager.enterScene(this, this.isOpening() ? SCENE_SILENT : undefined);
     if (this.isOpening()) this.startSnore();
     this.cameras.main.fadeIn(this.reduced ? 220 : 460, 5, 6, 10);
 
@@ -965,7 +968,9 @@ export class Ch01DormScene extends UIScene {
     this.stopSnore();
     this.player?.setSitting(false);
     this.roomView?.setChairVisible(true);
-    bgmManager.play('ch01Dorm');
+    // 睡觉戏开场是静场的，进探索时切回**场景绑定**里的曲子（不是写死 ch01Dorm：运行时改绑要生效）。
+    // 从「继续游戏」直接进探索时绑定曲已经在 create 播过，这里是同一实例的续播判定（不会从头播）。
+    bgmManager.applySceneBinding();
     // 环境音：蝉鸣/操场/吊扇，压得很低，只负责「这个房间是活的」。
     audioDirector.playSfxAt(CH01_ASSET_KEYS.audio.ambienceDay, { volume: 0.22, loop: true });
   }

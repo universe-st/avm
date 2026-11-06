@@ -110,7 +110,7 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     sceneKey: SCENE_KEYS.ch01Kitchen,
     title: '第一章 · 第二节 御膳房',
     status: 'ready',
-    requires: ['core', 'ui', 'ch01.char', 'ch01.kitchen'],
+    requires: ['core', 'ui', 'ch01.char', 'ch01.kitchen', 'ch01.bgm'],
     description:
       '32×64 单张连续地图：无限射程扇形视野、三层暗幕、3 条巡逻、背后偷袭、躲藏、门开躲屏风、草堆偷袭老肯，被抓进 battle.ch01.kitchen。phase=intro|explore|gate|hide|haystack|done|fail；debug=1 显示巡逻/躲藏/触发区；spot=kitchen|backstab|hay|gate 为验收定位。',
     tags: ['ch01', 'map'],
@@ -121,7 +121,14 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     sceneKey: SCENE_KEYS.ch01Palace,
     title: '第一章 · 梦域金殿',
     status: 'ready',
-    requires: ['core', 'ui', 'cutscene.ch01palace', 'cutscene.ch01palace.walk', 'cutscene.ch01palace.sfx'],
+    requires: [
+      'core',
+      'ui',
+      'cutscene.ch01palace',
+      'cutscene.ch01palace.walk',
+      'cutscene.ch01palace.sfx',
+      'ch01.bgm',
+    ],
     description:
       '殿上过场：白光吞没、跪于殿前、楚公公喊护驾、梦中郑卿、太监裂皮变矿工，结束进战斗。',
     tags: ['ch01', 'cutscene'],

@@ -19,6 +19,7 @@ import { TitleScene } from './scenes/title-scene';
 import { LoaderScene } from './resource/loader-scene';
 import { assetService } from './resource/asset-service';
 import { installStageConsole, type StageConsoleApi } from './dev/stage-runner';
+import { bgmManager, type BgmDebugApi } from './audio/bgm-manager';
 
 const plan = planViewport();
 setViewportPlan(plan);
@@ -179,5 +180,11 @@ const debugApi: AvmDebugApi = {
   },
 };
 (window as unknown as { __AVM__: AvmDebugApi }).__AVM__ = debugApi;
+
+// BGM 验收后门（只读）：当前曲目 / 实例编号（同曲续播时不变）/ 播放进度。
+// Playwright 里用 `window.__avmBgm.snapshot()` 一行读全。只在 DEV 构建里挂。
+if (import.meta.env.DEV) {
+  (window as unknown as { __avmBgm: BgmDebugApi }).__avmBgm = bgmManager.debugApi();
+}
 
 export { game, debugApi };

@@ -4,6 +4,7 @@ import { Button, Column, Divider, Panel, Row, Text } from '@phaser-mvvm/widgets/
 import { enterModule } from '../app/director';
 import { applyCamera, getViewportPlan } from '../app/viewport';
 import { audioDirector } from '../audio/audio-director';
+import { bgmManager } from '../audio/bgm-manager';
 import { findStage, type BattleStageDef } from '../dev/stage-catalog';
 import { launchStage } from '../dev/stage-runner';
 import { hashSeed, mulberry32 } from '../dev/random';
@@ -76,6 +77,8 @@ export class BattleSandboxScene extends UIScene {
     addScrims(this);
     this.drawEnemies();
     super.create();
+    // 战斗沙盒：绑定是「沿用当前曲目」（SCENE_HOLD），不打断从标题进来的 BGM。
+    bgmManager.enterScene(this);
     this.cameras.main.fadeIn(this.context?.skip === true ? 100 : 320, 5, 6, 10);
   }
 

@@ -6,6 +6,7 @@ import { SCENE_KEYS } from '../app/scene-keys';
 import { applyCamera } from '../app/viewport';
 import { autoAdvanceDelay, resolveReducedMotion, settings } from '../app/settings';
 import { audioDirector } from '../audio/audio-director';
+import { bgmManager } from '../audio/bgm-manager';
 import { PALACE_ASSET_KEYS } from '../assets/keys';
 import { isStageLaunchContext, stageParam } from '../dev/stage-types';
 import { LAYERS, characterDepth } from '../render/layers';
@@ -115,6 +116,9 @@ export class Ch01PalaceScene extends UIScene {
 
   override create(): void {
     super.create();
+    audioDirector.attach(this);
+    // 场景绑定：梦域金殿《清除协议》（见 bgm-tracks.ts）。随后进战斗是同一首，实例与进度连续。
+    bgmManager.enterScene(this);
     this.actors.clear();
     this.shadows.clear();
     this.transitioning = false;

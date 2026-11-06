@@ -25,6 +25,7 @@ import { enterModule } from '../app/director';
 import { saveProgress } from '../app/progress';
 import { CH01_KITCHEN_BATTLE_ID } from '../battle/data/ch01-kitchen';
 import { audioDirector } from '../audio/audio-director';
+import { bgmManager } from '../audio/bgm-manager';
 import { CH01_KITCHEN_ASSET_KEYS, KITCHEN_CAST } from '../assets/keys';
 import { typeVoiceForSpeaker } from '../audio/type-voice';
 import { autoAdvanceDelay, resolveReducedMotion, settings, textSpeedFactor } from '../app/settings';
@@ -350,6 +351,8 @@ export class Ch01KitchenScene extends UIScene {
     // 相机跟随玩家滚动；Compose 页面必须钉在屏幕上，否则 HUD 会跟着地图滚走。
     this.page?.setScrollFactor(0);
     audioDirector.attach(this);
+    // 场景绑定：潜入戏复用《危机来临》的冷脉冲；进战斗再由 battleCh01 交叉淡化到《清除协议》。
+    bgmManager.enterScene(this);
     audioDirector.playSfxAt(CH01_KITCHEN_ASSET_KEYS.audio.ambience, { volume: 0.22, loop: true });
     this.cameras.main.fadeIn(this.reduced ? 180 : 360, 5, 6, 10);
     this.installInput();

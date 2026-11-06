@@ -72,14 +72,21 @@ export const MODULES: Record<ModuleId, GameModule> = {
     id: 'ch01Kitchen',
     kind: 'scene',
     sceneKey: SCENE_KEYS.ch01Kitchen,
-    requires: ['core', 'ui', 'ch01.char', 'ch01.kitchen'],
+    requires: ['core', 'ui', 'ch01.char', 'ch01.kitchen', 'ch01.bgm'],
     gate: { title: '正在进入御膳房' },
   },
   ch01Palace: {
     id: 'ch01Palace',
     kind: 'scene',
     sceneKey: SCENE_KEYS.ch01Palace,
-    requires: ['core', 'ui', 'cutscene.ch01palace', 'cutscene.ch01palace.walk', 'cutscene.ch01palace.sfx'],
+    requires: [
+      'core',
+      'ui',
+      'cutscene.ch01palace',
+      'cutscene.ch01palace.walk',
+      'cutscene.ch01palace.sfx',
+      'ch01.bgm',
+    ],
     gate: { title: '正在进入梦域 · 金殿' },
   },
   battleCh01: {

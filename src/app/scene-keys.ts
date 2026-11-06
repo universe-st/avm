@@ -26,7 +26,7 @@ export type SceneKey = (typeof SCENE_KEYS)[keyof typeof SCENE_KEYS];
 export const INFRA_SCENE_KEYS: readonly SceneKey[] = [SCENE_KEYS.boot, SCENE_KEYS.loader];
 
 /** 可以被舞台预览目录直接启动的场景宿主（一个宿主可以承载多个舞台条目）。 */
-export const CONTENT_SCENE_KEYS: readonly SceneKey[] = [
+export const CONTENT_SCENE_KEYS = [
   SCENE_KEYS.title,
   SCENE_KEYS.prologue,
   SCENE_KEYS.placeholder,
@@ -37,7 +37,10 @@ export const CONTENT_SCENE_KEYS: readonly SceneKey[] = [
   SCENE_KEYS.battleCh01,
   SCENE_KEYS.cgStage,
   SCENE_KEYS.battleSandbox,
-];
+] as const satisfies readonly SceneKey[];
+
+/** 内容场景 key 的字面量联合；音乐绑定表要求每个 key 都显式登记。 */
+export type ContentSceneKey = (typeof CONTENT_SCENE_KEYS)[number];
 
 const CONTENT_SET = new Set<string>(CONTENT_SCENE_KEYS);
 
