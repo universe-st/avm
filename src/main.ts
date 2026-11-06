@@ -18,6 +18,7 @@ import { Ch01OpeningScene } from './scenes/ch01-opening-scene';
 import { TitleScene } from './scenes/title-scene';
 import { LoaderScene } from './resource/loader-scene';
 import { assetService } from './resource/asset-service';
+import { audioDirector } from './audio/audio-director';
 import { installStageConsole, type StageConsoleApi } from './dev/stage-runner';
 import { bgmManager, type BgmDebugApi } from './audio/bgm-manager';
 
@@ -167,6 +168,10 @@ export interface AvmDebugApi {
     readonly bundles: () => readonly string[];
     readonly keys: () => readonly string[];
   };
+  /** 音频验收：当前登记的循环音（标题页应当为空，寝室唤醒后应当有 snore）。 */
+  readonly audio: {
+    readonly loops: () => readonly string[];
+  };
 }
 
 const stageConsole = installStageConsole(game);
@@ -177,6 +182,9 @@ const debugApi: AvmDebugApi = {
   assets: {
     bundles: () => assetService.loadedBundleIds(),
     keys: () => assetService.loadedAssetKeys(),
+  },
+  audio: {
+    loops: () => audioDirector.activeLoopKeys,
   },
 };
 (window as unknown as { __AVM__: AvmDebugApi }).__AVM__ = debugApi;

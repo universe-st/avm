@@ -22,7 +22,7 @@ import { LAYERS } from '../render/layers';
 import { enterModule } from '../app/director';
 import { SCENE_KEYS } from '../app/scene-keys';
 import { applyCamera, getViewportPlan } from '../app/viewport';
-import { audioDirector } from '../audio/audio-director';
+import { audioDirector, type LoopHandle } from '../audio/audio-director';
 import { typeVoiceForSpeaker } from '../audio/type-voice';
 import { autoAdvanceDelay, resolveReducedMotion, settings, textSpeedFactor } from '../app/settings';
 import { saveProgress } from '../app/progress';
@@ -118,7 +118,8 @@ export class Ch01DormScene extends UIScene {
   private cg: CgOverlay | null = null;
   private emotionBubble: EmotionBubble | null = null;
   private emotionHoldUntil = 0;
-  private snore: Phaser.Sound.BaseSound | null = null;
+  /** 郑卿的呼噜：登记在 audioDirector 的循环表里，退出/重开时统一收尾。 */
+  private snore: LoopHandle | null = null;
   private bgmStarted = false;
   private card: TitleCard | null = null;
   private cardTimer: Phaser.Time.TimerEvent | null = null;
@@ -306,7 +307,8 @@ export class Ch01DormScene extends UIScene {
     this.cg = null;
     this.emotionBubble = null;
     this.emotionHoldUntil = 0;
-    this.snore = null;
+    // 重开本节时若还有一条在响的呼噜，必须先停再丢引用，否则 Sound 会变成没人管的孤儿。
+    this.stopSnore();
     this.bgmStarted = false;
     this.card = null;
     this.cardTimer = null;
@@ -940,13 +942,13 @@ export class Ch01DormScene extends UIScene {
   }
 
   private startSnore(): void {
-    const key = CH01_ASSET_KEYS.audio.snore;
-    if (!this.cache.audio.exists(key)) return;
-    const sound = this.sound.add(key, { loop: true, volume: 0 });
-    this.snore = sound;
-    sound.play();
+    // 走 audioDirector 的循环表（而不是裸 this.sound.add）：场景 shutdown / restart 时
+    // 由登记表统一停掉，呼噜不会跟着玩家回到标题页。
+    const handle = audioDirector.playLoop(CH01_ASSET_KEYS.audio.snore, { volume: 0 });
+    if (!handle) return;
+    this.snore = handle;
     this.tweens.add({
-      targets: sound,
+      targets: handle.sound,
       volume: settings.muted ? 0 : settings.sfx * 0.6,
       duration: 320,
       ease: 'Sine.easeOut',
@@ -954,12 +956,22 @@ export class Ch01DormScene extends UIScene {
   }
 
   private stopSnore(): void {
-    const sound = this.snore;
-    if (!sound) return;
+    const handle = this.snore;
+    if (!handle) return;
     this.snore = null;
-    this.tweens.killTweensOf(sound);
-    sound.stop();
-    sound.destroy();
+    // stop 会一并 kill 指着这条 Sound 的音量 tween（见 AudioDirector.trackLoop）。
+    handle.stop();
+  }
+
+  /**
+   * 本节自持的循环音统一收尾点：呼噜 + 蝉鸣环境音。
+   *
+   * shutdown / restart / 转场 / 结束卡都走这里，避免以后新增循环音时又漏一条。
+   * `audioDirector.attach()` 在 SHUTDOWN 还会兜底 `stopAllLoops()`，这里负责「提前、显式」。
+   */
+  private stopSceneAudio(): void {
+    this.stopSnore();
+    this.stopAmbience();
   }
 
   private startExploreAudio(): void {
@@ -1013,8 +1025,7 @@ export class Ch01DormScene extends UIScene {
     this.promptText?.setVisible(false);
     this.cg?.hide();
     this.emotionBubble?.hide();
-    this.stopSnore();
-    this.stopAmbience();
+    this.stopSceneAudio();
 
     if (!this.reduced) this.cameras.main.flash(180, 255, 255, 255);
     this.time.delayedCall(this.reduced ? 80 : 260, () => {
@@ -1043,8 +1054,7 @@ export class Ch01DormScene extends UIScene {
     this.interactAvailable.value = false;
     this.cg?.hide();
     this.emotionBubble?.hide();
-    this.stopSnore();
-    this.stopAmbience();
+    this.stopSceneAudio();
     saveProgress('ch01.complete', { preview: this.preview });
     openCh01EndCard(this.mvvm, {
       // 正式流程：结束卡直接送进第二节。`preview` 原样传给下游，预览不写进度。
@@ -1073,6 +1083,8 @@ export class Ch01DormScene extends UIScene {
     this.exitModal = openCh01ExitConfirm(this.mvvm, {
       onTitle: () => {
         audioDirector.playClick();
+        // 先停本节的循环音（呼噜/蝉鸣）再走加载门：不等 SHUTDOWN，标题页一出现就是静的。
+        this.stopSceneAudio();
         void enterModule(this, 'title');
       },
       onClose: () => {
@@ -1084,7 +1096,8 @@ export class Ch01DormScene extends UIScene {
   private onShutdown(): void {
     this.shuttingDown = true;
     this.cancelAutoAdvance();
-    this.stopAmbience();
+    // 循环音必须在 SHUTDOWN 里停：Phaser 的 SoundManager 是 game 级的，场景关闭不会自动停。
+    this.stopSceneAudio();
     this.cutscene?.destroy();
     this.cutscene = null;
     this.input.off('pointerdown', this.onScenePointerDown, this);

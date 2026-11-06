@@ -116,6 +116,8 @@ export class Ch01PalaceScene extends UIScene {
 
   override create(): void {
     super.create();
+    // 大殿的循环音（环境音/心跳）走 audioDirector 的循环表：注册宿主场景后，
+    // SHUTDOWN 会由 AudioDirector 自动兜底 stopAllLoops，不依赖场景自己记得停。
     audioDirector.attach(this);
     // 场景绑定：梦域金殿《清除协议》（见 bgm-tracks.ts）。随后进战斗是同一首，实例与进度连续。
     bgmManager.enterScene(this);
