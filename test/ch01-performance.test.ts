@@ -49,6 +49,7 @@ describe('寝室入梦表演（dreamIntro）', () => {
     const sit = timeline.steps[1];
     expect(sit?.kind).toBe('sit');
     if (sit?.kind !== 'sit') throw new Error('expected sit');
+    expect(sit.to).toEqual(CH01_SIT_TILE);
     expect(sit.from).toBe('stand');
     expect(sit.facing).toBe('right');
     expect(sit.dust).toBe(true);
@@ -99,6 +100,10 @@ describe('寝室战后起身表演（wakeUp）', () => {
 
   it('第一步是 sit 而不是 stand（进来就坐在地上，不是先站再瞬移坐下）', () => {
     expect(timeline.steps[0]?.kind).toBe('sit');
+    const first = timeline.steps[0];
+    if (first?.kind !== 'sit') throw new Error('expected sit');
+    expect(first.to).toEqual(CH01_SIT_TILE);
+    expect(first.from).toBe('sit');
     expect(timeline.steps.some((step) => step.kind === 'stand')).toBe(true);
     const firstStand = timeline.steps.findIndex((step) => step.kind === 'stand');
     expect(firstStand).toBeGreaterThan(0);
