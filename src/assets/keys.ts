@@ -122,6 +122,14 @@ export const CH01_ASSET_KEYS = {
     zhouQWalkUpRight: 'img.char.ch01.q.walk_up_right',
     xiaobai: 'img.char.ch01.xiaobai',
     zhouSit: 'img.char.ch01.zhou_sit',
+    /**
+     * 坐在地上、面朝右的正式素材（待生成）。
+     *
+     * 白盒阶段 bundle 里暂时把这个 key 指向现有 `zhou_sit.png` 占位；正式图出来后
+     * 只改 `bundles.ts` 的 url。场景通过 `resolveSittingKey()` 探测，缺图时回退
+     * `zhou_sit` → Q 版朝右，绝不白屏。
+     */
+    zhouSitRight: 'img.char.ch01.zhou_sit_right',
     zheng: 'img.char.ch01.zheng',
     miner: 'img.char.ch01.miner',
   },

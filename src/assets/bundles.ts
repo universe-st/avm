@@ -813,6 +813,15 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         tags: ['character'],
       },
       {
+        // 正式「坐地朝右」素材还没生成（见 docs/ASSET-CREDITS.md 与 t23 报告）；
+        // 先复用 zhou_sit.png 把 key 占住，这样换图时只改这一行 url，场景代码不用动。
+        key: 'img.char.ch01.zhou_sit_right',
+        kind: 'image',
+        url: 'assets/img/character/ch01/zhou_sit.png',
+        label: '周全坐地朝右（占位）',
+        tags: ['character', 'placeholder'],
+      },
+      {
         key: 'img.char.ch01.zheng',
         kind: 'image',
         url: 'assets/img/character/ch01/zheng.png',

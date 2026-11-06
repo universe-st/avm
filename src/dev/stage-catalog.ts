@@ -99,7 +99,7 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     sceneKey: SCENE_KEYS.ch01Dorm,
     title: '第一章 · 第一节 寝室',
     status: 'ready',
-    requires: ['core', 'ui', 'ch.01', 'cutscene.ch01phone'],
+    requires: ['core', 'ui', 'ch.01', 'cutscene.ch01phone', 'cutscene.ch01palace.sfx'],
     description:
       '寝室小地图：移动、碰撞、叫醒郑卿、找手机（播放手机 CG）、小白登场。phase=opening|explore|after|complete，debug=1 显示碰撞。',
     tags: ['ch01', 'map'],

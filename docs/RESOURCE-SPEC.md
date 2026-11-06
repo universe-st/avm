@@ -37,7 +37,7 @@ interface AssetDef {
 | `cutscene.ch01palace` | 梦域金殿地图 `hall.png`（1056×1728）+ 13 张殿上角色图（200×420）+ 2 张半身立绘（720×900） | 8 MB | — | 金殿过场 `scene.ch01.palace`；战斗 `battle.ch01.first` 也复用它当背景 |
 | `cutscene.ch01palace.walk` | 郑卿 / 楚公公 八方向行走 sheet（各 8 张 × 16 帧 × 200×420，WebP） | 12 MB | `cutscene.ch01palace` | 只在金殿过场加载；走位时播帧，停下回静态图 |
 | `cutscene.ch01palace.sfx` | 金殿音效 14 条（环境/脚步/跪地/裂皮/心跳…，mp3 24kHz 单声道，共约 300 KB） | 1 MB | `cutscene.ch01palace` | 过场音效；缺失时静默跳过，不阻断 |
-| `ch.01` | 33×54 寝室整图（重组窗光版）、郑卿睡床 4 帧、周全 Q 版八向/行走、小白/郑卿、沉睡症新闻 CG、呼噜/拳击/手机 SFX、寝室环境音与木地板脚步 A/B；依赖 `ch01.bgm`（寝室曲 + 回忆 cue） | 12 MB | — | 进入第一章 |
+| `ch.01` | 33×54 寝室整图（重组窗光版）、郑卿睡床 4 帧、周全 Q 版八向/行走、小白/郑卿、沉睡症新闻 CG、呼噜/拳击/手机 SFX、寝室环境音与木地板脚步 A/B；`img.char.ch01.zhou_sit_right` 为坐地朝右占位 key（暂时复用 `zhou_sit.png`）；依赖 `ch01.bgm`（寝室曲 + 回忆 cue） | 12 MB | — | 进入第一章 |
 | `ch01.bgm` | 第一章共享 BGM 三首：《午后小憩》`ch01_dorm`（寝室）、《危机来临》`ch01_crisis`（回忆/御膳房）、《清除协议》`ch01_dream`（金殿/剧情战），约 3.3 MB | 4 MB | — | `ch.01` / `battle.ch01` 依赖它；`ch01Kitchen` / `ch01Palace` 显式 requires |
 | `battle.common` | 战斗公共资源（本期为空，依赖 `ui`） | 3 MB | — | 进入剧情战 |
 | `battle.ch01` | 战斗专用舞台 `miner_hall.webp`（720×1280）、矿工 sprite、金属 SFX；依赖 `ch.01` 复用周全 sprite、依赖 `ch01.bgm` 取战斗曲 | 5 MB | — | 进入剧情战 |
@@ -54,6 +54,7 @@ interface AssetDef {
 - 资源路径/key 按 `map / character / cg / battle / ui` 分组，key 统一从 `src/assets/keys.ts` 取，详见 `docs/RENDER-LAYERS.md`。当前 `ch.01` 共 40 个文件。
 - 2026-10-29 新增：沉睡症新闻回忆 CG `img.cg.ch01.news`（1080×1920 黑白 WebP，257 KB）与回忆 BGM `audio.bgm.ch01_crisis`（84s，1.34 MB）。Q 版 8 向 20 帧行走 sheet 占约 3.2 MB，章节包实际约 10.2 MB；`budgetKB` 已按实际登记为 12 MB，后续压缩行走帧时再回收。
 - BGM/SFX 标 `required:false`：音频失败只静音，不阻断剧情。
+- 2026-11-06（t23 寝室入梦/起身表演白盒）：新增占位 key `img.char.ch01.zhou_sit_right`，url 先指向现有 `zhou_sit.png`（正式「坐地朝右」素材出来只改 url）；寝室模块 `ch01Dorm` 预载 `cutscene.ch01palace.sfx`（约 300 KB）作为白光/坐下/起身的占位音效，避免表演中途静音。
 
 ## 3. 场景资源作用域（核心机制）
 
