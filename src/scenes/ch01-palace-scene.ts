@@ -122,6 +122,9 @@ export class Ch01PalaceScene extends UIScene {
 
     applyCamera(this);
     this.cameras.main.setBackgroundColor('#08060a');
+    // 大殿的循环音（环境音/心跳）走 audioDirector 的循环表：注册宿主场景后，
+    // SHUTDOWN 会由 AudioDirector 自动兜底 stopAllLoops，不依赖场景自己记得停。
+    audioDirector.attach(this);
 
     this.worldRoot = this.add.container(0, 0).setDepth(LAYERS.background);
     this.director = new CinematicDirector(this, this.reduced, this.worldRoot);
