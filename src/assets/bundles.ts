@@ -718,7 +718,8 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
     // Q 版 8 向 × 20 帧行走 sheet（约 3.2 MB）把章节包顶到 ~10.2 MB；原 8 MB 预算已不现实，
     // 先按实际体积登记，等压缩行走帧时再回收（budgetKB 目前只作元数据）。
     budgetKB: 12288,
-    dependsOn: ['ui', 'ch01.char'],
+    // 寝室剧情包含回忆段的 BGM cue（`ch01Crisis`），所以章节包依赖共享 BGM 包。
+    dependsOn: ['ui', 'ch01.char', 'ch01.bgm'],
     assets: [
       {
         key: 'img.map.ch01.dorm_room',
@@ -819,15 +820,6 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         tags: ['map', 'character'],
       },
       {
-        key: 'audio.bgm.ch01_dorm',
-        kind: 'audio',
-        url: 'assets/audio/bgm/ch01_dorm.mp3',
-        // 环境音失败不阻断：寝室可以静音探索。
-        required: false,
-        label: '寝室环境《闷热午后》',
-        tags: ['bgm'],
-      },
-      {
         key: 'audio.sfx.ch01_punch',
         kind: 'audio',
         url: 'assets/audio/sfx/ch01_punch.mp3',
@@ -911,15 +903,6 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         url: 'assets/img/cg/ch01/news.webp',
         label: 'CG · 沉睡症新闻（黑白回忆）',
         tags: ['cg'],
-      },
-      {
-        key: 'audio.bgm.ch01_crisis',
-        kind: 'audio',
-        url: 'assets/audio/bgm/ch01_crisis.mp3',
-        // 回忆段的音乐失败只静音，不阻断对白。
-        required: false,
-        label: '回忆《危机来临》',
-        tags: ['bgm'],
       },
     ],
   },
@@ -1602,6 +1585,46 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
       },
     ],
   },
+  /**
+   * 第一章的共享 BGM（3 首，~3.3 MB）。
+   *
+   * 单拎出来的原因：寝室（`ch.01`）、御膳房（`ch01.kitchen`）、金殿过场（`cutscene.ch01palace`）
+   * 和剧情战（`battle.ch01`）都要用其中的一两首，但它们的其它资源互不复用。
+   * 把这些曲子留在 `ch.01` / `battle.ch01` 里，御膳房/金殿要么拿不到音频、要么为了
+   * 1 MB 的曲子拖进 10 MB 的房间包。音频失败只静音，不阻断流程。
+   */
+  'ch01.bgm': {
+    id: 'ch01.bgm',
+    budgetKB: 4096,
+    assets: [
+      {
+        key: 'audio.bgm.ch01_dorm',
+        kind: 'audio',
+        url: 'assets/audio/bgm/ch01_dorm.mp3',
+        // 音乐失败不阻断：可以静音继续探索/过场。
+        required: false,
+        label: '寝室日常《午后小憩》',
+        tags: ['bgm'],
+      },
+      {
+        key: 'audio.bgm.ch01_crisis',
+        kind: 'audio',
+        url: 'assets/audio/bgm/ch01_crisis.mp3',
+        // 回忆段的音乐失败只静音，不阻断对白。
+        required: false,
+        label: '危机《危机来临》',
+        tags: ['bgm'],
+      },
+      {
+        key: 'audio.bgm.ch01_dream',
+        kind: 'audio',
+        url: 'assets/audio/bgm/ch01_dream.mp3',
+        required: false,
+        label: '梦域金殿《清除协议》',
+        tags: ['bgm'],
+      },
+    ],
+  },
   'battle.common': {
     id: 'battle.common',
     budgetKB: 3072,
@@ -1612,7 +1635,8 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
     id: 'battle.ch01',
     budgetKB: 5120,
     // 战斗复用寝室 bundle 里的周全 sprite；collectAssets 会按依赖展开。
-    dependsOn: ['battle.common', 'ch.01'],
+    // 金殿过场与本章唯一战斗共用《清除协议》，所以也显式依赖共享 BGM 包。
+    dependsOn: ['battle.common', 'ch.01', 'ch01.bgm'],
     assets: [
       {
         key: 'img.battle.ch01.miner_hall',
@@ -1627,14 +1651,6 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         url: 'assets/img/character/ch01/miner.png',
         label: '矿工·清除单元',
         tags: ['battle', 'pixel'],
-      },
-      {
-        key: 'audio.bgm.ch01_dream',
-        kind: 'audio',
-        url: 'assets/audio/bgm/ch01_dream.mp3',
-        required: false,
-        label: '梦域金殿《清除协议》',
-        tags: ['bgm'],
       },
       {
         key: 'audio.sfx.ch01_metal',

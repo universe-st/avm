@@ -164,12 +164,14 @@ LoaderScene 用 Phaser 原生对象（Rectangle/Graphics/Text）画进度，**�
 
 ## 5. 音频
 
-- `audio/bgm-tracks.ts`：纯数据——曲目表（key + 标签 + 淡入淡出时长）与「场景 → 曲子」映射；`undefined` = 保持当前曲目，`null` = 淡出到静音。单测不需要 Phaser。
-- `audio/bgm-manager.ts`：`BgmManager` 在 `scene.create()` 里被 `enterScene(this)` 调用一次，按场景表切曲；跨场景的淡出交给**新场景**的 tween 驱动（旧场景 shutdown 会销毁自己的 tween）。
+- `audio/bgm-tracks.ts`：纯数据——曲目表（key + 标签 + 淡入淡出时长）、**显式的场景绑定表** `SCENE_BGM`（三态：`track` / `silence` / `hold`，没有「没登记 = 沿用」）、三态解析 `resolveSceneTrack(sceneKey, overrides)` 与运行时改绑表合成 `withSceneBinding()`。单测不需要 Phaser。
+- `audio/bgm-plan.ts`：纯判定——`planBgmTransition(state, binding)` 输出 `start` / `continue` / `resume` / `silence` / `hold`。**同一首跨场景必须 `continue`**（复用实例与进度，不回到 0）。
+- `audio/bgm-manager.ts`：`BgmManager` 在 `scene.create()` 里被 `enterScene(this)` 调用一次，按绑定切曲；跨场景的淡出交给**新场景**的 tween 驱动（旧场景 shutdown 会销毁自己的 tween，attach 时会清掉这些失效记账）。`bindScene()` / `clearSceneBinding()` 是运行时改绑，跨场景生效；`play(id)` 只服务剧情 cue，不写绑定表。
 - `audio/audio-director.ts`：只剩 SFX（点击、逐字提示音）、WebAudio 首触解锁与后台暂停。
 - 音量记账：淡入淡出不读 `sound.volume`（WebAudio gain 要等一个渲染量子，刚 play 时读到的是 1），而是由管理器自己记账后再写回。
-- 新增一首 BGM：`bundles.ts` 登记 key → `bgm-tracks.ts` 加曲目并在 `BGM_BY_SCENE` 绑定场景 → 场景 `create()` 里已经有 `enterScene` 就不用改。缺资源时只 `console.warn`，不阻断剧情。
+- 新增一首 BGM：`bundles.ts` 登记 key（第一章三首在共享包 `ch01.bgm`）→ `bgm-tracks.ts` 加曲目并在 `SCENE_BGM` 写显式绑定 → 确认场景 `requires` 闭包包含该 bundle → 场景 `create()` 里已经有 `enterScene` 就不用改。缺资源时只 `console.warn`，不阻断剧情；`test/bgm.test.ts` 会守住「每个内容场景都有绑定、绑定曲在 requires 里」。
 - 首触解锁：`play()` 先尝试播；被浏览器拦截则监听 SoundManager 的 `unlocked`，首次 pointerdown/keydown 补播并淡入。
+- 细节见 [AUDIO-BGM.md](AUDIO-BGM.md)（三态语义、同曲续播、改绑 API、新增场景清单、`window.__avmBgm` 调试钩子）。
 - `visibilitychange` 与 Cordova `pause/resume` 暂停/恢复全部音频。
 - 音量/静音写入 `localStorage` 的 `avm.settings.v1`。
 

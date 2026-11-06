@@ -6,6 +6,7 @@ import { Button, Column, Panel, Row, Text } from '@phaser-mvvm/widgets/compose';
 import { enterModule } from '../app/director';
 import { applyCamera, getViewportPlan } from '../app/viewport';
 import { audioDirector } from '../audio/audio-director';
+import { bgmManager } from '../audio/bgm-manager';
 import { findStage, type CgStageDef } from '../dev/stage-catalog';
 import {
   createStageContext,
@@ -67,6 +68,8 @@ export class CgStageScene extends UIScene {
     this.mountFrame(this.frameIndex, false);
     addScrims(this);
     super.create();
+    // 调试查看器：绑定是「沿用当前曲目」（SCENE_HOLD），这里只负责接管音量收敛。
+    bgmManager.enterScene(this);
     this.cameras.main.fadeIn(this.context?.skip === true ? 100 : 360, 5, 6, 10);
 
     this.input.keyboard?.on('keydown-LEFT', this.handlePrev);

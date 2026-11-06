@@ -56,7 +56,8 @@ describe('scene release plan', () => {
   it('releases chapter assets when returning to the title', () => {
     const loaded = expandBundleIds(['core', 'ui', 'ch.01']);
     const plan = planRelease(loaded, ['core', 'title']);
-    expect(plan.bundles).toEqual(['ch01.char', 'ch.01']);
+    // 章节包依赖共享 BGM 包（寝室剧情有回忆段的切曲 cue），所以回收时一起走。
+    expect(plan.bundles).toEqual(['ch01.char', 'ch01.bgm', 'ch.01']);
     const releasedKeys = plan.assets.map((asset) => asset.key);
     expect(releasedKeys).toContain('img.map.ch01.dorm_room');
     expect(releasedKeys).toContain('audio.bgm.ch01_dorm');

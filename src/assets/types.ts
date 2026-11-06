@@ -10,6 +10,7 @@ export type BundleId =
   | 'ch.01'
   | 'ch01.char'
   | 'ch01.kitchen'
+  | 'ch01.bgm'
   | 'battle.common'
   | 'battle.ch01'
   | 'cutscene.ch01opening'
