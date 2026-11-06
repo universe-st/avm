@@ -8,6 +8,14 @@ import type { Facing, MapPoint, RoomDef } from '../map/types';
 import { tileCenter } from '../map/core/room';
 import { LAYERS, characterDepth } from '../render/layers';
 import { setLinearTextures, setPixelTextures } from '../ui/pixel';
+import {
+  initialPose,
+  poseAfterMove,
+  poseAfterSetSitting,
+  poseTextureKind,
+  walkFrameIndex,
+  type PlayerPose,
+} from './player-pose';
 
 // 20 帧 × 65ms ≈ 一个 1.3s 的步态循环；旧的 8 帧 @95ms 只有 760ms，看着像抖。
 const WALK_FRAME_MS = 65;
@@ -55,9 +63,13 @@ export class PlayerActor {
   private readonly shadow: Phaser.GameObjects.Ellipse | null;
   private feetPoint: MapPoint;
   private facingValue: Facing;
-  private walking = false;
-  private walkClock = 0;
-  private sitting: boolean;
+  /**
+   * 姿态唯一真值（坐/走/站立帧时钟）。
+   *
+   * 坐姿是独占姿态：`moveTo()` 只在**没坐着**时才变成行走；这样表演里
+   * walk tween 的最后一帧不会把 sit 步骤的坐姿覆盖掉（t23 真机回归的根因）。
+   */
+  private pose: PlayerPose;
   private readonly sittingKey?: string;
   private readonly sittingOffsetY: number;
   private readonly sittingScale: number;
@@ -77,7 +89,10 @@ export class PlayerActor {
     this.facingValue = spawn.facing;
     this.sittingKey = options.sittingKey;
     this.sittingOffsetY = options.sittingOffsetY ?? 0;
-    this.sitting = options.sitting === true && options.sittingKey !== undefined;
+    this.pose = poseAfterSetSitting(
+      initialPose(),
+      options.sitting === true && options.sittingKey !== undefined,
+    );
     this.staticKeys = options.staticKeys ?? CH01_STATIC_SPRITES;
     this.walkSheets = options.walkSheets ?? CH01_WALK_SHEETS;
     this.frameWidth = options.frameWidth ?? 64;
@@ -88,7 +103,7 @@ export class PlayerActor {
       typeof options.sittingScale === 'number' && options.sittingScale > 0
         ? options.sittingScale
         : this.spriteScale;
-    this.headOffset = options.headOffset ?? (this.sitting ? 64 : 96);
+    this.headOffset = options.headOffset ?? (this.pose.sitting ? 64 : 96);
     this.depthMaxY = options.depthMaxY ?? 1600;
 
     const keys: string[] = [
@@ -145,12 +160,12 @@ export class PlayerActor {
   }
 
   get isSitting(): boolean {
-    return this.sitting;
+    return this.pose.sitting;
   }
 
   /** 当前贴图应有的显示缩放（坐姿和站立可能不同尺寸）。 */
   get displayScale(): number {
-    return this.sitting ? this.sittingScale : this.spriteScale;
+    return this.pose.sitting ? this.sittingScale : this.spriteScale;
   }
 
   /** 相机跟随/屏幕坐标换算用的显示对象；没有精灵时为 null。 */
@@ -161,30 +176,28 @@ export class PlayerActor {
   /** 头顶中心（精灵顶部），供表情气泡把尾巴钉在头上。 */
   get headPoint(): MapPoint {
     return {
-      x: this.feetPoint.x + (this.sitting ? 0 : 0),
+      x: this.feetPoint.x,
       y: this.feetPoint.y - this.headOffset,
     };
   }
 
-  /** 场景移动解算后调用；`deltaMs` 用于推进行走帧。 */
+  /**
+   * 场景移动解算后调用；`deltaMs` 用于推进行走帧。
+   *
+   * 坐姿是独占姿态：坐着时调用本方法只挪脚底/朝向，不会把贴图切回行走帧。
+   * （表演里 walk tween 和 sit 定时器会在同一 tick 结束，Clock 先于 TweenManager，
+   * 旧实现会在这里 `sitting = false` 把 sit 覆盖掉。）
+   */
   moveTo(position: MapPoint, facing: Facing, walking: boolean, deltaMs: number): void {
     this.feetPoint = position;
     this.facingValue = facing;
-    this.walking = walking;
-    if (walking) {
-      this.sitting = false;
-      this.walkClock += deltaMs;
-    } else {
-      this.walkClock = 0;
-    }
+    this.pose = poseAfterMove(this.pose, walking, deltaMs);
     this.sync();
   }
 
-  /** 开局坐在书桌前；开始探索时由场景解除。 */
+  /** 坐下/起身的唯一入口；开始探索时由场景解除坐姿。 */
   setSitting(value: boolean): void {
-    this.sitting = value && this.sittingKey !== undefined;
-    this.walking = false;
-    this.walkClock = 0;
+    this.pose = poseAfterSetSitting(this.pose, value && this.sittingKey !== undefined);
     this.sync();
   }
 
@@ -192,18 +205,23 @@ export class PlayerActor {
   sync(): void {
     if (!this.sprite) return;
     const sheet = this.walkSheets[this.facingValue];
-    if (this.sitting && this.sittingKey && this.scene.textures.exists(this.sittingKey)) {
+    const sittingAvailable =
+      this.sittingKey !== undefined && this.scene.textures.exists(this.sittingKey);
+    const kind = poseTextureKind(this.pose, sittingAvailable);
+    if (kind === 'sitting' && this.sittingKey !== undefined) {
       this.sprite.setTexture(this.sittingKey, 0);
-    } else if (this.walking && this.scene.textures.exists(sheet)) {
-      const frame = Math.floor(this.walkClock / WALK_FRAME_MS) % this.walkFrameCount;
-      this.sprite.setTexture(sheet, frame);
+    } else if (kind === 'walking' && this.scene.textures.exists(sheet)) {
+      this.sprite.setTexture(
+        sheet,
+        walkFrameIndex(this.pose, WALK_FRAME_MS, this.walkFrameCount),
+      );
     } else {
       this.sprite.setTexture(this.staticKeys[this.facingValue], 0);
     }
     // 坐姿素材画布尺寸和站立帧不同（96×160 vs 160×400），共用缩放会让人忽大忽小。
     this.sprite.setScale(this.displayScale);
     // 上下起伏已经烘进 20 帧序列里，这里不再叠一层随机相位的 bob（会和步态打架）。
-    const sittingOffset = this.sitting ? this.sittingOffsetY : 0;
+    const sittingOffset = this.pose.sitting ? this.sittingOffsetY : 0;
     this.sprite.setPosition(this.feetPoint.x, this.feetPoint.y + sittingOffset);
     this.sprite.setDepth(characterDepth(this.feetPoint.y, this.depthMaxY));
     this.shadow?.setPosition(this.feetPoint.x, this.feetPoint.y + sittingOffset + 2);
@@ -212,7 +230,6 @@ export class PlayerActor {
   destroy(): void {
     this.sprite?.destroy();
     this.shadow?.destroy();
-    this.walking = false;
-    this.sitting = false;
+    this.pose = initialPose();
   }
 }

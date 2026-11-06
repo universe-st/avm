@@ -52,6 +52,8 @@ export interface WalkStep extends StepTiming {
 export interface SitStep extends StepTiming {
   readonly kind: 'sit';
   readonly actor: 'zhou';
+  /** 坐下的落点 tile；表演执行器会先停掉走路 tween 再钉到这个点。 */
+  readonly to: readonly [number, number];
   readonly facing: Facing;
   /** `stand` = 现在站着要坐下；`sit` = 已经坐着，只给一个停顿拍。 */
   readonly from: 'stand' | 'sit';
@@ -106,6 +108,7 @@ export const CH01_DREAM_INTRO_PERFORMANCE: PerformanceTimeline = {
     {
       kind: 'sit',
       actor: 'zhou',
+      to: CH01_SIT_TILE,
       facing: 'right',
       from: 'stand',
       dust: true,
@@ -134,7 +137,16 @@ export const CH01_DREAM_INTRO_PERFORMANCE: PerformanceTimeline = {
 export const CH01_WAKE_PERFORMANCE: PerformanceTimeline = {
   id: 'wakeUp',
   steps: [
-    { kind: 'sit', actor: 'zhou', facing: 'right', from: 'sit', dust: false, ms: 640, reducedMs: 240 },
+    {
+      kind: 'sit',
+      actor: 'zhou',
+      to: CH01_SIT_TILE,
+      facing: 'right',
+      from: 'sit',
+      dust: false,
+      ms: 640,
+      reducedMs: 240,
+    },
     { kind: 'stand', actor: 'zhou', ms: 460, reducedMs: 220 },
     { kind: 'wait', ms: 160, reducedMs: 60 },
   ],

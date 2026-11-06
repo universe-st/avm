@@ -147,6 +147,13 @@ export class Ch01DormScene extends UIScene {
   private xiaobai: Phaser.GameObjects.Image | null = null;
   /** 小白的上下漂浮；移动位置前必须停掉，否则两个 tween 会抢同一个 y。 */
   private xiaobaiBob: Phaser.Tweens.Tween | null = null;
+  /**
+   * 表演走位的 tween。
+   *
+   * 必须持引用：sit 步骤和 walk tween 在同一 tick 结束（Clock 先于 TweenManager），
+   * 进 sit 时要主动停掉它，否则最后一帧还是会 `moveTo()` 挪脚/刷新贴图。
+   */
+  private walkTween: Phaser.Tweens.Tween | null = null;
   /** 表演进行中：屏蔽移动/交互，也不推进对话逐字。 */
   private performing = false;
   private performanceTimers: Phaser.Time.TimerEvent[] = [];
@@ -360,6 +367,7 @@ export class Ch01DormScene extends UIScene {
     this.player = null;
     this.xiaobai = null;
     this.xiaobaiBob = null;
+    this.walkTween = null;
     this.performing = false;
     for (const timer of this.performanceTimers) timer.remove();
     this.performanceTimers = [];
@@ -1249,7 +1257,7 @@ export class Ch01DormScene extends UIScene {
      * 这里改成按时间踩点（约每 500ms 一步），和 20 帧步态的脚落地节奏接近。
      */
     let stepClock = 0;
-    this.tweens.add({
+    this.walkTween = this.tweens.add({
       targets: proxy,
       x: target.x,
       y: target.y,
@@ -1263,17 +1271,38 @@ export class Ch01DormScene extends UIScene {
           this.playFootstep();
         }
       },
-      onComplete: () => player.moveTo(target, step.facing, false, 0),
+      onComplete: () => {
+        this.walkTween = null;
+        player.moveTo(target, step.facing, false, 0);
+      },
     });
   }
 
-  /** 坐下：切坐姿贴图 + 轻微下沉；reduced-motion 时省略下沉和尘土。 */
+  /** 停掉表演走位；tween 的 onComplete 不会再触发，避免它和 sit 抢贴图。 */
+  private stopWalkTween(): void {
+    this.walkTween?.stop();
+    this.walkTween = null;
+  }
+
+  /**
+   * 坐下：先停走位 tween、钉到 sit 的落点，再切坐姿贴图。
+   *
+   * 这里的顺序是 t23 真机回归的修复点：Clock 先于 TweenManager 更新，sit 定时器
+   * 会在 walk tween 的最后一帧之前触发；旧实现只 `setSitting(true)`，随后 walk
+   * 的最后一帧 `moveTo(walking=true)` 又把贴图刷回行走/站立。
+   * 现在走位 tween 在进 sit 时被 stop，且 `PlayerActor` 保证坐姿独占，不会被覆盖。
+   * reduced-motion 时省略下沉和尘土。
+   */
   private performSit(step: SitStep, duration: number): void {
     const player = this.player;
     if (!player) return;
-    if (step.from === 'sit') return; // 已经坐着，这一拍只是让玩家看清构图
-    player.moveTo(player.position, step.facing, false, 0);
+    const target = tileCenter(this.room, step.to[0], step.to[1]);
+    this.stopWalkTween();
+    // 先钉回坐下的 tile 中心（走位最后一帧可能还差几像素），再进入坐姿。
+    player.moveTo(target, step.facing, false, 0);
     player.setSitting(true);
+
+    if (step.from === 'sit') return; // 已经坐着，这一拍只是让玩家看清构图
     audioDirector.playSfxAt(PALACE_ASSET_KEYS.sfx.kneel, { volume: 0.22, rate: 0.92 });
     if (this.reduced) return;
 
@@ -1532,6 +1561,8 @@ export class Ch01DormScene extends UIScene {
     this.flashStep = null;
     this.xiaobaiBob?.remove();
     this.xiaobaiBob = null;
+    this.walkTween?.stop();
+    this.walkTween = null;
     // 循环音必须在 SHUTDOWN 里停：Phaser 的 SoundManager 是 game 级的，场景关闭不会自动停。
     this.stopSceneAudio();
     this.cutscene?.destroy();
