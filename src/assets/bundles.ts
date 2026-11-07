@@ -828,6 +828,15 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         tags: ['character', 'sequence'],
       },
       {
+        // 160×400 正侧面朝右站立静帧；与站立 Q 帧同一画布基准（371 高 / 底边 394 / 中心 80）。
+        // 只入库，暂未接入场景（t39）。
+        key: 'img.char.ch01.zhou_idle_right',
+        kind: 'image',
+        url: 'assets/img/character/ch01/zhou_idle_right.png',
+        label: '周全 · 侧面站立 idle（朝右）',
+        tags: ['character'],
+      },
+      {
         key: 'img.char.ch01.zheng',
         kind: 'image',
         url: 'assets/img/character/ch01/zheng.png',

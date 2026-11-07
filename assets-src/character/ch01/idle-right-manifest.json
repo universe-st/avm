@@ -1,0 +1,47 @@
+{
+  "key": "img.char.ch01.zhou_idle_right",
+  "file": "public/assets/img/character/ch01/zhou_idle_right.png",
+  "generator": "tools/make-zhou-idle-right.py",
+  "sourceJob": "imw5uxk0386893c",
+  "sourceIndex": 0,
+  "canvas": {
+    "width": 160,
+    "height": 400
+  },
+  "displayScale": 0.6138,
+  "idle": {
+    "w": 124,
+    "h": 371,
+    "top": 23,
+    "bottom": 394,
+    "cx": 80.0,
+    "head_w": 121,
+    "head_ratio": 0.326,
+    "neck_w": 29,
+    "shoulder": 134,
+    "shoulder_ratio": 0.299,
+    "foot_px": 46
+  },
+  "standupEndFrame": {
+    "w": 127,
+    "h": 371,
+    "top": 23,
+    "bottom": 394,
+    "cx": 80.5,
+    "head_w": 124,
+    "head_ratio": 0.334,
+    "neck_w": 31,
+    "shoulder": 134,
+    "shoulder_ratio": 0.299,
+    "foot_px": 31
+  },
+  "diff": {
+    "height": 0,
+    "headWidth": -3,
+    "shoulderY": 0,
+    "topY": 0,
+    "bottomY": 0,
+    "centerX": -0.5
+  },
+  "silhouetteIou": 0.882
+}
