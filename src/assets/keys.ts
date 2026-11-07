@@ -123,19 +123,21 @@ export const CH01_ASSET_KEYS = {
     xiaobai: 'img.char.ch01.xiaobai',
     zhouSit: 'img.char.ch01.zhou_sit',
     /**
-     * 坐在地上、面朝右的正式素材（待生成）。
+     * 坐在地上、面朝右的正式素材（t28 生成，`tools/make-zhou-sit-standup.py`）。
      *
-     * 白盒阶段 bundle 里暂时把这个 key 指向现有 `zhou_sit.png` 占位；正式图出来后
-     * 只改 `bundles.ts` 的 url。场景通过 `resolveSittingKey()` 探测，缺图时回退
-     * `zhou_sit` → Q 版朝右，绝不白屏。
+     * 160×400 画布、人物高 160 / 底边 394 / 水平中心 80，**按 scale 1.0 显示**
+     * （与站立帧 371×0.6138≈228 同一屏显比例：坐着本来就矮）。场景通过
+     * `resolveSittingKey()` 探测，缺图时回退 `zhou_sit` → Q 版朝右，绝不白屏。
      */
     zhouSitRight: 'img.char.ch01.zhou_sit_right',
     /**
-     * 起身帧序列 `zhou_stand_up`（待生成）。
+     * 坐地起身序列 `zhou_stand_up`（t28 生成正式图）。
      *
      * 约定：横排 strip，8 帧 × 160×400 = 1280×400（脚底在 y≈394），65ms/帧。
-     * 白盒阶段 bundle 里先指向 `zhou_sit.png` 占位（尺寸对不上 → 场景判定为不可用），
-     * 正式图出来后只改 `bundles.ts` 的 url，场景代码不用动。
+     * `CH01_ZHOU_STAND_UP` 里有帧数/帧尺寸/帧时长/显示缩放；**按 displayScale 1.0 播**，
+     * 和坐姿图同一套画布，别再乘 PLAYER_SCALE。
+     * 白盒阶段 bundle 里曾指向 `zhou_sit.png` 占位（尺寸对不上 → 场景判定为不可用）；
+     * 正式图已就位，只改了 `bundles.ts` 的 url，场景代码不用动。
      */
     zhouStandUp: 'img.char.ch01.zhou_stand_up',
     zheng: 'img.char.ch01.zheng',
@@ -220,6 +222,32 @@ export const CH01_Q_FRAME = { width: 160, height: 400 } as const;
 
 /** Q 版行走 sheet 的帧数：`tools/make-ch01-q-walk20.py` 由 8 帧插值成 20 帧。 */
 export const CH01_Q_WALK_FRAME_COUNT = 20;
+
+/**
+ * 坐地起身序列的帧元数据（t28）。
+ *
+ * 画布 160×400 / 帧宽 160 / 8 帧 = 1280 宽（< 4096 真机纹理上限）。
+ * **displayScale = 1.0**：这张 sheet 和 `zhou_sit_right` 同一套画布与缩放，
+ * 第 1 帧与坐姿图逐像素对齐（高 160），最后一帧屏显高 228 = 站立帧 371×0.6138，
+ * 起身演完可以无缝切回站立贴图。乘 0.6138 会让人站起来时突然缩成一小只。
+ */
+export const CH01_ZHOU_STAND_UP = {
+  key: CH01_ASSET_KEYS.characters.zhouStandUp,
+  frameCount: 8,
+  frameWidth: 160,
+  frameHeight: 400,
+  frameMs: 65,
+  displayScale: 1,
+} as const;
+
+/** 坐地朝右静帧的显示元数据：底边/中心与站立帧同基准，缩放 1.0。 */
+export const CH01_ZHOU_SIT_RIGHT = {
+  key: CH01_ASSET_KEYS.characters.zhouSitRight,
+  displayScale: 1,
+  height: 160,
+  bottom: 394,
+  centerX: 80,
+} as const;
 
 
 /** 第一章第二节（御膳房）P2 资源；地图先进，角色/UI/音效随后补。 */

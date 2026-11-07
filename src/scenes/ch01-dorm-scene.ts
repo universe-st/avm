@@ -11,6 +11,8 @@ import {
   CH01_Q_STATIC_SPRITES,
   CH01_Q_WALK_FRAME_COUNT,
   CH01_Q_WALK_SHEETS,
+  CH01_ZHOU_SIT_RIGHT,
+  CH01_ZHOU_STAND_UP,
   PALACE_ASSET_KEYS,
 } from '../assets/keys';
 import { PlayerActor } from '../actors/player-actor';
@@ -131,8 +133,8 @@ const PLAYER_HEAD_OFFSET = 232;
  * 坐姿图脚底相对脚底坐标的偏移。
  *
  * 椅子占位图自带椅脚，脚底贴地即 offset 0；正式坐地素材若有裙摆/腿的余白再调。
- * （坐姿的**缩放**不在这里写死：由 `sittingScaleFor(贴图源图高)` 按
- * `CH01_SIT_DISPLAY_HEIGHT` 换算，见 `create()`。）
+ * （坐姿的**缩放**：正式素材取 `CH01_ZHOU_SIT_RIGHT.displayScale`，其余回退贴图由
+ * `sittingScaleFor(贴图源图高)` 按 `CH01_SIT_DISPLAY_HEIGHT` 换算，见 `create()`。）
  */
 const ZHOU_SIT_OFFSET_Y = 0;
 
@@ -487,16 +489,23 @@ export class Ch01DormScene extends UIScene {
      * 不管是不是战后回来都要带上：入梦表演也要在房间中心坐下。
      */
     const sittingKey = resolveSittingKey((key) => this.textures.exists(key));
-    /**
-     * 坐姿缩放按**贴图源图高**换算（占位 96×160 → 1.0，正式 160×400 → 0.4）。
-     *
-     * 回退链最后一档是 Q 版**站姿**朝右立绘——那不是坐姿图，若按 160px 目标缩放
-     * 会把一个人缩成 0.4 的小块，所以这一档沿用站立缩放/站立头顶高度。
-     */
     const sittingFallsBackToStanding = sittingKey === CH01_Q_STATIC_SPRITES.right;
     const sittingSource = sittingKey === null ? null : this.textures.get(sittingKey).getSourceImage();
     const sittingHeight =
       sittingSource !== null && 'height' in sittingSource ? Number(sittingSource.height) : 0;
+    /**
+     * 坐姿缩放：**正式素材按自己声明的缩放**，回退贴图按源图高换算。
+     *
+     * t28 的 `zhou_sit_right.png` 是「人物高 160 + 画布高 400」——400 只是留给
+     * 脚底 y≈394 与站立帧对齐的留白。若照 t29 的「按画布高换算」当成
+     * `160/400 = 0.4`，人会被缩成 64px（站立 228px 的三分之一），所以这一档
+     * 直接取 `CH01_ZHOU_SIT_RIGHT.displayScale`（1.0）。
+     * 回退链的占位图（96×160 椅子坐姿）仍走 `sittingScaleFor(源图高)` → 1.0。
+     */
+    const sittingScale =
+      sittingKey === CH01_ASSET_KEYS.characters.zhouSitRight
+        ? CH01_ZHOU_SIT_RIGHT.displayScale
+        : sittingScaleFor(sittingHeight);
     this.player = new PlayerActor(this, this.room, {
       staticKeys: CH01_Q_STATIC_SPRITES,
       walkSheets: CH01_Q_WALK_SHEETS,
@@ -511,9 +520,7 @@ export class Ch01DormScene extends UIScene {
         : {
             sittingKey,
             sittingOffsetY: ZHOU_SIT_OFFSET_Y,
-            sittingScale: sittingFallsBackToStanding
-              ? PLAYER_SCALE
-              : sittingScaleFor(sittingHeight),
+            sittingScale: sittingFallsBackToStanding ? PLAYER_SCALE : sittingScale,
             // 坐地后人物比站立矮一截，表情气泡要跟着降下来。
             sittingHeadOffset: sittingFallsBackToStanding
               ? PLAYER_HEAD_OFFSET
@@ -1550,7 +1557,9 @@ export class Ch01DormScene extends UIScene {
     const total = Math.max(1, duration);
     const proxy = { t: 0 };
     // 帧序列自带的行走脚感：播放期间不再叠坐姿贴图（performing 冻结 sync）。
-    sprite.setScale(PLAYER_SCALE);
+    // 缩放取素材声明（1.0）：这张 sheet 与坐姿图同一套 160×400 画布，末帧已按
+    // 站立屏显高 228 画好；再乘 PLAYER_SCALE 会让起身过程中人先缩一半再弹回站立。
+    sprite.setScale(CH01_ZHOU_STAND_UP.displayScale);
     sprite.setPosition(feet.x, feet.y);
     sprite.setTexture(key, 0);
     this.tweens.add({
