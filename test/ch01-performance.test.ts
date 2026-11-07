@@ -17,6 +17,7 @@ import {
   CH01_STAND_UP_SEQUENCE,
   CH01_WAKE_PERFORMANCE,
   CH01_XIAOBAI_OFFSET,
+  STANDUP_TO_IDLE_FADE_MAX_MS,
   STANDUP_TO_IDLE_FADE_MS,
   flashInMs,
   flashOutMs,
@@ -219,21 +220,27 @@ describe('寝室战后起身表演（wakeUp）', () => {
     expect(timelineDurationMs(timeline, true)).toBeLessThan(timelineDurationMs(timeline));
   });
 
-  it('起身末帧 → idle 交叉淡入：110ms 短过渡，reduced-motion 硬切', () => {
-    // 时长必须在 (0, 120]：太长会被看成「淡出」，太短等于没磨平侧脸→3/4 的跳变。
-    expect(STANDUP_TO_IDLE_FADE_MS).toBeGreaterThan(0);
-    expect(STANDUP_TO_IDLE_FADE_MS).toBeLessThanOrEqual(120);
-    expect(standUpToIdleFadeMs(false)).toBe(STANDUP_TO_IDLE_FADE_MS);
-    // reduced-motion 不建临时层，直接硬切。
+  it('起身末帧 → 侧面 idle：硬切（0ms），reduced-motion 与正常一致', () => {
+    /**
+     * #t41：起身末帧与 `zhou_idle_right` 都是正侧面朝右、同一套画布基准，所以不再需要
+     * 任何「转身」融合。旧值 110ms 是切 3/4 面 `q.right` 时用的，正是要消除的那一下。
+     */
+    expect(STANDUP_TO_IDLE_FADE_MS).toBe(0);
+    expect(STANDUP_TO_IDLE_FADE_MS).toBeLessThan(110);
+    // 允许的上限：真机硬切若闪 1 帧，最多加到 40ms 的极短融合。
+    expect(STANDUP_TO_IDLE_FADE_MAX_MS).toBeLessThanOrEqual(40);
+    expect(STANDUP_TO_IDLE_FADE_MS).toBeLessThanOrEqual(STANDUP_TO_IDLE_FADE_MAX_MS);
+    expect(standUpToIdleFadeMs(false)).toBe(0);
     expect(standUpToIdleFadeMs(true)).toBe(0);
-    // 交叉发生在帧序列结束之后，必须赶在表演收尾（最后的 wait）之前完成，
-    // 否则 performing 解除、update() 的 sync() 会和临时层抢同一张 sprite。
+    // 「reduced-motion 与正常一致」：两个参数必须给出同一个时长（都硬切）。
+    expect(standUpToIdleFadeMs(true)).toBe(standUpToIdleFadeMs(false));
+    // 万一为真机闪帧调到极短融合，也必须赶在表演收尾（最后的 wait）之前完成，
+    // 否则 performing 解除、update() 的 sync() 会和过渡层抢同一张 sprite。
     const tail = timeline.steps.at(-1);
     expect(tail?.kind).toBe('wait');
     if (tail?.kind !== 'wait') throw new Error('expected wait');
-    expect(STANDUP_TO_IDLE_FADE_MS).toBeLessThanOrEqual(stepDurationMs(tail));
-    // reduced 下是 0（硬切），自然落在缩短后的收势里。
-    expect(standUpToIdleFadeMs(true)).toBeLessThanOrEqual(stepDurationMs(tail, true));
+    expect(STANDUP_TO_IDLE_FADE_MAX_MS).toBeLessThanOrEqual(stepDurationMs(tail));
+    expect(STANDUP_TO_IDLE_FADE_MAX_MS).toBeLessThanOrEqual(stepDurationMs(tail, true));
   });
 });
 

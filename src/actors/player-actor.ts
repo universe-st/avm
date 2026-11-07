@@ -10,11 +10,13 @@ import { LAYERS, characterDepth } from '../render/layers';
 import { setLinearTextures, setPixelTextures } from '../ui/pixel';
 import {
   initialPose,
+  planPlayerTexture,
   poseAfterMove,
   poseAfterSetSitting,
-  poseTextureKind,
+  poseAfterStandUpSettled,
   walkFrameIndex,
   type PlayerPose,
+  type SideIdleTexture,
 } from './player-pose';
 
 // 20 帧 × 65ms ≈ 一个 1.3s 的步态循环；旧的 8 帧 @95ms 只有 760ms，看着像抖。
@@ -33,6 +35,13 @@ export interface PlayerActorOptions {
    * 所以按坐姿图自身的尺寸补一个比例。
    */
   readonly sittingScale?: number;
+  /**
+   * 起身结束后的侧面站立 idle（正侧面朝右，与起身末帧同角度）。
+   *
+   * 只有 `pose.sideIdle` 为真、朝向匹配、纹理已加载时才用；玩家一动就回到八向逻辑。
+   * 省略 = 不做这段特例（起身后直接切 `staticKeys[facing]`）。
+   */
+  readonly sideIdle?: SideIdleTexture;
   /** 静态八向 key；省略用旧版 64×96 周全（斜向回退主轴）。 */
   readonly staticKeys?: Readonly<Record<Facing, string>>;
   /** 行走 sheet key；省略用旧版 64×96 周全。 */
@@ -81,6 +90,7 @@ export class PlayerActor {
   private readonly sittingScale: number;
   private readonly staticKeys: Readonly<Record<Facing, string>>;
   private readonly walkSheets: Readonly<Record<Facing, string>>;
+  private readonly sideIdle?: SideIdleTexture;
   private readonly frameWidth: number;
   private readonly frameHeight: number;
   private readonly walkFrameCount: number;
@@ -100,6 +110,7 @@ export class PlayerActor {
       initialPose(),
       options.sitting === true && options.sittingKey !== undefined,
     );
+    this.sideIdle = options.sideIdle;
     this.staticKeys = options.staticKeys ?? CH01_STATIC_SPRITES;
     this.walkSheets = options.walkSheets ?? CH01_WALK_SHEETS;
     this.frameWidth = options.frameWidth ?? 64;
@@ -119,6 +130,7 @@ export class PlayerActor {
       ...Object.values(this.walkSheets),
     ];
     if (options.sittingKey) keys.push(options.sittingKey);
+    if (options.sideIdle) keys.push(options.sideIdle.key);
     if (options.linearTextures === true) setLinearTextures(scene, keys);
     else setPixelTextures(scene, keys);
     for (const key of Object.values(this.walkSheets)) {
@@ -182,14 +194,16 @@ export class PlayerActor {
   }
 
   /**
-   * 站立 idle 的贴图与显示缩放（只读，**不改变当前姿态**）。
+   * 侧面 idle 的贴图与显示缩放（只读，**不改变当前姿态**）。
    *
-   * 起身末帧（纯侧面）→ idle（`q.right`，3/4 朝镜头）之间要做交叉淡入：
-   * 淡入的临时层必须在主角切贴图**之前**就摆成 idle 的样子。此时姿态还是「坐」，
-   * 用 `displayScale` 会取到坐姿缩放（0.4/1.0），所以这里单独给出站立缩放。
+   * 只有极短融合时才用得上：过渡层必须在主角切贴图**之前**就摆成侧面 idle 的样子。
+   * 没配置/没加载这个素材时返回 null，调用方直接硬切。
    */
-  get standingLook(): { readonly key: string; readonly scale: number } {
-    return { key: this.staticKeys[this.facingValue], scale: this.spriteScale };
+  get sideIdleLook(): { readonly key: string; readonly scale: number } | null {
+    if (this.sideIdle === undefined) return null;
+    if (!this.scene.textures.exists(this.sideIdle.key)) return null;
+    // 侧面 idle 与站立 Q 帧同一套 160×400 画布，缩放就是 spriteScale。
+    return { key: this.sideIdle.key, scale: this.spriteScale };
   }
 
   /** 头顶中心（精灵顶部），供表情气泡把尾巴钉在头上；坐着时用坐姿高度。 */
@@ -208,9 +222,26 @@ export class PlayerActor {
    * 旧实现会在这里 `sitting = false` 把 sit 覆盖掉。）
    */
   moveTo(position: MapPoint, facing: Facing, walking: boolean, deltaMs: number): void {
+    // 每帧「原地站着」也会调进来（walking=false、坐标/朝向不变）；那不是「动了」，
+    // 不能把起身后的侧面 idle 刷掉。只有真的位移或转向才作废。
+    const stirred =
+      walking ||
+      position.x !== this.feetPoint.x ||
+      position.y !== this.feetPoint.y ||
+      facing !== this.facingValue;
     this.feetPoint = position;
     this.facingValue = facing;
-    this.pose = poseAfterMove(this.pose, walking, deltaMs);
+    this.pose = poseAfterMove(this.pose, walking, deltaMs, stirred);
+    this.sync();
+  }
+
+  /**
+   * 起身序列播完：站定，并把站立 idle 换成侧面素材（与末帧同朝向，可硬切）。
+   *
+   * 玩家之后一移动/转向，`moveTo()` 会清掉 `sideIdle`，贴图自动回到八向逻辑。
+   */
+  settleStandUp(): void {
+    this.pose = poseAfterStandUpSettled();
     this.sync();
   }
 
@@ -223,20 +254,22 @@ export class PlayerActor {
   /** 刷新 sprite（章节卡/对话时也可调用）。 */
   sync(): void {
     if (!this.sprite) return;
-    const sheet = this.walkSheets[this.facingValue];
-    const sittingAvailable =
-      this.sittingKey !== undefined && this.scene.textures.exists(this.sittingKey);
-    const kind = poseTextureKind(this.pose, sittingAvailable);
-    if (kind === 'sitting' && this.sittingKey !== undefined) {
-      this.sprite.setTexture(this.sittingKey, 0);
-    } else if (kind === 'walking' && this.scene.textures.exists(sheet)) {
-      this.sprite.setTexture(
-        sheet,
-        walkFrameIndex(this.pose, WALK_FRAME_MS, this.walkFrameCount),
-      );
-    } else {
-      this.sprite.setTexture(this.staticKeys[this.facingValue], 0);
-    }
+    // 贴图归属（坐/走/侧面 idle/站立）全部在纯逻辑里决定，这里只照做。
+    const plan = planPlayerTexture({
+      pose: this.pose,
+      facing: this.facingValue,
+      statics: this.staticKeys,
+      walkSheets: this.walkSheets,
+      ...(this.sittingKey === undefined ? {} : { sittingKey: this.sittingKey }),
+      ...(this.sideIdle === undefined ? {} : { sideIdle: this.sideIdle }),
+      available: (key) => this.scene.textures.exists(key),
+    });
+    this.sprite.setTexture(
+      plan.key,
+      plan.kind === 'walking'
+        ? walkFrameIndex(this.pose, WALK_FRAME_MS, this.walkFrameCount)
+        : 0,
+    );
     // 坐姿素材画布尺寸和站立帧不同（96×160 vs 160×400），共用缩放会让人忽大忽小。
     this.sprite.setScale(this.displayScale);
     // 上下起伏已经烘进 20 帧序列里，这里不再叠一层随机相位的 bob（会和步态打架）。

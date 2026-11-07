@@ -82,21 +82,24 @@ export const CH01_STAND_UP_SEQUENCE = {
 } as const;
 
 /**
- * 起身末帧（纯侧面）→ 站立 idle（`q.right`，3/4 朝镜头）的交叉淡入时长（ms）。
+ * 起身末帧 → 站立 idle 的过渡时长（ms）。
  *
- * 两张图的姿势差一截：末帧是正侧面、idle 是 3/4 朝镜头，硬切会「闪一下」。
- * 用一个**比一帧还短**的 alpha 交叉把这一下磨掉（110ms），不做位移动画：
- * 期间脚底不动、缩放已按 idle 的 `displayScale` 摆好，看上去只是「转身」而不是「跳变」。
+ * #t41 起**硬切**（0ms），不再有「转身」：帧序列末帧是正侧面朝右，起身结束直接切到
+ * 侧面 idle `zhou_idle_right`（同为 160×400 / 人物高 371 / 底边 394，朝向一致），
+ * 姿势没有跳变，不需要任何 alpha 交叉。旧值 110ms 是切 `q.right`（3/4 朝镜头）时
+ * 用来磨平「侧面 → 3/4 面」那一下的，看起来就是一个快速转身——正是本次要消除的。
  *
- * 为什么不能更长：时间线里帧序列后面只留了 160ms 收势（`CH01_WAKE_PERFORMANCE`），
- * 交叉必须在 `performing` 结束前完成，否则 `update()` 恢复 `sync()` 会和临时层打架。
- * reduced-motion 下直接硬切（0ms）。
+ * 上限 `STANDUP_TO_IDLE_FADE_MAX_MS`：真机上若硬切仍闪 1 帧，允许把常量调到
+ * ≤40ms 做极短融合（场景里有这条分支），但绝不允许回到 110ms 的 3/4 面交叉。
  */
-export const STANDUP_TO_IDLE_FADE_MS = 110;
+export const STANDUP_TO_IDLE_FADE_MS = 0;
 
-/** 交叉淡入的实际时长；reduced-motion 为 0 = 硬切（不建临时层）。 */
-export function standUpToIdleFadeMs(reduced = false): number {
-  return reduced ? 0 : STANDUP_TO_IDLE_FADE_MS;
+/** 过渡时长允许的上限：再长就会被看成「淡出」而不是硬切。 */
+export const STANDUP_TO_IDLE_FADE_MAX_MS = 40;
+
+/** 过渡的实际时长；正常与 reduced-motion **一致**（都是 0 = 硬切）。 */
+export function standUpToIdleFadeMs(_reduced = false): number {
+  return STANDUP_TO_IDLE_FADE_MS;
 }
 
 /**

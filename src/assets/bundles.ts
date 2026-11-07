@@ -829,7 +829,7 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
       },
       {
         // 160×400 正侧面朝右站立静帧；与站立 Q 帧同一画布基准（371 高 / 底边 394 / 中心 80）。
-        // 只入库，暂未接入场景（t39）。
+        // 寝室起身表演结束后硬切到这张（t41），消除侧脸→3/4 面的「转身」。
         key: 'img.char.ch01.zhou_idle_right',
         kind: 'image',
         url: 'assets/img/character/ch01/zhou_idle_right.png',

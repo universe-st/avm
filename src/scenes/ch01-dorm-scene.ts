@@ -167,9 +167,11 @@ export class Ch01DormScene extends UIScene {
   private performing = false;
   private performanceTimers: Phaser.Time.TimerEvent[] = [];
   /**
-   * 起身末帧 → idle 交叉淡入用的临时 idle 图层；淡完必须销毁，退出时兜底。
+   * 起身末帧 → 侧面 idle 之间的**可选**极短过渡图层（当前用不上，见下）。
    *
-   * 只在这一小段里存在：它盖在起身末帧之上，alpha 到 1 之后主角才切 idle 贴图。
+   * 两张图的朝向和画布基准已完全一致，正常路径是硬切（`standUpToIdleFadeMs()` 返回 0），
+   * 不会建这一层。只有真机上硬切仍闪 1 帧、把常量调到 ≤40ms 时才会出现；届时它盖在
+   * 起身末帧之上，alpha 到 1 之后主角才切 idle 贴图。淡完立即销毁，退出/重开兜底。
    */
   private standUpCrossFade: Phaser.GameObjects.Image | null = null;
   /** 全屏白光层（DOM，盖住 HUD）；结束后必须移除，不能留白影。 */
@@ -395,7 +397,7 @@ export class Ch01DormScene extends UIScene {
     this.xiaobai = null;
     this.xiaobaiBob = null;
     this.walkTween = null;
-    // 起身交叉淡入的临时 idle 层只在 110ms 内活着；重开本节时兜底清掉，别留一张浮空贴图。
+    // 起身过渡层只在极短融合时存在（当前 0ms 不建）；重开本节时兜底清掉，别留一张浮空贴图。
     this.standUpCrossFade?.destroy();
     this.standUpCrossFade = null;
     this.performing = false;
@@ -520,6 +522,11 @@ export class Ch01DormScene extends UIScene {
         : sittingScaleFor(sittingHeight);
     this.player = new PlayerActor(this, this.room, {
       staticKeys: CH01_Q_STATIC_SPRITES,
+      /**
+       * 起身结束后的站立 idle 用正侧面朝右素材（#t41），不再切 3/4 面的 `q.right`。
+       * 只在「起身后、玩家还没动」这段生效；一移动/转向就回到八向逻辑（见 PlayerActor.moveTo）。
+       */
+      sideIdle: { key: CH01_ASSET_KEYS.characters.zhouIdleRight, facing: 'right' },
       walkSheets: CH01_Q_WALK_SHEETS,
       frameWidth: CH01_Q_FRAME.width,
       frameHeight: CH01_Q_FRAME.height,
@@ -1491,8 +1498,8 @@ export class Ch01DormScene extends UIScene {
    * 三处都取素材声明（坐姿 1.0 / 起身 1.0 / 站立 0.6138），底边同为 394，
    * 因此从头到尾不会出现「缩小的站立图」。
    *
-   * 末帧是**正侧面**、站立 idle 是 3/4 朝镜头，直接切会闪一下姿势；所以最后交给
-   * `crossFadeToIdle` 做 110ms 的 alpha 交叉（reduced-motion 硬切），脚底/缩放不变。
+   * 末帧是**正侧面朝右**，起身结束落到同朝向的侧面 idle（`zhou_idle_right`），所以
+   * 硬切即可，不再有 110ms 的「转身」交叉；见 `settleToIdle`。
    *
    * 帧序列按贴图**宽度**判定可用性（`standUpFramesFromLayout`）：占位图 96×160
    * 切不出 160 宽的帧 → 0 → 直接落回站立静态图（不做缩小/放大的 tween 假起身）。
@@ -1503,9 +1510,9 @@ export class Ch01DormScene extends UIScene {
     if (!player) return;
     audioDirector.playSfxAt(PALACE_ASSET_KEYS.sfx.cloth, { volume: 0.3 });
     if (this.playStandUpSequence(player, step, duration)) return;
-    // 素材不可用：原地落回站立静态图（不缩放、不硬切「小站立图」）。
-    player.setSitting(false);
-    player.sync();
+    // 素材不可用：原地落回站立（不缩放、不硬切「小站立图」）。
+    // 同样走「站定 + 侧面 idle」：起身序列缺图不该让 idle 退回 3/4 面。
+    player.settleStandUp();
   }
 
   /**
@@ -1556,9 +1563,9 @@ export class Ch01DormScene extends UIScene {
         sprite.setTexture(key, standUpFrameAt(proxy.t, frames, total));
       },
       onComplete: () => {
-        // 最后一帧钳住站立姿态，再交叉淡入到站立静态图（同一底边、同一屏显高）。
+        // 最后一帧钳住站立姿态，再落到同朝向的侧面 idle（同一底边、同一屏显高，硬切）。
         sprite.setTexture(key, frames - 1);
-        this.crossFadeToIdle(player, sprite);
+        this.settleToIdle(player);
         // 站直那一下的落脚声（cloth 在起身开始时已经给过）。
         audioDirector.playSfxAt(CH01_ASSET_KEYS.audio.stepWoodB, { volume: 0.2 });
       },
@@ -1567,25 +1574,25 @@ export class Ch01DormScene extends UIScene {
   }
 
   /**
-   * 起身末帧（纯侧面）→ 站立 idle（`q.right`，3/4 朝镜头）的短交叉淡入。
+   * 起身末帧 → 站立 idle：**硬切**到同朝向的侧面 idle（`zhou_idle_right`）。
    *
-   * 在末帧之上盖一张 idle 临时图层，`STANDUP_TO_IDLE_FADE_MS`（110ms）内 alpha 0→1；
-   * **等它全不透明**才把主角贴图切成 idle 并销毁临时层——切贴图发生在被完全遮住的
-   * 那一刻，看不到姿势跳变。临时层与主角同脚底、同原点、同 depth，缩放用 idle 的
-   * `displayScale`，所以交叉期间脚底（y≈782）和大小都不动，只是从侧面「转」到 3/4。
+   * #t41：起身末帧是正侧面朝右，`zhou_idle_right` 也是正侧面朝右、同一套 160×400 画布
+   * （人物高 371 / 底边 394 / 水平中心 80），显示缩放同为 0.6138。两张图之间没有姿势
+   * 跳变，所以 `standUpToIdleFadeMs()` 现在是 0：直接 `player.settleStandUp()` 换贴图，
+   * 不再盖过渡层，也不会再出现那 110ms 的「转身」。
    *
-   * reduced-motion：`standUpToIdleFadeMs` 返回 0，直接硬切、不建临时层。
+   * 兜底分支：真机上若硬切仍闪 1 帧，把 `STANDUP_TO_IDLE_FADE_MS` 调到 ≤40ms，这里会
+   * 自动退回「盖一层侧面 idle、alpha 均匀淡到 1 再切贴图」的做法——临时层与主角同脚底、
+   * 同原点、同 depth、同缩放，所以融合期间脚底（y≈782）和大小都不动。
    * 临时层只有在这里和 `resetState` / `onShutdown` 三处碰，淡完立即销毁，不残留。
    */
-  private crossFadeToIdle(player: PlayerActor, sprite: Phaser.GameObjects.Image): void {
+  private settleToIdle(player: PlayerActor): void {
+    const sprite = player.display;
     const fadeMs = standUpToIdleFadeMs(this.reduced);
-    const settle = (): void => {
-      player.setSitting(false);
-      player.sync();
-    };
-    const look = player.standingLook;
-    if (fadeMs <= 0 || !this.textures.exists(look.key)) {
-      settle();
+    const look = player.sideIdleLook;
+    if (fadeMs <= 0 || sprite === null || look === null) {
+      // 正常路径：0ms 硬切。
+      player.settleStandUp();
       return;
     }
     // 兜底：正常时序不会叠加，万一上一次没销毁，先清掉再建。
@@ -1601,10 +1608,10 @@ export class Ch01DormScene extends UIScene {
       targets: temp,
       alpha: 1,
       duration: fadeMs,
-      // 交叉淡入只要「均匀地把新姿势叠上来」，不需要 ease。
+      // 融合只要「均匀地把新姿势叠上来」，不需要 ease。
       ease: 'Linear',
       onComplete: () => {
-        settle();
+        player.settleStandUp();
         temp.destroy();
         if (this.standUpCrossFade === temp) this.standUpCrossFade = null;
       },
@@ -1654,6 +1661,8 @@ export class Ch01DormScene extends UIScene {
     this.suppressWakeCg = true;
     this.cg?.hide();
     this.startPerformance(CH01_WAKE_PERFORMANCE, () => {
+      // 表演里 `performStand` 收尾已经落到「站定 + 侧面 idle」；这里再调一次只解除坐姿，
+      // `poseAfterSetSitting(false)` 会保留侧面 idle 标记，不会把 idle 刷回 3/4 面的 `q.right`。
       this.player?.setSitting(false);
       if (settings.autoAdvance) this.scheduleAutoAdvance();
     });
