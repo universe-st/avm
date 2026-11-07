@@ -53,7 +53,7 @@ describe('CG 结束即坐定（dreamEntry）', () => {
 
     // 整段不允许出现走位或起身：CG 之后不该再有「站在书桌边」的中间态。
     expect(timeline.steps.some((step) => step.kind === 'walk')).toBe(false);
-    expect(timeline.steps.some((step) => step.kind === 'stand')).toBe(false);
+    expect(timeline.steps.some((step) => step.kind === 'frame-sequence')).toBe(false);
   });
 
   it('每一步都是 0 时长（场景在 CG 回调里同步执行，不经过 Clock）', () => {
@@ -163,28 +163,57 @@ describe('入梦白光（dreamFlash，含交接）', () => {
 describe('寝室战后起身表演（wakeUp）', () => {
   const timeline = CH01_WAKE_PERFORMANCE;
 
-  it('第一步是 sit 而不是 stand（进来就坐在地上，不是先站再瞬移坐下）', () => {
+  it('第一步是 sit 而不是起身（进来就坐在地上，不是先站再瞬移坐下）', () => {
     expect(timeline.steps[0]?.kind).toBe('sit');
     const first = timeline.steps[0];
     if (first?.kind !== 'sit') throw new Error('expected sit');
     expect(first.to).toEqual(CH01_SIT_TILE);
     expect(first.from).toBe('sit');
-    const firstStand = timeline.steps.findIndex((step) => step.kind === 'stand');
-    expect(firstStand).toBeGreaterThan(0);
+    const firstSequence = timeline.steps.findIndex((step) => step.kind === 'frame-sequence');
+    expect(firstSequence).toBeGreaterThan(0);
   });
 
-  it('起身动画 = 8 帧 × 65ms 的序列时长，后面留一拍再恢复对话', () => {
-    const stand = timeline.steps.find((step) => step.kind === 'stand');
-    expect(stand?.kind).toBe('stand');
-    if (stand?.kind !== 'stand') throw new Error('expected stand');
-    expect(stand.ms).toBe(CH01_STAND_UP_SEQUENCE.frameCount * CH01_STAND_UP_SEQUENCE.frameMs);
+  it('起身 = frame-sequence（8 帧 × 65ms = 520ms），后面留一拍再恢复对话', () => {
+    const stand = timeline.steps.find((step) => step.kind === 'frame-sequence');
+    expect(stand?.kind).toBe('frame-sequence');
+    if (stand?.kind !== 'frame-sequence') throw new Error('expected frame-sequence');
+    expect(stand.actor).toBe('zhou');
+    expect(stand.sequence).toBe('standUp');
+    expect(stand.frameCount).toBe(CH01_STAND_UP_SEQUENCE.frameCount);
+    expect(stand.frameMs).toBe(CH01_STAND_UP_SEQUENCE.frameMs);
+    expect(stand.frameCount * stand.frameMs).toBe(520);
     expect(stand.ms).toBe(520);
+    expect(stand.ms).toBe(CH01_STAND_UP_SEQUENCE.durationMs);
+    expect(stepDurationMs(stand)).toBe(520);
     expect(timeline.steps.at(-1)?.kind).toBe('wait');
   });
 
-  it('总时长 1320ms，reduced-motion 540ms', () => {
+  it('帧序列只允许 Linear（ease 会让某些帧停更久、另一些被跳过）', () => {
+    expect(CH01_STAND_UP_SEQUENCE.ease).toBe('Linear');
+    const stand = timeline.steps.find((step) => step.kind === 'frame-sequence');
+    if (stand?.kind !== 'frame-sequence') throw new Error('expected frame-sequence');
+    expect(stand.ease).toBe('Linear');
+    // 线性推进：帧号与已播时长成正比（任何 ease 曲线都会破坏这个比例）。
+    const quarter = stand.ms / 4;
+    expect(standUpFrameAt(quarter, stand.frameCount, stand.ms)).toBe(2);
+    expect(standUpFrameAt(quarter * 2, stand.frameCount, stand.ms)).toBe(4);
+    expect(standUpFrameAt(quarter * 3, stand.frameCount, stand.ms)).toBe(6);
+  });
+
+  it('reduced-motion 等比例减半（帧序列 260ms，每一帧都还在）', () => {
+    const stand = timeline.steps.find((step) => step.kind === 'frame-sequence');
+    if (stand?.kind !== 'frame-sequence') throw new Error('expected frame-sequence');
+    expect(stepDurationMs(stand, true)).toBe(260);
+    expect(stepDurationMs(stand, true)).toBe(stand.ms / 2);
+    // reduced 只压缩时长，不压缩帧数：帧号映射仍按 8 帧均分。
+    expect(standUpFrameAt(0, stand.frameCount, 260)).toBe(0);
+    expect(standUpFrameAt(130, stand.frameCount, 260)).toBe(4);
+    expect(standUpFrameAt(260, stand.frameCount, 260)).toBe(7);
+  });
+
+  it('总时长 1320ms，reduced-motion 560ms', () => {
     expect(timelineDurationMs(timeline)).toBe(1320);
-    expect(timelineDurationMs(timeline, true)).toBe(540);
+    expect(timelineDurationMs(timeline, true)).toBe(560);
     expect(timelineDurationMs(timeline, true)).toBeLessThan(timelineDurationMs(timeline));
   });
 });
@@ -209,14 +238,25 @@ describe('起身帧序列（zhou_stand_up）素材契约', () => {
     expect(standUpFramesFromLayout(Number.NaN, 400)).toBe(0);
   });
 
-  it('帧序号按整段时长均分，钳在最后一帧、不循环', () => {
-    expect(standUpFrameAt(0, 520, 8)).toBe(0);
-    expect(standUpFrameAt(65, 520, 8)).toBe(1);
-    expect(standUpFrameAt(259, 520, 8)).toBe(3);
-    expect(standUpFrameAt(520, 520, 8)).toBe(7);
-    expect(standUpFrameAt(9999, 520, 8)).toBe(7);
-    expect(standUpFrameAt(100, 0, 8)).toBe(7);
-    expect(standUpFrameAt(100, 520, 0)).toBe(0);
+  it('帧序号按整段时长均分（65ms/帧），钳在最后一帧、不循环', () => {
+    // 默认参数 = 素材声明：8 帧 / 520ms。
+    expect(standUpFrameAt(0)).toBe(0);
+    expect(standUpFrameAt(64)).toBe(0);
+    expect(standUpFrameAt(65)).toBe(1);
+    expect(standUpFrameAt(260)).toBe(4);
+    expect(standUpFrameAt(519)).toBe(7);
+    expect(standUpFrameAt(520)).toBe(7);
+    // 超界：负数当作 0，超过整段钳在最后一帧（绝不到 8 或回绕到 0）。
+    expect(standUpFrameAt(-1)).toBe(0);
+    expect(standUpFrameAt(521)).toBe(7);
+    expect(standUpFrameAt(9999)).toBe(7);
+    expect(standUpFrameAt(Number.NaN)).toBe(0);
+    // 显式传参（帧数 / 时长）与默认值等价。
+    expect(standUpFrameAt(65, 8, 520)).toBe(standUpFrameAt(65));
+    expect(standUpFrameAt(260, 8, 520)).toBe(4);
+    // 退化输入不抛错、不越界。
+    expect(standUpFrameAt(100, 8, 0)).toBe(7);
+    expect(standUpFrameAt(100, 0, 520)).toBe(0);
   });
 });
 

@@ -1,6 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { CH01_ZHOU_SIT_RIGHT, CH01_ZHOU_STAND_UP } from '../src/assets/keys';
+import {
+  CH01_ZHOU_SIT_RIGHT,
+  CH01_ZHOU_STAND_FRAME,
+  CH01_ZHOU_STAND_UP,
+} from '../src/assets/keys';
 import { CH01_SIT_DISPLAY_HEIGHT } from '../src/story/ch01-performance';
 
 /**
@@ -133,5 +137,46 @@ describe('周全起身序列', () => {
     for (const [index, height] of manifest.heights.entries()) {
       expect(height, `f${index} 高度异常`).toBeLessThan(manifest.frameHeight);
     }
+  });
+
+  it('坐姿 / 起身帧 / 站立静态图：同一画布、同一底边 394（不跳脚）', () => {
+    /**
+     * 「缩小再长大」的根因是三者各用各的基准。这里把**素材 bbox 常量**锁死：
+     * - 画布：坐姿 160×400、起身单帧 160×400、站立 Q 帧 160×400；
+     * - 底边：都是 394（最后一排不透明像素 y=393 的下一行），原点 394/400 = 0.985；
+     * - 缩放：坐姿 1.0（160 高）、起身 1.0（160 → 228）、站立 0.6138（371 → 228）。
+     * 所以坐下 / 起身 / 站定的脚底在屏幕上始终是同一条线。
+     */
+    expect(CH01_ZHOU_SIT_RIGHT.canvasWidth).toBe(CH01_ZHOU_STAND_FRAME.canvasWidth);
+    expect(CH01_ZHOU_SIT_RIGHT.canvasHeight).toBe(CH01_ZHOU_STAND_FRAME.canvasHeight);
+    expect(CH01_ZHOU_STAND_UP.frameWidth).toBe(CH01_ZHOU_STAND_FRAME.canvasWidth);
+    expect(CH01_ZHOU_STAND_UP.frameHeight).toBe(CH01_ZHOU_STAND_FRAME.canvasHeight);
+    expect(CH01_ZHOU_SIT_RIGHT.bottom).toBe(CH01_ZHOU_STAND_FRAME.bottom);
+    expect(manifest.baseline.bottom).toBe(CH01_ZHOU_STAND_FRAME.bottom);
+    // 帧高 400、底边 394 → 下方留 6px 给鞋影；PlayerActor 原点取 0.985 = 394/400。
+    expect(CH01_ZHOU_STAND_UP.frameHeight - CH01_ZHOU_SIT_RIGHT.bottom).toBe(6);
+    expect(CH01_ZHOU_SIT_RIGHT.bottom / CH01_ZHOU_SIT_RIGHT.canvasHeight).toBeCloseTo(0.985, 5);
+  });
+
+  it('屏显高度：坐 160 / 起身末帧 228 / 站立 228（切回静态图不跳大小）', () => {
+    expect(CH01_ZHOU_SIT_RIGHT.height * CH01_ZHOU_SIT_RIGHT.displayScale).toBe(
+      CH01_SIT_DISPLAY_HEIGHT,
+    );
+    expect(
+      Math.round(CH01_ZHOU_STAND_FRAME.height * CH01_ZHOU_STAND_FRAME.displayScale),
+    ).toBe(228);
+    const heights = manifest.heights;
+    const last = heights[heights.length - 1] ?? 0;
+    expect(last * CH01_ZHOU_STAND_UP.displayScale).toBe(
+      Math.round(CH01_ZHOU_STAND_FRAME.height * CH01_ZHOU_STAND_FRAME.displayScale),
+    );
+  });
+
+  it('站立静态 Q 帧的真实画布也是 160×400（常量和素材一致）', () => {
+    const size = pngSize(readFileSync(`${CHAR_DIR}/q/zhou_q_right.png`));
+    expect(size).toEqual({
+      width: CH01_ZHOU_STAND_FRAME.canvasWidth,
+      height: CH01_ZHOU_STAND_FRAME.canvasHeight,
+    });
   });
 });

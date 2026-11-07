@@ -244,9 +244,33 @@ export const CH01_ZHOU_STAND_UP = {
 export const CH01_ZHOU_SIT_RIGHT = {
   key: CH01_ASSET_KEYS.characters.zhouSitRight,
   displayScale: 1,
+  canvasWidth: 160,
+  canvasHeight: 400,
   height: 160,
+  /** 人物最后一排不透明像素的**边界**（y=393 的下一行），原点 394/400 = 0.985。 */
   bottom: 394,
   centerX: 80,
+} as const;
+
+/**
+ * 站立静态 Q 版帧的几何元数据（`zhou_q_*.png` 实测）。
+ *
+ * 160×400 画布、人物高 371 / 底边 394 / 水平中心 80——和坐姿图、起身序列**同一套画布基准**。
+ * `displayScale` 就是场景里的 `PLAYER_SCALE`（0.682 × 0.9）：371 × 0.6138 ≈ 228，
+ * 正好等于起身序列末帧的屏显高，起身演完切回站立不会跳大小。
+ *
+ * 三者关系（底边都是 394，绝不各自为政）：
+ * - 坐姿 `CH01_ZHOU_SIT_RIGHT`：人物高 160，scale 1.0 → 屏显 160；
+ * - 起身 `CH01_ZHOU_STAND_UP`：首帧 160 → 末帧 228，scale 1.0；
+ * - 站立 `CH01_ZHOU_STAND_FRAME`：人物高 371，scale 0.6138 → 屏显 228。
+ */
+export const CH01_ZHOU_STAND_FRAME = {
+  canvasWidth: 160,
+  canvasHeight: 400,
+  height: 371,
+  bottom: 394,
+  centerX: 80,
+  displayScale: 0.6138,
 } as const;
 
 
