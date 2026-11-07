@@ -146,8 +146,8 @@ export const CH01_ASSET_KEYS = {
      * 160×400 画布、人物高 371 / 底边 394 / 水平中心 80 —— 与 `CH01_ZHOU_STAND_FRAME`
      * **完全同一套画布基准**（所以显示缩放也取同一个 `displayScale` 0.6138），区别只在朝向：
      * `q/zhou_q_right.png` 是 3/4 朝镜头，这张是**正侧面朝右**，和 `zhou_stand_up`
-     * 末帧同角度。起身演完可以直接切这张，不再需要 110ms 的「转身」交叉淡入。
-     * 目前只入库（场景接线是后续任务），没有场景引用它。
+     * 末帧同角度。起身演完直接硬切这张（t41 已接线到 `ch01-dorm-scene` 的 `settleToIdle`），
+     * 不再需要 110ms 的「转身」交叉淡入。只在「起身后、玩家还没动」这段生效。
      */
     zhouIdleRight: 'img.char.ch01.zhou_idle_right',
     zheng: 'img.char.ch01.zheng',
