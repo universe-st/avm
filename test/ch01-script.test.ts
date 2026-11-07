@@ -55,6 +55,17 @@ describe('第一章寝室 · 郑卿段落', () => {
     ]);
   });
 
+  it('战后醒来首句与「坐着」一致（进场即 sitting，不是趴在地板上）', () => {
+    const first = CH01_NODES.after.lines[0];
+    expect(first?.speaker).toBe('旁白');
+    // 「趴/躺」这类姿态描述会和 phase=after 的坐姿精灵打架；首句必须写坐。
+    expect(first?.text).not.toContain('趴');
+    expect(first?.text).toContain('坐');
+    // 整段征召都在坐/站姿态下说完，其余台词也不许再冒出趴/躺。
+    const afterText = CH01_NODES.after.lines.map((line) => line.text).join('');
+    expect(afterText).not.toMatch(/趴|躺/);
+  });
+
   it('金殿剧情只在 palace 场景演一次，dream 节点不再复述', () => {
     expect(CH01_NODES.dream.lines).toHaveLength(0);
 

@@ -189,7 +189,10 @@ export const CH01_NODES: Readonly<Record<Ch01NodeId, Ch01Node>> = {
     objective: CH01_OBJECTIVES.afterBattle,
     next: 'complete',
     lines: [
-      { speaker: '旁白', text: '呼——！你趴在寝室地板上，左手还向前伸着。', cg: CH01_ASSET_KEYS.cg.wake },
+      // 战后回来人是**坐着**的（phase=after 进场即 sitting / tile (16,29)）。
+      // 醒来 CG 是趴姿特写、起身表演是「坐 → 站」，所以这句写成「从地板上坐起来」：
+      // 接得住 CG 的趴姿，也接得住现在画面里的坐姿；别再写「趴在地板上」（会和坐姿对不上）。
+      { speaker: '旁白', text: '呼——！你从地板上坐起来，后背全是冷汗。', cg: CH01_ASSET_KEYS.cg.wake },
       { speaker: '周全', text: '假的……都是假的……', cg: CH01_ASSET_KEYS.cg.wake, emotion: 'sad' },
       { speaker: '莫名其妙出现的白色小娃娃', role: 'xiaobai', text: '精神体会被强制踢出梦域。你会在此处醒来。' },
       { speaker: '周全', text: '那几个铁皮怪物是什么？' },

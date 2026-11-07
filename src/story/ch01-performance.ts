@@ -82,6 +82,24 @@ export const CH01_STAND_UP_SEQUENCE = {
 } as const;
 
 /**
+ * 起身末帧（纯侧面）→ 站立 idle（`q.right`，3/4 朝镜头）的交叉淡入时长（ms）。
+ *
+ * 两张图的姿势差一截：末帧是正侧面、idle 是 3/4 朝镜头，硬切会「闪一下」。
+ * 用一个**比一帧还短**的 alpha 交叉把这一下磨掉（110ms），不做位移动画：
+ * 期间脚底不动、缩放已按 idle 的 `displayScale` 摆好，看上去只是「转身」而不是「跳变」。
+ *
+ * 为什么不能更长：时间线里帧序列后面只留了 160ms 收势（`CH01_WAKE_PERFORMANCE`），
+ * 交叉必须在 `performing` 结束前完成，否则 `update()` 恢复 `sync()` 会和临时层打架。
+ * reduced-motion 下直接硬切（0ms）。
+ */
+export const STANDUP_TO_IDLE_FADE_MS = 110;
+
+/** 交叉淡入的实际时长；reduced-motion 为 0 = 硬切（不建临时层）。 */
+export function standUpToIdleFadeMs(reduced = false): number {
+  return reduced ? 0 : STANDUP_TO_IDLE_FADE_MS;
+}
+
+/**
  * 起身序列在 `elapsedMs` 时该显示第几帧：按整段时长**均分**，钳在最后一帧、不循环。
  *
  * 默认参数就是 `zhou_stand_up` 的素材契约（8 帧 / 520ms），场景只需传已播时长。

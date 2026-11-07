@@ -78,6 +78,7 @@ import {
   sittingScaleFor,
   standUpFrameAt,
   standUpFramesFromLayout,
+  standUpToIdleFadeMs,
   stepDurationMs,
   timelineDurationMs,
   type FlashStep,
@@ -165,6 +166,12 @@ export class Ch01DormScene extends UIScene {
   /** 表演进行中：屏蔽移动/交互，也不推进对话逐字。 */
   private performing = false;
   private performanceTimers: Phaser.Time.TimerEvent[] = [];
+  /**
+   * 起身末帧 → idle 交叉淡入用的临时 idle 图层；淡完必须销毁，退出时兜底。
+   *
+   * 只在这一小段里存在：它盖在起身末帧之上，alpha 到 1 之后主角才切 idle 贴图。
+   */
+  private standUpCrossFade: Phaser.GameObjects.Image | null = null;
   /** 全屏白光层（DOM，盖住 HUD）；结束后必须移除，不能留白影。 */
   private flashOverlay: FlashOverlayHandle | null = null;
   private flashStep: FlashStep | null = null;
@@ -388,6 +395,9 @@ export class Ch01DormScene extends UIScene {
     this.xiaobai = null;
     this.xiaobaiBob = null;
     this.walkTween = null;
+    // 起身交叉淡入的临时 idle 层只在 110ms 内活着；重开本节时兜底清掉，别留一张浮空贴图。
+    this.standUpCrossFade?.destroy();
+    this.standUpCrossFade = null;
     this.performing = false;
     for (const timer of this.performanceTimers) timer.remove();
     this.performanceTimers = [];
@@ -1076,14 +1086,14 @@ export class Ch01DormScene extends UIScene {
 
   private applyLineCue(line: DialogueLine): void {
     if (line.bgm !== undefined) bgmManager.play(line.bgm);
-    // 战后第一句会先盖着「趴在地上」的醒来 CG；起身表演开始后不再让后续 `cg: wake`
-    // 把画面重新盖上，否则坐→站的过程全在 CG 底下，玩家根本看不见。
+    // 战后第一句会先盖着醒来 CG（旁白是「坐在寝室地板上」）；起身表演开始后不再让
+    // 后续 `cg: wake` 把画面重新盖上，否则坐→站的过程全在 CG 底下，玩家根本看不见。
     const suppressedWakeCg =
       this.suppressWakeCg && line.cg === CH01_ASSET_KEYS.cg.wake;
     if (line.cg !== undefined && !suppressedWakeCg) {
       this.cg?.show(line.cg, line.fx);
     } else if (this.flow?.state.currentNode !== 'after') {
-      // 战后整段征召都发生在「趴在地板上」的画面里；中途切回站着的寝室会穿帮，
+      // 战后整段征召都在同一个画面里（醒来 CG → 坐起 → 起身）；中途切回站着的寝室会穿帮，
       // 所以 after 节点没有显式 cg 时保持上一张醒来 CG，等整段结束再收起。
       this.cg?.hide();
     }
@@ -1481,6 +1491,9 @@ export class Ch01DormScene extends UIScene {
    * 三处都取素材声明（坐姿 1.0 / 起身 1.0 / 站立 0.6138），底边同为 394，
    * 因此从头到尾不会出现「缩小的站立图」。
    *
+   * 末帧是**正侧面**、站立 idle 是 3/4 朝镜头，直接切会闪一下姿势；所以最后交给
+   * `crossFadeToIdle` 做 110ms 的 alpha 交叉（reduced-motion 硬切），脚底/缩放不变。
+   *
    * 帧序列按贴图**宽度**判定可用性（`standUpFramesFromLayout`）：占位图 96×160
    * 切不出 160 宽的帧 → 0 → 直接落回站立静态图（不做缩小/放大的 tween 假起身）。
    * 播放期间 `performing` 为真，`update()` 不会 `sync()`，贴图不会被坐姿刷回去。
@@ -1543,15 +1556,59 @@ export class Ch01DormScene extends UIScene {
         sprite.setTexture(key, standUpFrameAt(proxy.t, frames, total));
       },
       onComplete: () => {
-        // 最后一帧钳住站立姿态，再把贴图交回站立静态图（同一底边、同一屏显高）。
+        // 最后一帧钳住站立姿态，再交叉淡入到站立静态图（同一底边、同一屏显高）。
         sprite.setTexture(key, frames - 1);
-        player.setSitting(false);
-        player.sync();
+        this.crossFadeToIdle(player, sprite);
         // 站直那一下的落脚声（cloth 在起身开始时已经给过）。
         audioDirector.playSfxAt(CH01_ASSET_KEYS.audio.stepWoodB, { volume: 0.2 });
       },
     });
     return true;
+  }
+
+  /**
+   * 起身末帧（纯侧面）→ 站立 idle（`q.right`，3/4 朝镜头）的短交叉淡入。
+   *
+   * 在末帧之上盖一张 idle 临时图层，`STANDUP_TO_IDLE_FADE_MS`（110ms）内 alpha 0→1；
+   * **等它全不透明**才把主角贴图切成 idle 并销毁临时层——切贴图发生在被完全遮住的
+   * 那一刻，看不到姿势跳变。临时层与主角同脚底、同原点、同 depth，缩放用 idle 的
+   * `displayScale`，所以交叉期间脚底（y≈782）和大小都不动，只是从侧面「转」到 3/4。
+   *
+   * reduced-motion：`standUpToIdleFadeMs` 返回 0，直接硬切、不建临时层。
+   * 临时层只有在这里和 `resetState` / `onShutdown` 三处碰，淡完立即销毁，不残留。
+   */
+  private crossFadeToIdle(player: PlayerActor, sprite: Phaser.GameObjects.Image): void {
+    const fadeMs = standUpToIdleFadeMs(this.reduced);
+    const settle = (): void => {
+      player.setSitting(false);
+      player.sync();
+    };
+    const look = player.standingLook;
+    if (fadeMs <= 0 || !this.textures.exists(look.key)) {
+      settle();
+      return;
+    }
+    // 兜底：正常时序不会叠加，万一上一次没销毁，先清掉再建。
+    this.standUpCrossFade?.destroy();
+    const temp = this.add
+      .image(sprite.x, sprite.y, look.key)
+      .setOrigin(sprite.originX, sprite.originY)
+      .setScale(look.scale)
+      .setDepth(sprite.depth)
+      .setAlpha(0);
+    this.standUpCrossFade = temp;
+    this.tweens.add({
+      targets: temp,
+      alpha: 1,
+      duration: fadeMs,
+      // 交叉淡入只要「均匀地把新姿势叠上来」，不需要 ease。
+      ease: 'Linear',
+      onComplete: () => {
+        settle();
+        temp.destroy();
+        if (this.standUpCrossFade === temp) this.standUpCrossFade = null;
+      },
+    });
   }
 
   /** 表演收尾：白场淡出（或交给下一个场景），恢复输入，再交给调用方。 */
@@ -1752,6 +1809,9 @@ export class Ch01DormScene extends UIScene {
     this.xiaobaiBob = null;
     this.walkTween?.stop();
     this.walkTween = null;
+    // 交叉淡入还在跑就退出/切场：临时层必须现在销毁，不能挂在已关闭的场景上。
+    this.standUpCrossFade?.destroy();
+    this.standUpCrossFade = null;
     // 循环音必须在 SHUTDOWN 里停：Phaser 的 SoundManager 是 game 级的，场景关闭不会自动停。
     this.stopSceneAudio();
     this.cutscene?.destroy();
