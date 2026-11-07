@@ -257,6 +257,18 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
   - `public/assets/img/character/ch01/zhou_stand_up.webp` 8 帧 1280×400，逐帧高 160/161/162/163/168/202/227/228（严格递增），头宽 76/74/76/78/74/75/75/75（±3%），底边全 394，中心 80/82/78/84/84/83/79/74（躯干锚点，腿收放会小幅漂移）。
 - 验收图：`docs/screenshots/sitting/review-sheet.png`（静帧 + 8 帧并排，带实测数字）、`docs/screenshots/sitting/ingame-390.png`（390 宽实机：坐地 / 站立对照）、`docs/screenshots/sitting/ingame-standup-frames.png`（实机 1:1 像素的 8 帧）。
 
+#### 11.4.4 周全侧面站立 idle（2026-11-07，t39）
+
+- 起因：起身序列末帧是**正侧面**，站立 idle 一直是 `q/zhou_q_right.png`（3/4 朝镜头），直接切会闪一下姿势，场景只能做 110ms 的 alpha 交叉淡入伪装「转身」。补一张**正侧面朝右的站立静帧**，起身演完直接切过去，不用转身。
+- 文件：`public/assets/img/character/ch01/zhou_idle_right.png`（160×400，约 51 KB，透明底）。
+- 生成：图片生成 job `imw5uxk0386893c`，模型 `doubao-seedream-5-0-flash-260915`，1024×1536 竖版，参考图两张——`public/assets/img/character/ch01/q/zhou_q_right.png`（游戏内真正在跑的朝右帧：定画风、配色、头身比）与 `assets-src/character/ch01/q/zhou-qchibi.png`（Q 版三头身设定）。一次出 2 张候选，取第 1 张。
+- 提示词要点：严格正侧面 90° / 面朝画右 / **只有一只眼睛可见，另一只被鼻梁挡住** / 鼻尖是右侧最右轮廓 / 双臂垂下贴裤缝 / 双脚前后错开半只脚、脚尖朝右 / 站直不俯仰 / 纯绿底 / **禁止 3/4 侧脸、回望、地面投影、第二个人影**。
+- 为什么不用 `assets-src/character/ch01/sprite/right.png` 当参考：那是 4 头身版本，t28 已经踩过一次坑（视频把人物越画越瘦、头宽 -32%）。
+- 后期：`tools/make-zhou-idle-right.py`（复用 `make-zhou-sit-standup.py` 的绿度软键 + 暗绿地面投影剔除 + 缩放后 bbox 重新居中）。
+- 实测：人物高 371 / 底边 394 / 水平中心 80 / 头宽 121，与 `zhou_stand_up` 末帧（归一到 371 高）比——头顶差 0、肩高差 0、脚底差 0、头宽差 −3、剪影 IoU 0.882。基线写进 `assets-src/character/ch01/idle-right-manifest.json`，由 `test/ch01-idle-right.test.ts` 守住（含 PNG alpha 包围盒解码）。
+- 状态：**只入库，暂未接入场景**（`img.char.ch01.zhou_idle_right`；代码接线是后续任务）。
+- 验收图：`docs/screenshots/sitting/idle-right-preview.png`（1:1 + 实机尺寸）、`docs/screenshots/sitting/idle-vs-standup8.png`（与起身末帧并排 + 差值表）。
+
 
 ### 11.5 梦域金殿战斗背景
 

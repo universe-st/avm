@@ -37,7 +37,7 @@ interface AssetDef {
 | `cutscene.ch01palace` | 梦域金殿地图 `hall.png`（1056×1728）+ 13 张殿上角色图（200×420）+ 2 张半身立绘（720×900） | 8 MB | — | 金殿过场 `scene.ch01.palace`；战斗 `battle.ch01.first` 也复用它当背景 |
 | `cutscene.ch01palace.walk` | 郑卿 / 楚公公 八方向行走 sheet（各 8 张 × 16 帧 × 200×420，WebP） | 12 MB | `cutscene.ch01palace` | 只在金殿过场加载；走位时播帧，停下回静态图 |
 | `cutscene.ch01palace.sfx` | 金殿音效 14 条（环境/脚步/跪地/裂皮/心跳…，mp3 24kHz 单声道，共约 300 KB） | 1 MB | `cutscene.ch01palace` | 过场音效；缺失时静默跳过，不阻断 |
-| `ch.01` | 33×54 寝室整图（重组窗光版）、郑卿睡床 4 帧、周全 Q 版八向/行走、小白/郑卿、沉睡症新闻 CG、呼噜/拳击/手机 SFX、寝室环境音与木地板脚步 A/B；`img.char.ch01.zhou_sit_right`（坐地朝右正式图 160×400）+ `img.char.ch01.zhou_stand_up`（起身 8 帧 × 160×400 横排）；依赖 `ch01.bgm`（寝室曲 + 回忆 cue） | 12 MB | — | 进入第一章 |
+| `ch.01` | 33×54 寝室整图（重组窗光版）、郑卿睡床 4 帧、周全 Q 版八向/行走、小白/郑卿、沉睡症新闻 CG、呼噜/拳击/手机 SFX、寝室环境音与木地板脚步 A/B；`img.char.ch01.zhou_sit_right`（坐地朝右正式图 160×400）+ `img.char.ch01.zhou_stand_up`（起身 8 帧 × 160×400 横排）+ `img.char.ch01.zhou_idle_right`（正侧面站立 idle 160×400，t39 入库、暂未接场景）；依赖 `ch01.bgm`（寝室曲 + 回忆 cue） | 12 MB | — | 进入第一章 |
 | `ch01.bgm` | 第一章共享 BGM 三首：《午后小憩》`ch01_dorm`（寝室）、《危机来临》`ch01_crisis`（回忆/御膳房）、《清除协议》`ch01_dream`（金殿/剧情战），约 3.3 MB | 4 MB | — | `ch.01` / `battle.ch01` 依赖它；`ch01Kitchen` / `ch01Palace` 显式 requires |
 | `battle.common` | 战斗公共资源（本期为空，依赖 `ui`） | 3 MB | — | 进入剧情战 |
 | `battle.ch01` | 战斗专用舞台 `miner_hall.webp`（720×1280）、矿工 sprite、金属 SFX；依赖 `ch.01` 复用周全 sprite、依赖 `ch01.bgm` 取战斗曲 | 5 MB | — | 进入剧情战 |
@@ -59,6 +59,7 @@ interface AssetDef {
 - 2026-11-07（t28 坐地朝右 + 起身序列）：`img.char.ch01.zhou_sit_right` 换成正式图 `zhou_sit_right.png`（160×400，人物高 160 / 底边 394 / 水平中心 80，**按 scale 1.0 显示**，约 51 KB）；新增 `img.char.ch01.zhou_stand_up`（8 帧横排 1280×400 WebP q92，约 67 KB，65ms/帧，**同样 scale 1.0**，末帧高 228 = 站立帧 371×0.6138）。两份都由 `tools/make-zhou-sit-standup.py` 产出，帧元数据在 `CH01_ZHOU_STAND_UP` / `CH01_ZHOU_SIT_RIGHT`（`src/assets/keys.ts`）与 `assets-src/character/ch01/standup-manifest.json`；`test/ch01-sit-standup.test.ts` 守住宽度 < 4096、帧数、单调递增与头宽波动。旧的 `zhou_sit.png`（坐椅子 96×160）只留作 `resolveSittingKey()` 的第二级回退，不再上屏。
 - 2026-11-07（合并 t28 ↔ t29 的缩放口径）：t29 的 `sittingScaleFor` 假设「正式坐姿图人物占满 400 高」，实际 t28 素材是**160 高人物 + 400 高画布**（留白只为脚底 y≈394 与站立帧对齐），按 `160/400=0.4` 显示会把人缩成 64px。现在场景对 `zhou_sit_right` / `zhou_stand_up` 直接取 `CH01_ZHOU_SIT_RIGHT.displayScale` / `CH01_ZHOU_STAND_UP.displayScale`（均 1.0），其余回退贴图仍走 `sittingScaleFor(源图高)`。
 - 2026-11-07（t33 起身帧序列落地）：`wakeUp` 的起身步骤从 tween 缩放改成 `kind: 'frame-sequence'`（8 帧 × 65ms = 520ms，`Linear`；reduced 260ms 等比例减半）。帧号由纯函数 `standUpFrameAt(elapsedMs, frameCount=8, durationMs=520)` 决定，播完切回站立静态图；素材不可用时直接落回静态图，不再做「缩小的站立图」tween。新增 `CH01_ZHOU_STAND_FRAME`（站立 Q 帧 160×400 / 人物高 371 / 底边 394 / scale 0.6138），与 `CH01_ZHOU_SIT_RIGHT`、`CH01_ZHOU_STAND_UP` 共用底边 394，`test/ch01-sit-standup.test.ts` 守住三者对齐与屏显高 160 → 228。
+- 2026-11-07（t39 侧面站立 idle）：新增 `img.char.ch01.zhou_idle_right` → `zhou_idle_right.png`（160×400，人物高 371 / 底边 394 / 水平中心 80，约 51 KB，正侧面朝右，与 `CH01_ZHOU_STAND_FRAME` 同一套画布基准、同一个 `displayScale` 0.6138）。存在理由：起身末帧是正侧面，`q/zhou_q_right.png` 是 3/4 朝镜头，切过去要 110ms 交叉淡入伪装转身；这张接在起身末帧后面不用转身。实测与起身末帧（归一到 371 高）头顶/肩高/脚底差均为 0、头宽 −3、剪影 IoU 0.882；基线在 `assets-src/character/ch01/idle-right-manifest.json`，`test/ch01-idle-right.test.ts` 守住包围盒。**只入库、暂未接场景**（代码接线是后续任务）。
 
 ## 3. 场景资源作用域（核心机制）
 
