@@ -181,6 +181,17 @@ export class PlayerActor {
     return this.sprite;
   }
 
+  /**
+   * 站立 idle 的贴图与显示缩放（只读，**不改变当前姿态**）。
+   *
+   * 起身末帧（纯侧面）→ idle（`q.right`，3/4 朝镜头）之间要做交叉淡入：
+   * 淡入的临时层必须在主角切贴图**之前**就摆成 idle 的样子。此时姿态还是「坐」，
+   * 用 `displayScale` 会取到坐姿缩放（0.4/1.0），所以这里单独给出站立缩放。
+   */
+  get standingLook(): { readonly key: string; readonly scale: number } {
+    return { key: this.staticKeys[this.facingValue], scale: this.spriteScale };
+  }
+
   /** 头顶中心（精灵顶部），供表情气泡把尾巴钉在头上；坐着时用坐姿高度。 */
   get headPoint(): MapPoint {
     return {

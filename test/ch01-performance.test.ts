@@ -17,6 +17,7 @@ import {
   CH01_STAND_UP_SEQUENCE,
   CH01_WAKE_PERFORMANCE,
   CH01_XIAOBAI_OFFSET,
+  STANDUP_TO_IDLE_FADE_MS,
   flashInMs,
   flashOutMs,
   planFlashHandoff,
@@ -25,6 +26,7 @@ import {
   sittingScaleFor,
   standUpFrameAt,
   standUpFramesFromLayout,
+  standUpToIdleFadeMs,
   stepDurationMs,
   timelineDurationMs,
   type FlashStep,
@@ -215,6 +217,23 @@ describe('寝室战后起身表演（wakeUp）', () => {
     expect(timelineDurationMs(timeline)).toBe(1320);
     expect(timelineDurationMs(timeline, true)).toBe(560);
     expect(timelineDurationMs(timeline, true)).toBeLessThan(timelineDurationMs(timeline));
+  });
+
+  it('起身末帧 → idle 交叉淡入：110ms 短过渡，reduced-motion 硬切', () => {
+    // 时长必须在 (0, 120]：太长会被看成「淡出」，太短等于没磨平侧脸→3/4 的跳变。
+    expect(STANDUP_TO_IDLE_FADE_MS).toBeGreaterThan(0);
+    expect(STANDUP_TO_IDLE_FADE_MS).toBeLessThanOrEqual(120);
+    expect(standUpToIdleFadeMs(false)).toBe(STANDUP_TO_IDLE_FADE_MS);
+    // reduced-motion 不建临时层，直接硬切。
+    expect(standUpToIdleFadeMs(true)).toBe(0);
+    // 交叉发生在帧序列结束之后，必须赶在表演收尾（最后的 wait）之前完成，
+    // 否则 performing 解除、update() 的 sync() 会和临时层抢同一张 sprite。
+    const tail = timeline.steps.at(-1);
+    expect(tail?.kind).toBe('wait');
+    if (tail?.kind !== 'wait') throw new Error('expected wait');
+    expect(STANDUP_TO_IDLE_FADE_MS).toBeLessThanOrEqual(stepDurationMs(tail));
+    // reduced 下是 0（硬切），自然落在缩短后的收势里。
+    expect(standUpToIdleFadeMs(true)).toBeLessThanOrEqual(stepDurationMs(tail, true));
   });
 });
 
