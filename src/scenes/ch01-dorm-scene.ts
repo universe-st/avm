@@ -12,6 +12,7 @@ import {
   CH01_Q_WALK_FRAME_COUNT,
   CH01_Q_WALK_SHEETS,
   CH01_ZHOU_SIT_RIGHT,
+  CH01_ZHOU_STAND_FRAME,
   CH01_ZHOU_STAND_UP,
   PALACE_ASSET_KEYS,
 } from '../assets/keys';
@@ -74,18 +75,17 @@ import {
   flashInMs,
   flashOutMs,
   resolveSittingKey,
-  resolveStandingKey,
   sittingScaleFor,
   standUpFrameAt,
   standUpFramesFromLayout,
   stepDurationMs,
   timelineDurationMs,
   type FlashStep,
+  type FrameSequenceStep,
   type MoveActorStep,
   type PerformanceStep,
   type PerformanceTimeline,
   type SitStep,
-  type StandStep,
   type WalkStep,
 } from '../story/ch01-performance';
 import { DialoguePlayer, type DialogueEvent } from '../story/dialogue-player';
@@ -122,11 +122,13 @@ const WALK_SPEED = 140;
 const INTERACT_KEY = 'E';
 
 /**
- * 角色显示缩放：Q 版帧 160×400，原始比例 0.682，按要求整体缩到 **90%**（0.682 × 0.9）。
+ * 角色显示缩放：Q 版帧 160×400，人物高 371，取素材声明的 `CH01_ZHOU_STAND_FRAME.displayScale`
+ * （= 0.682 × 0.9 = 0.6138，屏显高约 228）。坐姿/起身各用自己的 `displayScale`，
+ * 三者底边都是 394，见 `src/assets/keys.ts`。
  * `headOffset` 是头顶到脚底的设计像素，必须跟着一起缩，否则表情气泡会飘在头顶上方。
  * 脚盒 `PLAYER_FOOT` 是碰撞用的，不跟缩放走（缩了会让窄过道更难走）。
  */
-const PLAYER_SCALE = 0.6138;
+const PLAYER_SCALE = CH01_ZHOU_STAND_FRAME.displayScale;
 const PLAYER_HEAD_OFFSET = 232;
 
 /**
@@ -1317,7 +1319,7 @@ export class Ch01DormScene extends UIScene {
       case 'flash':
         this.performFlash(step);
         break;
-      case 'stand':
+      case 'frame-sequence':
         this.performStand(step, duration);
         break;
     }
@@ -1471,70 +1473,39 @@ export class Ch01DormScene extends UIScene {
   }
 
   /**
-   * 起身：优先播 `zhou_stand_up` 帧序列；素材没生成/尺寸对不上时退回三段 tween。
+   * 起身：播 `zhou_stand_up` 8 帧序列（520ms / Linear）。
+   *
+   * 帧号只由「已播时长 / 整段时长 × 帧数」决定（`standUpFrameAt`），**不叠 ease**：
+   * 任何缓动都会让某些帧停更久、另一些被跳过，看起来像抽帧而不是起身。
+   * 播完把贴图交回站立静态图（`player.sync()` 按朝向取 Q 版 `zhou_q_*`），缩放在
+   * 三处都取素材声明（坐姿 1.0 / 起身 1.0 / 站立 0.6138），底边同为 394，
+   * 因此从头到尾不会出现「缩小的站立图」。
    *
    * 帧序列按贴图**宽度**判定可用性（`standUpFramesFromLayout`）：占位图 96×160
-   * 切不出 160 宽的帧 → 0 → 回退，绝不白屏/报错。播放期间 `performing` 为真，
-   * `update()` 不会 `sync()`，所以贴图不会被坐姿刷回去；收尾时才 `setSitting(false)`。
+   * 切不出 160 宽的帧 → 0 → 直接落回站立静态图（不做缩小/放大的 tween 假起身）。
+   * 播放期间 `performing` 为真，`update()` 不会 `sync()`，贴图不会被坐姿刷回去。
    */
-  private performStand(_step: StandStep, duration: number): void {
+  private performStand(step: FrameSequenceStep, duration: number): void {
     const player = this.player;
     if (!player) return;
-    const sprite = player.display;
-    if (!sprite) {
-      player.setSitting(false);
-      return;
-    }
     audioDirector.playSfxAt(PALACE_ASSET_KEYS.sfx.cloth, { volume: 0.3 });
-    if (this.playStandUpSequence(player, duration)) return;
-
-    // 站立贴图也走回退：Q 版朝右 → 旧版朝右；解析不到就保持现有贴图。
-    const standKey = resolveStandingKey('right', (key) => this.textures.exists(key));
-    const sitScale = player.displayScale;
-    const feet = player.position;
-    const baseY = sprite.y;
-    const halfMs = Math.max(120, Math.round(duration * 0.4));
-    const standMs = Math.max(120, duration - halfMs);
-
-    // 第 1 段：坐姿前倾/下沉。
-    this.tweens.add({
-      targets: sprite,
-      y: baseY + 6,
-      scaleX: sitScale * 0.9,
-      scaleY: sitScale * 0.9,
-      duration: halfMs,
-      ease: 'Sine.easeIn',
-      onComplete: () => {
-        // 第 2 段：切站立贴图，压成半蹲高度。
-        player.setSitting(false);
-        if (standKey !== null) sprite.setTexture(standKey, 0);
-        sprite.setScale(PLAYER_SCALE * 0.55);
-        sprite.setPosition(feet.x, feet.y + 12);
-        audioDirector.playSfxAt(CH01_ASSET_KEYS.audio.stepWoodB, { volume: 0.22 });
-        // 第 3 段：半蹲 → 站直。
-        this.tweens.add({
-          targets: sprite,
-          y: feet.y,
-          scaleX: PLAYER_SCALE,
-          scaleY: PLAYER_SCALE,
-          duration: standMs,
-          ease: 'Back.easeOut',
-          onComplete: () => {
-            player.sync();
-            if (standKey !== null) sprite.setTexture(standKey, 0);
-          },
-        });
-      },
-    });
+    if (this.playStandUpSequence(player, step, duration)) return;
+    // 素材不可用：原地落回站立静态图（不缩放、不硬切「小站立图」）。
+    player.setSitting(false);
+    player.sync();
   }
 
   /**
-   * 播 `zhou_stand_up` 帧序列；素材不可用时返回 false，由调用方走 tween 回退。
+   * 播 `zhou_stand_up` 帧序列；素材不可用时返回 false，由调用方直接落回站立静态图。
    *
    * 素材是横排 strip（8 帧 × 160×400，见 `CH01_STAND_UP_SEQUENCE`）。与行走 sheet
    * 同一套做法：首次使用时按 frameWidth 把帧切进 Phaser 纹理缓存。
    */
-  private playStandUpSequence(player: PlayerActor, duration: number): boolean {
+  private playStandUpSequence(
+    player: PlayerActor,
+    step: FrameSequenceStep,
+    duration: number,
+  ): boolean {
     const sprite = player.display;
     if (!sprite) return false;
     const { key, frameWidth, frameHeight } = CH01_STAND_UP_SEQUENCE;
@@ -1556,9 +1527,9 @@ export class Ch01DormScene extends UIScene {
     const feet = player.position;
     const total = Math.max(1, duration);
     const proxy = { t: 0 };
-    // 帧序列自带的行走脚感：播放期间不再叠坐姿贴图（performing 冻结 sync）。
-    // 缩放取素材声明（1.0）：这张 sheet 与坐姿图同一套 160×400 画布，末帧已按
-    // 站立屏显高 228 画好；再乘 PLAYER_SCALE 会让起身过程中人先缩一半再弹回站立。
+    // 播放期间不再叠坐姿贴图（performing 冻结 sync）。
+    // 缩放取素材声明（1.0）：这张 sheet 与坐姿图同一套 160×400 画布、底边同为 394，
+    // 末帧人物高 228 = 站立静态图 371 × 0.6138；再乘 PLAYER_SCALE 会先缩一半再弹回去。
     sprite.setScale(CH01_ZHOU_STAND_UP.displayScale);
     sprite.setPosition(feet.x, feet.y);
     sprite.setTexture(key, 0);
@@ -1566,19 +1537,20 @@ export class Ch01DormScene extends UIScene {
       targets: proxy,
       t: total,
       duration: total,
-      // 帧序列按**均匀时间**推进（ease 只该作用在位移上，不该让某些帧停更久）。
-      ease: 'Linear',
+      // 帧序列按**均匀时间**推进：ease 只该作用在位移上。
+      ease: step.ease,
       onUpdate: () => {
-        sprite.setTexture(key, standUpFrameAt(proxy.t, total, frames));
+        sprite.setTexture(key, standUpFrameAt(proxy.t, frames, total));
       },
       onComplete: () => {
+        // 最后一帧钳住站立姿态，再把贴图交回站立静态图（同一底边、同一屏显高）。
         sprite.setTexture(key, frames - 1);
-        // 收尾：解除坐姿 → sync 换回站立静态图（帧序列是过渡，静态图才是常驻姿态）。
         player.setSitting(false);
         player.sync();
+        // 站直那一下的落脚声（cloth 在起身开始时已经给过）。
+        audioDirector.playSfxAt(CH01_ASSET_KEYS.audio.stepWoodB, { volume: 0.2 });
       },
     });
-    audioDirector.playSfxAt(CH01_ASSET_KEYS.audio.stepWoodB, { volume: 0.22 });
     return true;
   }
 

@@ -17,11 +17,11 @@ import type { Facing } from '../map/types';
  *   中间不允许出现任何「站在书桌边」的帧，也没有走路。
  * - `dreamFlash`：小白对白全部在坐姿下说完之后，停顿一拍 → 全屏白光 → 切金殿。
  *   白光在寝室里只淡入、不淡出（`handoff`）：淡出交给金殿首帧，否则会露出寝室。
- * - `wakeUp`：战后回到寝室时**已经坐着**（不是先站着再瞬移），起身用 `zhou_stand_up`
- *   帧序列（素材未生成时退回三段 tween）。
+ * - `wakeUp`：战后回到寝室时**已经坐着**（不是先站着再瞬移），起身播 `zhou_stand_up`
+ *   8 帧序列（520ms / Linear）；素材不可用时直接落回站立静态图。
  *
- * 素材还没正式生成：坐地朝右用 `zhou_sit_right` 占位 key，缺图时回退到现有
- * `zhou_sit`（椅子占位）→ Q 版朝右立绘。回退解析也在这里，场景只拿结果。
+ * 坐地朝右正式素材 `zhou_sit_right` 已入库；缺图时回退到现有 `zhou_sit`（椅子占位）
+ * → Q 版朝右立绘。回退解析也在这里，场景只拿结果。
  */
 
 /** 坐下的位置（地毯一带，房间横向中心）；两段表演必须用同一个点。 */
@@ -64,10 +64,10 @@ export function sittingScaleFor(
 }
 
 /**
- * 起身帧序列的素材契约（由美术任务生成，见 t29 报告「给美术素材的期望接口」）。
+ * 起身帧序列的素材契约（t28 正式素材，见 `assets-src/character/ch01/standup-manifest.json`）。
  *
- * 8 帧 × 160×400 = 1280 宽，仍在手机 4096 纹理上限内；`frameMs` 只是命名参考，
- * 实际播放按时间线的 `stand.ms` 均分（保证动画不会跑出该步骤的时长）。
+ * 8 帧 × 160×400 = 1280 宽，仍在手机 4096 纹理上限内；整段 8 × 65 = 520ms。
+ * **播放必须 Linear**：`ease` 只该作用在位移上，曲线会让某些帧停更久、另一些被跳过。
  */
 export const CH01_STAND_UP_SEQUENCE = {
   key: CH01_ASSET_KEYS.characters.zhouStandUp,
@@ -75,19 +75,28 @@ export const CH01_STAND_UP_SEQUENCE = {
   frameHeight: 400,
   frameCount: 8,
   frameMs: 65,
+  /** 整段播放时长 = 8 × 65 = 520ms（帧号按这个时长均分）。 */
+  durationMs: 8 * 65,
+  /** 帧序列唯一允许的插值方式；场景直接取这个值，禁止在场景里另写 ease。 */
+  ease: 'Linear',
 } as const;
 
-/** 起身序列在 `elapsedMs` 时该显示第几帧：按整段时长均分，钳在最后一帧、不循环。 */
+/**
+ * 起身序列在 `elapsedMs` 时该显示第几帧：按整段时长**均分**，钳在最后一帧、不循环。
+ *
+ * 默认参数就是 `zhou_stand_up` 的素材契约（8 帧 / 520ms），场景只需传已播时长。
+ * 例：8 帧 / 520ms 时每帧 65ms，0 → f0、64 → f0、65 → f1、519/520/超界 → f7。
+ */
 export function standUpFrameAt(
   elapsedMs: number,
-  totalMs: number,
-  frameCount: number,
+  frameCount: number = CH01_STAND_UP_SEQUENCE.frameCount,
+  durationMs: number = CH01_STAND_UP_SEQUENCE.durationMs,
 ): number {
-  if (frameCount <= 0) return 0;
+  if (!Number.isFinite(frameCount) || frameCount <= 0) return 0;
   if (!Number.isFinite(elapsedMs) || elapsedMs <= 0) return 0;
-  if (!Number.isFinite(totalMs) || totalMs <= 0) return frameCount - 1;
-  const clamped = Math.min(elapsedMs, totalMs);
-  return Math.min(frameCount - 1, Math.floor((clamped / totalMs) * frameCount));
+  if (!Number.isFinite(durationMs) || durationMs <= 0) return frameCount - 1;
+  const clamped = Math.min(elapsedMs, durationMs);
+  return Math.min(frameCount - 1, Math.floor((clamped / durationMs) * frameCount));
 }
 
 /**
@@ -96,7 +105,7 @@ export function standUpFrameAt(
  * 素材按 **横排 strip** 加载成一张图（与行走 sheet 同一套做法，`AssetKind` 没有
  * spritesheet），所以这里用「宽度 / frameWidth」判定，而不是 Phaser 的 frameTotal：
  * 占位图 `zhou_sit.png`（96×160）→ 0，正式 1280×400 → 8，多出来的帧裁掉。
- * < 2 帧一律视为不可用，场景回退三段 tween（绝不白屏/报错）。
+ * < 2 帧一律视为不可用，场景直接落回站立静态图（绝不白屏/报错）。
  */
 export function standUpFramesFromLayout(
   width: number,
@@ -164,9 +173,16 @@ export interface FlashStep extends StepTiming {
   readonly handoff?: boolean;
 }
 
-export interface StandStep extends StepTiming {
-  readonly kind: 'stand';
+export interface FrameSequenceStep extends StepTiming {
+  /** 帧序列步骤：场景按「已播时长 / 整段时长 × 帧数」取帧，不叠 ease。 */
+  readonly kind: 'frame-sequence';
   readonly actor: 'zhou';
+  /** 序列 id；场景据此挑 sheet（目前只有起身一段）。 */
+  readonly sequence: 'standUp';
+  readonly frameCount: number;
+  readonly frameMs: number;
+  /** 只允许 `Linear`（见 `CH01_STAND_UP_SEQUENCE`）。 */
+  readonly ease: 'Linear';
 }
 
 export type PerformanceStep =
@@ -175,7 +191,7 @@ export type PerformanceStep =
   | MoveActorStep
   | WaitStep
   | FlashStep
-  | StandStep;
+  | FrameSequenceStep;
 
 export interface PerformanceTimeline {
   readonly id: PerformanceTimelineId;
@@ -238,10 +254,10 @@ export const CH01_DREAM_FLASH_PERFORMANCE: PerformanceTimeline = {
 
 /**
  * 战后回来：第一拍是 `sit`（进场景时就坐着），随后起身（`zhou_stand_up` 帧序列，
- * 缺素材退回三段 tween）、再留一拍给画面收势。
+ * 素材不可用时直接落回站立静态图，不做「缩小的站立图」）、再留一拍给画面收势。
  * 顺序被单测锁住——绝不能变成先 `stand` 再补坐下。
  *
- * `stand.ms` = 8 帧 × 65ms 的帧序列时长；缺素材时三段 tween 也在同一时长内跑完。
+ * `ms` = 8 帧 × 65ms 的帧序列时长；`reducedMs` 等比例减半（260）。
  */
 export const CH01_WAKE_PERFORMANCE: PerformanceTimeline = {
   id: 'wakeUp',
@@ -256,7 +272,17 @@ export const CH01_WAKE_PERFORMANCE: PerformanceTimeline = {
       ms: 640,
       reducedMs: 240,
     },
-    { kind: 'stand', actor: 'zhou', ms: 520, reducedMs: 240 },
+    {
+      kind: 'frame-sequence',
+      actor: 'zhou',
+      sequence: 'standUp',
+      frameCount: CH01_STAND_UP_SEQUENCE.frameCount,
+      frameMs: CH01_STAND_UP_SEQUENCE.frameMs,
+      ease: CH01_STAND_UP_SEQUENCE.ease,
+      ms: CH01_STAND_UP_SEQUENCE.durationMs,
+      // 等比例缩短：动画的每一帧都还在，只是每帧更短。
+      reducedMs: Math.round(CH01_STAND_UP_SEQUENCE.durationMs / 2),
+    },
     { kind: 'wait', ms: 160, reducedMs: 60 },
   ],
 };
