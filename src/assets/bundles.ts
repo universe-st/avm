@@ -822,6 +822,16 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         tags: ['character', 'placeholder'],
       },
       {
+        // 起身帧序列（t29 接入）：正式素材是横排 strip 8 帧 × 160×400 = 1280×400。
+        // 这里先指向 zhou_sit.png 占位——尺寸对不上，场景会判定「不可用」并走三段 tween 回退。
+        // 素材到位后只改 url（不用改 kind：行走 sheet 同理，由场景按 frameWidth 切帧）。
+        key: 'img.char.ch01.zhou_stand_up',
+        kind: 'image',
+        url: 'assets/img/character/ch01/zhou_sit.png',
+        label: '周全起身帧序列（占位）',
+        tags: ['character', 'placeholder'],
+      },
+      {
         key: 'img.char.ch01.zheng',
         kind: 'image',
         url: 'assets/img/character/ch01/zheng.png',

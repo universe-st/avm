@@ -62,14 +62,20 @@ import {
   type Ch01PreviewPhase,
 } from '../story/ch01-flow';
 import {
-  CH01_DREAM_INTRO_PERFORMANCE,
+  CH01_DREAM_ENTRY_PERFORMANCE,
+  CH01_DREAM_FLASH_PERFORMANCE,
+  CH01_SIT_HEAD_OFFSET,
   CH01_SIT_TILE,
+  CH01_STAND_UP_SEQUENCE,
   CH01_WAKE_PERFORMANCE,
   CH01_XIAOBAI_OFFSET,
   flashInMs,
   flashOutMs,
   resolveSittingKey,
   resolveStandingKey,
+  sittingScaleFor,
+  standUpFrameAt,
+  standUpFramesFromLayout,
   stepDurationMs,
   timelineDurationMs,
   type FlashStep,
@@ -122,14 +128,12 @@ const PLAYER_SCALE = 0.6138;
 const PLAYER_HEAD_OFFSET = 232;
 
 /**
- * 坐姿占位（`zhou_sit` 96×160）的显示缩放。
+ * 坐姿图脚底相对脚底坐标的偏移。
  *
- * 站立 Q 帧 160×400 × 0.6138 ≈ 98×245；坐姿图 96×160 直接乘 0.6138 只剩 59×98，
- * 坐下时会「缩成一小只」。按 1.0 显示时肩宽与站立接近，坐高约 160，比例合理。
- * 正式「坐地朝右」素材出来后按它的画布重算，或直接改成和站立同尺寸的 160×400。
+ * 椅子占位图自带椅脚，脚底贴地即 offset 0；正式坐地素材若有裙摆/腿的余白再调。
+ * （坐姿的**缩放**不在这里写死：由 `sittingScaleFor(贴图源图高)` 按
+ * `CH01_SIT_DISPLAY_HEIGHT` 换算，见 `create()`。）
  */
-const ZHOU_SIT_SCALE = 1;
-/** 椅子占位图自带椅脚，脚底贴地即 offset 0；正式坐地素材若有裙摆/腿的余白再调。 */
 const ZHOU_SIT_OFFSET_Y = 0;
 
 
@@ -160,6 +164,11 @@ export class Ch01DormScene extends UIScene {
   /** 全屏白光层（DOM，盖住 HUD）；结束后必须移除，不能留白影。 */
   private flashOverlay: FlashOverlayHandle | null = null;
   private flashStep: FlashStep | null = null;
+  /**
+   * `flash.handoff` 的白场淡出时长：寝室不淡出，`beginPalace` 在切场之后用这个值淡出。
+   * 为 0 表示没有交接中的白场。
+   */
+  private flashHandoffOutMs = 0;
   /** 入梦表演只跑一次（dream 空节点可能被重入）。 */
   private dreamPerformanceDone = false;
   /** 战后回来：等第一句征召台词打完，再播起身表演。 */
@@ -228,6 +237,12 @@ export class Ch01DormScene extends UIScene {
   private readonly interactLabel = ref('交互');
   private readonly interactAvailable = ref(false);
   private readonly cardActive = ref(false);
+  /**
+   * 表演进行中：HUD 走单独分支，**整块不画**「交互」按钮与提示。
+   *
+   * 只看 `interactAvailable` 不够——那只是 disabled，灰按钮还会挂在右下角（t27 反馈）。
+   */
+  private readonly performanceActive = ref(false);
   /** 新手移动指引：首次进入探索时显示，玩家第一次移动后收起。 */
   private readonly tutorialVisible = ref(false);
 
@@ -316,6 +331,7 @@ export class Ch01DormScene extends UIScene {
       interactLabel: this.interactLabel,
       interactAvailable: this.interactAvailable,
       cardActive: this.cardActive,
+      performanceActive: this.performanceActive,
       tutorialVisible: this.tutorialVisible,
       onMenu: () => {
         audioDirector.playClick();
@@ -374,6 +390,8 @@ export class Ch01DormScene extends UIScene {
     this.flashOverlay?.remove();
     this.flashOverlay = null;
     this.flashStep = null;
+    this.flashHandoffOutMs = 0;
+    this.performanceActive.value = false;
     this.dreamPerformanceDone = false;
     this.suppressWakeCg = false;
     this.wakePerformancePending = this.isWakeStart();
@@ -469,6 +487,16 @@ export class Ch01DormScene extends UIScene {
      * 不管是不是战后回来都要带上：入梦表演也要在房间中心坐下。
      */
     const sittingKey = resolveSittingKey((key) => this.textures.exists(key));
+    /**
+     * 坐姿缩放按**贴图源图高**换算（占位 96×160 → 1.0，正式 160×400 → 0.4）。
+     *
+     * 回退链最后一档是 Q 版**站姿**朝右立绘——那不是坐姿图，若按 160px 目标缩放
+     * 会把一个人缩成 0.4 的小块，所以这一档沿用站立缩放/站立头顶高度。
+     */
+    const sittingFallsBackToStanding = sittingKey === CH01_Q_STATIC_SPRITES.right;
+    const sittingSource = sittingKey === null ? null : this.textures.get(sittingKey).getSourceImage();
+    const sittingHeight =
+      sittingSource !== null && 'height' in sittingSource ? Number(sittingSource.height) : 0;
     this.player = new PlayerActor(this, this.room, {
       staticKeys: CH01_Q_STATIC_SPRITES,
       walkSheets: CH01_Q_WALK_SHEETS,
@@ -483,7 +511,13 @@ export class Ch01DormScene extends UIScene {
         : {
             sittingKey,
             sittingOffsetY: ZHOU_SIT_OFFSET_Y,
-            sittingScale: ZHOU_SIT_SCALE,
+            sittingScale: sittingFallsBackToStanding
+              ? PLAYER_SCALE
+              : sittingScaleFor(sittingHeight),
+            // 坐地后人物比站立矮一截，表情气泡要跟着降下来。
+            sittingHeadOffset: sittingFallsBackToStanding
+              ? PLAYER_HEAD_OFFSET
+              : CH01_SIT_HEAD_OFFSET,
           }),
       ...(wakeStart
         ? // 战后回来：进场就坐在房间中心，不是先站着再瞬移坐下。
@@ -776,11 +810,11 @@ export class Ch01DormScene extends UIScene {
         case 'dialogue':
           // 空台词节点（现在的 `dream`）只用来把流程推进到下一拍。
           if (event.lines.length === 0) {
-            // 入梦表演：小白台词段已经整段走完，先演「走过去坐下 → 小白到右侧 → 白光」，
-            // 演完再 `finishDialogue()` 让流程发出 battle 事件（beginPalace 的转场照旧）。
+            // 小白台词段已经整段在**坐姿**下走完，这里只剩「停顿一拍 → 白光 → 切金殿」，
+            // 演完再 `finishDialogue()` 让流程发出 battle 事件（beginPalace 接手白场）。
             if (event.nodeId === 'dream' && !this.dreamPerformanceDone) {
               this.dreamPerformanceDone = true;
-              this.startPerformance(CH01_DREAM_INTRO_PERFORMANCE, () => this.finishDialogue());
+              this.startPerformance(CH01_DREAM_FLASH_PERFORMANCE, () => this.finishDialogue());
             } else {
               this.finishDialogue();
             }
@@ -791,6 +825,8 @@ export class Ch01DormScene extends UIScene {
             this.startPhoneCutscene(event.lines);
           } else {
             if (event.nodeId === 'after') saveProgress('dorm.after', { preview: this.preview });
+            // 手机对白必须在坐姿下说：CG 已经放过的重入路径（或素材缺失）也要先钉构图。
+            if (event.nodeId === 'phone') this.applyCompositionNow(CH01_DREAM_ENTRY_PERFORMANCE);
             this.startDialogue(event.lines);
           }
           break;
@@ -841,6 +877,14 @@ export class Ch01DormScene extends UIScene {
       this.cutscene = null;
       if (this.shuttingDown) return;
       if (reason === 'error') console.warn('[ch01-dorm] 手机 CG 不可用，直接进入对话');
+      /**
+       * t29 关键点：**CG 结束那一帧**画面就已经是「主角坐在房间中心、小白在右侧」。
+       *
+       * `onDone` 与视频层 `destroy()` 在同一个 JS 任务里（中间不会落一帧），
+       * 所以这里同步执行 0 时长构图步骤 —— 玩家看不到任何「还站在书桌边」的中间态，
+       * 也不会先播一段走路再坐下。
+       */
+      this.applyCompositionNow(CH01_DREAM_ENTRY_PERFORMANCE);
       this.startDialogue(lines);
     });
   }
@@ -1189,6 +1233,30 @@ export class Ch01DormScene extends UIScene {
   }
 
   /**
+   * 同步执行一段「构图」时间线（只接受 0 时长步骤）。
+   *
+   * 用于手机 CG 结束那一帧：`onDone` 与视频层摘除在同一个 JS 任务里，
+   * 这里立刻把主角钉在坐点、把小白放到右侧，中间不会落任何「站着」的帧。
+   * 不设 `performing`——调用方紧接着就开始对白（对白期间由坐姿独占保证姿态）。
+   */
+  private applyCompositionNow(timeline: PerformanceTimeline): void {
+    if (this.shuttingDown) return;
+    for (const step of timeline.steps) {
+      if (stepDurationMs(step, this.reduced) !== 0) {
+        console.warn('[ch01-dorm] 同步构图步骤必须是 0 时长，已跳过', step.kind);
+        continue;
+      }
+      this.runPerformanceStep(step, 0);
+    }
+    // 构图直接落地：把可能残留的交互提示按掉，避免和画面抢注意力。
+    this.near = null;
+    this.promptText?.setVisible(false);
+    this.highlightRing?.setVisible(false);
+    this.interactAvailable.value = false;
+    this.interactLabel.value = '交互';
+  }
+
+  /**
    * 按纯数据时间线执行表演。
    *
    * 每一步在自己的开始时间触发，最后一次性收尾（白场淡出 + 恢复输入 + onDone）。
@@ -1197,6 +1265,7 @@ export class Ch01DormScene extends UIScene {
   private startPerformance(timeline: PerformanceTimeline, onDone: () => void): void {
     if (this.performing || this.shuttingDown) return;
     this.performing = true;
+    this.performanceActive.value = true;
     this.cancelAutoAdvance();
     this.joystick?.setEnabled(false);
     this.promptText?.setVisible(false);
@@ -1348,13 +1417,22 @@ export class Ch01DormScene extends UIScene {
     const xiaobai = this.xiaobai;
     const player = this.player;
     if (!xiaobai || !player) return;
-    // 玩家跳过手机对话时小白可能还没登场；表演里必须让它出现，否则「在他右边」落空。
-    this.showXiaobai();
     const target = {
       x: player.position.x + step.offset[0] * this.room.tileSize,
       y: player.position.y + step.offset[1] * this.room.tileSize,
     };
     this.stopXiaobaiBob();
+    /**
+     * 0 时长 = CG 结束那一帧的构图：**直接落位并可见**（小白在 CG 里已经成形，
+     * 这里不需要再淡入一次）。否则按原逻辑平移 + 落位后继续 bob。
+     */
+    if (duration <= 0) {
+      xiaobai.setVisible(true).setAlpha(1).setPosition(target.x, target.y);
+      this.startXiaobaiBob();
+      return;
+    }
+    // 玩家跳过手机对话时小白可能还没登场；表演里必须让它出现，否则「在他右边」落空。
+    this.showXiaobai();
     this.tweens.add({
       targets: xiaobai,
       x: target.x,
@@ -1365,9 +1443,15 @@ export class Ch01DormScene extends UIScene {
     });
   }
 
-  /** 全屏白场：DOM 层淡入（盖住 HUD），淡出留到 finishPerformance 与金殿转场重叠。 */
+  /**
+   * 全屏白场：DOM 层淡入（盖住 HUD 与 canvas）。
+   *
+   * `handoff: true` 时**这里只淡入、不淡出**：全白保持到 `beginPalace` 切完场景，
+   * 再由金殿首帧之上淡出（否则会像 t27 那样先露出约 0.48s 寝室）。
+   */
   private performFlash(step: FlashStep): void {
     this.flashStep = step;
+    this.flashHandoffOutMs = step.handoff === true ? flashOutMs(step, this.reduced) : 0;
     const fade = flashInMs(step, this.reduced);
     this.flashOverlay = mountFlashOverlay({ color: '#ffffff' });
     this.flashOverlay?.fadeIn(fade);
@@ -1379,7 +1463,13 @@ export class Ch01DormScene extends UIScene {
     audioDirector.playSfxAt(PALACE_ASSET_KEYS.sfx.whoosh, { volume: 0.26 });
   }
 
-  /** 起身：坐 → 半蹲（换站立贴图压扁）→ 站直；三段 tween，约 380–520ms。 */
+  /**
+   * 起身：优先播 `zhou_stand_up` 帧序列；素材没生成/尺寸对不上时退回三段 tween。
+   *
+   * 帧序列按贴图**宽度**判定可用性（`standUpFramesFromLayout`）：占位图 96×160
+   * 切不出 160 宽的帧 → 0 → 回退，绝不白屏/报错。播放期间 `performing` 为真，
+   * `update()` 不会 `sync()`，所以贴图不会被坐姿刷回去；收尾时才 `setSitting(false)`。
+   */
   private performStand(_step: StandStep, duration: number): void {
     const player = this.player;
     if (!player) return;
@@ -1389,6 +1479,8 @@ export class Ch01DormScene extends UIScene {
       return;
     }
     audioDirector.playSfxAt(PALACE_ASSET_KEYS.sfx.cloth, { volume: 0.3 });
+    if (this.playStandUpSequence(player, duration)) return;
+
     // 站立贴图也走回退：Q 版朝右 → 旧版朝右；解析不到就保持现有贴图。
     const standKey = resolveStandingKey('right', (key) => this.textures.exists(key));
     const sitScale = player.displayScale;
@@ -1429,13 +1521,71 @@ export class Ch01DormScene extends UIScene {
     });
   }
 
-  /** 表演收尾：白场开始淡出（与 beginPalace 的转场重叠），恢复输入，再交给调用方。 */
+  /**
+   * 播 `zhou_stand_up` 帧序列；素材不可用时返回 false，由调用方走 tween 回退。
+   *
+   * 素材是横排 strip（8 帧 × 160×400，见 `CH01_STAND_UP_SEQUENCE`）。与行走 sheet
+   * 同一套做法：首次使用时按 frameWidth 把帧切进 Phaser 纹理缓存。
+   */
+  private playStandUpSequence(player: PlayerActor, duration: number): boolean {
+    const sprite = player.display;
+    if (!sprite) return false;
+    const { key, frameWidth, frameHeight } = CH01_STAND_UP_SEQUENCE;
+    if (!this.textures.exists(key)) return false;
+
+    const texture = this.textures.get(key);
+    const source = texture.getSourceImage();
+    const width = 'width' in source ? Number(source.width) : 0;
+    const height = 'height' in source ? Number(source.height) : 0;
+    const frames = standUpFramesFromLayout(width, height);
+    if (frames < 2) return false;
+
+    for (let index = 0; index < frames; index += 1) {
+      if (!texture.has(String(index))) {
+        texture.add(index, 0, index * frameWidth, 0, frameWidth, frameHeight);
+      }
+    }
+
+    const feet = player.position;
+    const total = Math.max(1, duration);
+    const proxy = { t: 0 };
+    // 帧序列自带的行走脚感：播放期间不再叠坐姿贴图（performing 冻结 sync）。
+    sprite.setScale(PLAYER_SCALE);
+    sprite.setPosition(feet.x, feet.y);
+    sprite.setTexture(key, 0);
+    this.tweens.add({
+      targets: proxy,
+      t: total,
+      duration: total,
+      // 帧序列按**均匀时间**推进（ease 只该作用在位移上，不该让某些帧停更久）。
+      ease: 'Linear',
+      onUpdate: () => {
+        sprite.setTexture(key, standUpFrameAt(proxy.t, total, frames));
+      },
+      onComplete: () => {
+        sprite.setTexture(key, frames - 1);
+        // 收尾：解除坐姿 → sync 换回站立静态图（帧序列是过渡，静态图才是常驻姿态）。
+        player.setSitting(false);
+        player.sync();
+      },
+    });
+    audioDirector.playSfxAt(CH01_ASSET_KEYS.audio.stepWoodB, { volume: 0.22 });
+    return true;
+  }
+
+  /** 表演收尾：白场淡出（或交给下一个场景），恢复输入，再交给调用方。 */
   private finishPerformance(): void {
     const flash = this.flashStep;
     const overlay = this.flashOverlay;
     this.flashStep = null;
     if (overlay) {
-      if (flash) {
+      if (flash?.handoff === true) {
+        /**
+         * 交接模式：**保持全白、不淡出**。
+         * `beginPalace` 会在切场景之后才在目标场景之上淡出（时长已记在
+         * `flashHandoffOutMs`），所以这里什么都不做，连元素都不摘。
+         */
+      } else if (flash) {
         const out = flashOutMs(flash, this.reduced);
         overlay.fadeOut(out);
         // 淡出结束再摘层；场景 shutdown 也会兜底 remove。
@@ -1451,6 +1601,7 @@ export class Ch01DormScene extends UIScene {
       }
     }
     this.performing = false;
+    this.performanceActive.value = false;
     this.syncControls();
     this.updateNear();
   }
@@ -1477,12 +1628,33 @@ export class Ch01DormScene extends UIScene {
     saveProgress('dorm.palace', { preview: this.preview });
     this.dialogue = null;
     this.dialogueVisible.value = false;
+    this.performanceActive.value = false;
     this.joystick?.setEnabled(false);
     this.promptText?.setVisible(false);
+    this.interactAvailable.value = false;
     this.cg?.hide();
     this.emotionBubble?.hide();
     this.stopSceneAudio();
 
+    /**
+     * 入梦白场交接（t27 实测：旧实现在寝室里提前淡出，露 0.48s 寝室）。
+     *
+     * 此时白光已经被 `finishPerformance` 保持在全白；这里把它从寝室手里**接走**：
+     * 先清掉 `flashOverlay` 引用（否则 dorm 的 SHUTDOWN 会把 DOM 层删掉），
+     * 等 `enterModule` 把金殿摆好之后再在白场之上淡出。全白期间完成切场，
+     * 寝室一帧都不会露。
+     */
+    const handoff = this.flashOverlay;
+    // 没记到淡出时长时给一个安全值：宁可白场多停一会儿，也不能 0ms 直接露寝室。
+    const handoffOutMs = this.flashHandoffOutMs > 0 ? this.flashHandoffOutMs : 320;
+    this.flashOverlay = null;
+    this.flashHandoffOutMs = 0;
+    if (handoff) {
+      this.enterPalaceUnderFlash(battleId, handoff, handoffOutMs);
+      return;
+    }
+
+    // 兜底（DOM 白场不可用/极老 WebView）：沿用「闪白 → 黑场 → 切场景」。
     if (!this.reduced) this.cameras.main.flash(180, 255, 255, 255);
     this.time.delayedCall(this.reduced ? 80 : 260, () => {
       this.cameras.main.fadeOut(this.reduced ? 160 : 320, 5, 6, 10);
@@ -1497,6 +1669,36 @@ export class Ch01DormScene extends UIScene {
         });
       });
     });
+  }
+
+  /**
+   * 全白期间切金殿：`enterModule` 之后就淡出白场（DOM 层留在 body 上，不随场景销毁）。
+   *
+   * `enterModule` 在 `scene.start()` 之后 resolve；金殿的 `create()` 会在下一帧跑完。
+   * 白场从 100% 开始淡出，等它降到能看见画面时金殿已经画出来了——中间没有任何寝室帧。
+   */
+  private enterPalaceUnderFlash(
+    battleId: string,
+    overlay: FlashOverlayHandle,
+    outMs: number,
+  ): void {
+    const finish = (): void => {
+      overlay.fadeOut(outMs);
+      // 场景已 shutdown，`this.time` 不再可靠；用 window 计时器收尾 DOM 层。
+      window.setTimeout(() => overlay.remove(), outMs + 80);
+    };
+    void enterModule(this, 'ch01Palace', {
+      encounterId: battleId,
+      seed: this.seed,
+      preview: this.preview,
+    })
+      .then(finish)
+      .catch((error: unknown) => {
+        console.warn('[ch01-dorm] 进入金殿失败', error);
+        // 失败时白场必须撤掉，否则玩家永远停在纯白里。
+        overlay.remove();
+        this.transitioning = false;
+      });
   }
 
   private showEndCard(): void {
@@ -1556,11 +1758,15 @@ export class Ch01DormScene extends UIScene {
     this.cancelAutoAdvance();
     // 表演：停掉所有延时步骤，白光层必须现在摘掉（DOM 层不会跟着 Phaser 场景消失）。
     this.performing = false;
+    this.performanceActive.value = false;
     for (const timer of this.performanceTimers) timer.remove();
     this.performanceTimers = [];
+    // 注意：白场交接时 `beginPalace` 已把 `flashOverlay` 置空并转交给金殿，
+    // 这里只会摘掉「还没交接」的白场，不会误删正在淡出的那一层。
     this.flashOverlay?.remove();
     this.flashOverlay = null;
     this.flashStep = null;
+    this.flashHandoffOutMs = 0;
     this.xiaobaiBob?.remove();
     this.xiaobaiBob = null;
     this.walkTween?.stop();

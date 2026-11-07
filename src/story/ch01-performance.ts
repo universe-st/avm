@@ -6,14 +6,19 @@ import {
 import type { Facing } from '../map/types';
 
 /**
- * 寝室两段「表演」的纯数据时间线（不 import Phaser，可在 Node 里单测）。
+ * 寝室「表演」的纯数据时间线（不 import Phaser，可在 Node 里单测）。
  *
- * 场景只负责按步骤执行：走路、坐下、把小白挪到右边、白场、起身。
+ * 场景只负责按步骤执行：坐到房间中心、把小白挪到右侧、白场、起身。
  * 时长/降级（reduced-motion）都写在这里，场景不再写魔法数字。
  *
- * 两段：
- * - `dreamIntro`：小白说完 → 主角走到房间中心 → 坐地朝右 → 小白浮到右侧 → 停顿 → 全屏白光 → 金殿；
- * - `wakeUp`：战后回到寝室时**已经坐着**（不是先站着再瞬移），第一句征召台词后起身。
+ * 三段（#t29 重排）：
+ * - `dreamEntry`：手机 CG 结束的**那一刻**画面就应该是「主角坐在房间中心、小白在右侧」。
+ *   所以这段是 0 时长的「构图钉死」步骤，由场景在 CG 回调里**同步**执行，
+ *   中间不允许出现任何「站在书桌边」的帧，也没有走路。
+ * - `dreamFlash`：小白对白全部在坐姿下说完之后，停顿一拍 → 全屏白光 → 切金殿。
+ *   白光在寝室里只淡入、不淡出（`handoff`）：淡出交给金殿首帧，否则会露出寝室。
+ * - `wakeUp`：战后回到寝室时**已经坐着**（不是先站着再瞬移），起身用 `zhou_stand_up`
+ *   帧序列（素材未生成时退回三段 tween）。
  *
  * 素材还没正式生成：坐地朝右用 `zhou_sit_right` 占位 key，缺图时回退到现有
  * `zhou_sit`（椅子占位）→ Q 版朝右立绘。回退解析也在这里，场景只拿结果。
@@ -32,7 +37,78 @@ export const CH01_SIT_TILE = [16, 29] as const;
  */
 export const CH01_XIAOBAI_OFFSET = [3, -2.5] as const;
 
-export type PerformanceTimelineId = 'dreamIntro' | 'wakeUp';
+/**
+ * 坐地之后角色应有的**显示**高度（设计 px）。
+ *
+ * 站立 Q 帧显示高 = 400 × 0.6138 ≈ 245；坐地约 2/3 高度、与现有 `zhou_sit`
+ * 占位（96×160，按 1.0 显示）的观感对齐。
+ */
+export const CH01_SIT_DISPLAY_HEIGHT = 160;
+
+/** 坐姿头顶到脚底的距离（设计 px），让表情气泡落在坐着的脑袋上而不是站姿高度。 */
+export const CH01_SIT_HEAD_OFFSET = 132;
+
+/**
+ * 坐姿贴图的显示缩放：**按贴图源图高度换算**，不在代码里拉伸凑大小。
+ *
+ * - 占位 `zhou_sit`（96×160）→ 160 / 160 = 1.0；与改版前一致；
+ * - 正式「坐地朝右」（160×400）→ 160 / 400 = 0.4；
+ * - 源图尺寸拿不到（0/NaN）时返回 1，至少不会把角色缩没。
+ */
+export function sittingScaleFor(
+  sourceHeight: number,
+  targetHeight = CH01_SIT_DISPLAY_HEIGHT,
+): number {
+  if (!Number.isFinite(sourceHeight) || sourceHeight <= 0) return 1;
+  return targetHeight / sourceHeight;
+}
+
+/**
+ * 起身帧序列的素材契约（由美术任务生成，见 t29 报告「给美术素材的期望接口」）。
+ *
+ * 8 帧 × 160×400 = 1280 宽，仍在手机 4096 纹理上限内；`frameMs` 只是命名参考，
+ * 实际播放按时间线的 `stand.ms` 均分（保证动画不会跑出该步骤的时长）。
+ */
+export const CH01_STAND_UP_SEQUENCE = {
+  key: CH01_ASSET_KEYS.characters.zhouStandUp,
+  frameWidth: 160,
+  frameHeight: 400,
+  frameCount: 8,
+  frameMs: 65,
+} as const;
+
+/** 起身序列在 `elapsedMs` 时该显示第几帧：按整段时长均分，钳在最后一帧、不循环。 */
+export function standUpFrameAt(
+  elapsedMs: number,
+  totalMs: number,
+  frameCount: number,
+): number {
+  if (frameCount <= 0) return 0;
+  if (!Number.isFinite(elapsedMs) || elapsedMs <= 0) return 0;
+  if (!Number.isFinite(totalMs) || totalMs <= 0) return frameCount - 1;
+  const clamped = Math.min(elapsedMs, totalMs);
+  return Math.min(frameCount - 1, Math.floor((clamped / totalMs) * frameCount));
+}
+
+/**
+ * 从贴图尺寸判断能切出几帧。
+ *
+ * 素材按 **横排 strip** 加载成一张图（与行走 sheet 同一套做法，`AssetKind` 没有
+ * spritesheet），所以这里用「宽度 / frameWidth」判定，而不是 Phaser 的 frameTotal：
+ * 占位图 `zhou_sit.png`（96×160）→ 0，正式 1280×400 → 8，多出来的帧裁掉。
+ * < 2 帧一律视为不可用，场景回退三段 tween（绝不白屏/报错）。
+ */
+export function standUpFramesFromLayout(
+  width: number,
+  height: number,
+  meta = CH01_STAND_UP_SEQUENCE,
+): number {
+  if (!Number.isFinite(width) || !Number.isFinite(height)) return 0;
+  if (width < meta.frameWidth * 2 || height < meta.frameHeight) return 0;
+  return Math.min(Math.floor(width / meta.frameWidth), meta.frameCount);
+}
+
+export type PerformanceTimelineId = 'dreamEntry' | 'dreamFlash' | 'wakeUp';
 
 interface StepTiming {
   /** 正常节奏下这一步占用的时长（ms）。 */
@@ -77,9 +153,15 @@ export interface FlashStep extends StepTiming {
   /** 白场淡入时长。 */
   readonly holdMs: number;
   readonly reducedHoldMs?: number;
-  /** 淡出时长（交给金殿转场期间消化，不计入时间线总时长）。 */
+  /** 淡出时长；`handoff` 时交给下一个场景，不计入时间线总时长。 */
   readonly outMs: number;
   readonly reducedOutMs?: number;
+  /**
+   * 淡出交接给下一个场景：本场景只负责淡入 + 保持全白，**不淡出**。
+   *
+   * 入梦白光必须这样用——寝室里一淡出就会露出寝室最后一帧（t27 实测露 0.48s）。
+   */
+  readonly handoff?: boolean;
 }
 
 export interface StandStep extends StepTiming {
@@ -100,39 +182,66 @@ export interface PerformanceTimeline {
   readonly steps: readonly PerformanceStep[];
 }
 
-/** 入梦前：小白台词走完 → 走到中心坐下 → 小白到右侧 → 白光。 */
-export const CH01_DREAM_INTRO_PERFORMANCE: PerformanceTimeline = {
-  id: 'dreamIntro',
+/**
+ * CG 结束那一帧的构图：**已经坐定**，小白已经在右侧。
+ *
+ * 两步都是 0 时长——场景在手机 CG 的 `onDone` 里同步执行它们，
+ * 因此玩家从 CG 切回地图时看到的第一帧就是「坐在地上、小白在右边」，
+ * 不会再出现「站在书桌边说话」的中间态。
+ */
+export const CH01_DREAM_ENTRY_PERFORMANCE: PerformanceTimeline = {
+  id: 'dreamEntry',
   steps: [
-    { kind: 'walk', actor: 'zhou', to: CH01_SIT_TILE, facing: 'right', ms: 1600, reducedMs: 700 },
     {
       kind: 'sit',
       actor: 'zhou',
       to: CH01_SIT_TILE,
       facing: 'right',
-      from: 'stand',
-      dust: true,
-      ms: 420,
-      reducedMs: 160,
+      from: 'sit',
+      dust: false,
+      ms: 0,
+      reducedMs: 0,
     },
-    { kind: 'move-actor', actor: 'xiaobai', offset: CH01_XIAOBAI_OFFSET, ms: 520, reducedMs: 200 },
-    // 让玩家看清「坐在地上、小白在右边」这个构图，再切白场。
-    { kind: 'wait', ms: 600, reducedMs: 240 },
     {
-      kind: 'flash',
-      ms: 550,
-      reducedMs: 200,
-      holdMs: 200,
-      reducedHoldMs: 80,
-      outMs: 320,
-      reducedOutMs: 140,
+      kind: 'move-actor',
+      actor: 'xiaobai',
+      offset: CH01_XIAOBAI_OFFSET,
+      ms: 0,
+      reducedMs: 0,
     },
   ],
 };
 
 /**
- * 战后回来：第一拍是 `sit`（进场景时就坐着），随后 3 段 tween 起身。
+ * 对白说完之后的入梦白场：停顿一拍 → 白光淡入 → 保持全白 → **交接**给金殿。
+ *
+ * `handoff: true` 表示淡出不在寝室做：`finishPerformance` 只保持全白，
+ * `beginPalace` 在切场景之后才在白场之上淡出，寝室一帧都不会露出来。
+ */
+export const CH01_DREAM_FLASH_PERFORMANCE: PerformanceTimeline = {
+  id: 'dreamFlash',
+  steps: [
+    // 最后一句是「全被白光吞没」，给玩家一拍反应时间就起白场。
+    { kind: 'wait', ms: 320, reducedMs: 120 },
+    {
+      kind: 'flash',
+      ms: 550,
+      reducedMs: 220,
+      holdMs: 260,
+      reducedHoldMs: 120,
+      outMs: 340,
+      reducedOutMs: 160,
+      handoff: true,
+    },
+  ],
+};
+
+/**
+ * 战后回来：第一拍是 `sit`（进场景时就坐着），随后起身（`zhou_stand_up` 帧序列，
+ * 缺素材退回三段 tween）、再留一拍给画面收势。
  * 顺序被单测锁住——绝不能变成先 `stand` 再补坐下。
+ *
+ * `stand.ms` = 8 帧 × 65ms 的帧序列时长；缺素材时三段 tween 也在同一时长内跑完。
  */
 export const CH01_WAKE_PERFORMANCE: PerformanceTimeline = {
   id: 'wakeUp',
@@ -147,7 +256,7 @@ export const CH01_WAKE_PERFORMANCE: PerformanceTimeline = {
       ms: 640,
       reducedMs: 240,
     },
-    { kind: 'stand', actor: 'zhou', ms: 460, reducedMs: 220 },
+    { kind: 'stand', actor: 'zhou', ms: 520, reducedMs: 240 },
     { kind: 'wait', ms: 160, reducedMs: 60 },
   ],
 };
@@ -173,7 +282,7 @@ export function flashInMs(step: FlashStep, reduced = false): number {
   return reduced ? step.reducedMs ?? half(step.ms) : step.ms;
 }
 
-/** 白场淡出时长；这期间金殿转场已经在跑，不计入时间线总时长。 */
+/** 白场淡出时长；`handoff` 时这期间已经在下一个场景，不计入时间线总时长。 */
 export function flashOutMs(step: FlashStep, reduced = false): number {
   return reduced ? step.reducedOutMs ?? half(step.outMs) : step.outMs;
 }
@@ -181,6 +290,31 @@ export function flashOutMs(step: FlashStep, reduced = false): number {
 /** 整段时间线总时长（到最后一个步骤结束、可以交给下一个流程为止）。 */
 export function timelineDurationMs(timeline: PerformanceTimeline, reduced = false): number {
   return timeline.steps.reduce((total, step) => total + stepDurationMs(step, reduced), 0);
+}
+
+/**
+ * 白场交接时间表。
+ *
+ * `switchAtMs` 必须正好等于「淡入 + 保持」——也就是时间线上 flash 这一步结束时：
+ * 此刻 overlay 已 **100% 不透明**，切场景发生在全白期间，寝室的任何一帧都看不见；
+ * 淡出时长只在下一个场景里使用。
+ */
+export interface FlashHandoffPlan {
+  readonly fadeInMs: number;
+  readonly opaqueHoldMs: number;
+  readonly switchAtMs: number;
+  readonly outMs: number;
+}
+
+export function planFlashHandoff(step: FlashStep, reduced = false): FlashHandoffPlan {
+  const fadeInMs = flashInMs(step, reduced);
+  const opaqueHoldMs = reduced ? step.reducedHoldMs ?? half(step.holdMs) : step.holdMs;
+  return {
+    fadeInMs,
+    opaqueHoldMs,
+    switchAtMs: fadeInMs + opaqueHoldMs,
+    outMs: flashOutMs(step, reduced),
+  };
 }
 
 /**
