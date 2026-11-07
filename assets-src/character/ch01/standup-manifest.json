@@ -1,0 +1,54 @@
+{
+  "key": "img.char.ch01.zhou_stand_up",
+  "file": "public/assets/img/character/ch01/zhou_stand_up.webp",
+  "frameCount": 8,
+  "frameWidth": 160,
+  "frameHeight": 400,
+  "frameMs": 65,
+  "displayScale": 1.0,
+  "sourceJob": "smw5oze5w18c42f",
+  "sourcePicks": [
+    0,
+    6,
+    10,
+    16,
+    17,
+    19,
+    21,
+    23
+  ],
+  "baseline": {
+    "bottom": 394,
+    "cx": 80
+  },
+  "heights": [
+    160,
+    161,
+    162,
+    163,
+    168,
+    202,
+    227,
+    228
+  ],
+  "headWidths": [
+    76,
+    74,
+    76,
+    78,
+    74,
+    75,
+    75,
+    75
+  ],
+  "naturals": [
+    160,
+    163,
+    161,
+    157,
+    168,
+    204,
+    231,
+    231
+  ]
+}
