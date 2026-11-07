@@ -44,6 +44,12 @@ export interface PlayerActorOptions {
   readonly spriteScale?: number;
   /** 头顶到脚底的设计距离（未乘 spriteScale 时传显示后的值）。 */
   readonly headOffset?: number;
+  /**
+   * 坐姿的头顶到脚底距离（设计 px）。省略 = 与站立相同。
+   *
+   * 坐地后人物只有站立高度的约 2/3，表情气泡若用站姿 `headOffset` 会飘在半空。
+   */
+  readonly sittingHeadOffset?: number;
   /** Q 版等非像素素材用 LINEAR 采样。 */
   readonly linearTextures?: boolean;
   /** 地图像素高度；大图必须传，否则角色 depth 会盖过迷雾/特效。 */
@@ -80,6 +86,7 @@ export class PlayerActor {
   private readonly walkFrameCount: number;
   private readonly spriteScale: number;
   private readonly headOffset: number;
+  private readonly sittingHeadOffset: number;
   private readonly depthMaxY: number;
 
   constructor(scene: Phaser.Scene, room: RoomDef, options: PlayerActorOptions = {}) {
@@ -104,6 +111,7 @@ export class PlayerActor {
         ? options.sittingScale
         : this.spriteScale;
     this.headOffset = options.headOffset ?? (this.pose.sitting ? 64 : 96);
+    this.sittingHeadOffset = options.sittingHeadOffset ?? this.headOffset;
     this.depthMaxY = options.depthMaxY ?? 1600;
 
     const keys: string[] = [
@@ -173,11 +181,11 @@ export class PlayerActor {
     return this.sprite;
   }
 
-  /** 头顶中心（精灵顶部），供表情气泡把尾巴钉在头上。 */
+  /** 头顶中心（精灵顶部），供表情气泡把尾巴钉在头上；坐着时用坐姿高度。 */
   get headPoint(): MapPoint {
     return {
       x: this.feetPoint.x,
-      y: this.feetPoint.y - this.headOffset,
+      y: this.feetPoint.y - (this.pose.sitting ? this.sittingHeadOffset : this.headOffset),
     };
   }
 

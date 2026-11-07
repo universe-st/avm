@@ -16,6 +16,13 @@ export interface Ch01HudModel {
   readonly interactLabel: Ref<string>;
   readonly interactAvailable: Ref<boolean>;
   readonly cardActive: Ref<boolean>;
+  /**
+   * 表演进行中（坐定/白光/起身）。
+   *
+   * 表演期间 `interactAvailable` 一定是 false，但「disabled 的按钮」仍会画出来——
+   * 玩家会看到右下角挂着一个灰按钮。这里单独开一条分支，整块不渲染。
+   */
+  readonly performanceActive: Ref<boolean>;
   /** 新手指引：进入探索时出现，首次移动后消失。 */
   readonly tutorialVisible: Ref<boolean>;
   readonly onMenu: () => void;
@@ -80,7 +87,9 @@ export function buildCh01Hud(model: Ch01HudModel): void {
             ? 'dialogue'
             : model.cardActive.value
               ? 'card'
-              : 'explore',
+              : model.performanceActive.value
+                ? 'performance'
+                : 'explore',
         {
           dialogue: () => {
             /**
@@ -99,6 +108,10 @@ export function buildCh01Hud(model: Ch01HudModel): void {
             });
           },
           card: () => {
+            Spacer({ grow: 0 });
+          },
+          // 表演期间整块留空：不画按钮、不画提示，避免灰按钮挂在画面上。
+          performance: () => {
             Spacer({ grow: 0 });
           },
           explore: () => {

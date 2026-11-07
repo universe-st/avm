@@ -130,6 +130,14 @@ export const CH01_ASSET_KEYS = {
      * `zhou_sit` → Q 版朝右，绝不白屏。
      */
     zhouSitRight: 'img.char.ch01.zhou_sit_right',
+    /**
+     * 起身帧序列 `zhou_stand_up`（待生成）。
+     *
+     * 约定：横排 strip，8 帧 × 160×400 = 1280×400（脚底在 y≈394），65ms/帧。
+     * 白盒阶段 bundle 里先指向 `zhou_sit.png` 占位（尺寸对不上 → 场景判定为不可用），
+     * 正式图出来后只改 `bundles.ts` 的 url，场景代码不用动。
+     */
+    zhouStandUp: 'img.char.ch01.zhou_stand_up',
     zheng: 'img.char.ch01.zheng',
     miner: 'img.char.ch01.miner',
   },

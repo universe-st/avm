@@ -236,7 +236,8 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
 - 文件：`assets-src/character/ch01/zhou-sit-on-chair-source.png` → `public/assets/img/character/ch01/zhou_sit.png`（96×160）
 - 来源：游戏素材大师 · 图片生成，任务 `imvn79yqwefd365`（参考 `chair-source.jpg` + `character-sheet.png`）
 - 内容：周全坐在同一把木椅上、背向镜头、双手放在大腿上，椅子完整，**不含书桌**；整张图完整保留，不裁人物。
-- 说明：目前作为 t23 入梦/起身表演的**坐姿占位**：占位 key `img.char.ch01.zhou_sit_right` 暂时复用本图（url 指向同一个文件），场景用 `sittingScale=1`、`sittingOffsetY=0` 显示（椅脚对齐脚底）。正式「坐地朝右」素材生成后替换本图/url 即可，代码不用改。
+- 说明：目前作为入梦/起身表演的**坐姿占位**：占位 key `img.char.ch01.zhou_sit_right` 暂时复用本图（url 指向同一个文件），`sittingScale` 由源图高度换算（96×160 → 1.0）、`sittingOffsetY=0`（椅脚对齐脚底）。正式「坐地朝右」素材生成后只改 `bundles.ts` 的 url，代码不用改。
+- t29 追加：起身帧序列占位 key `img.char.ch01.zhou_stand_up` 也暂时指向本图；场景用贴图宽度判定可用性（96 < 2×160 → 判定不可用 → 三段 tween 回退），素材到位后只改 url。
 - 待生成（t23 报告 §待生成素材）：① 坐地朝右静态图（建议 160×400 或 96×160，底边=地面接触点，人物居中偏右留出小白位置）；② 起身帧序列（6–8 帧，坐→半蹲→站，380–520ms，帧高 400，脚底对齐）。
 - 无桌任务前两次下载失败，第三次成功；带桌版本 `imvn78fup9f20e6` 仅作废稿，不随包。
 
