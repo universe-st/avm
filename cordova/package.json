@@ -1,6 +1,6 @@
 {
   "name": "com.universest.avm",
-  "displayName": "Assassins vs Miners",
+  "displayName": "刺客vs矿工",
   "version": "0.1.0",
   "description": "《刺客大战矿工》Cordova Android 工程（由 apps/web 构建产物驱动）",
   "main": "index.js",

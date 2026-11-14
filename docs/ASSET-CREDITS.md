@@ -571,3 +571,18 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
 - 生成过程：`runTurnVideo`（每角色一次）→ 8 静态；`runVideos`（8 段）→ `runFrames` → `make-static-sprite.py` / `make-walk-sheet.py`。
 - 旧的 `phantom/`、`old_mai/`、`miner/` 三套厨房角色资源已删除（机器人图只在 `ch.01` 的 battle 资源里）。
 - 遗留：门卫的头身比略小于其他四人（约 1/4.5），其余四人都是 1/3。
+
+## 13. App 图标（2026-11-14）
+
+- 文件：`cordova/res/icon/android/` 下 18 张 PNG（传统 mipmap 6 密度 + 自适应前景 6 + 自适应背景 6）；源文件在 `assets-src/app-icon/`
+- 来源：游戏素材大师 · 图片生成（火山方舟 `doubao-seedream-5-0-flash-260915`，1024×1024，count 2，watermark off）
+- 任务（两轮，共 4 张，各取第 2 张）：
+  | 轮次 | jobId | 用途 |
+  | --- | --- | --- |
+  | 满幅方形 | `imwgczzjt917f7d` | 传统 mipmap 母版 `assets-src/app-icon/icon-1024.png` |
+  | 圆形安全区 | `imwgd2rwq6d4d93` | 自适应前景母版 `assets-src/app-icon/raw/icon-safe-v1-b.png` |
+- 参考图（均取自项目既有素材）：`logo_mark.png`（鎏金配色/徽记语言）、`zhou_q_right.png`（三头身 Q 版比例 + 粗描边平涂）、`miner.png`（铁灰机甲 + 猩红电子眼）、`old_mai_down.png`（赛璐璐平涂 + 金色云纹画法）
+- 提示词要点：左兜帽刺客（兜帽阴影 + 金白发光眼 + 白金色短匕）/ 右矿工（琥珀安全帽 + 帽灯 + 猩红电子眼横缝 + 铁灰装甲 + 肩后矿镐），中间金色闪电裂隙；墨黑 `#05060a` 底 + 鎏金 `#d8b76a`；Q 版三头身、单层硬阴影、粗黑描边；**禁止任何文字/字母/数字/水印/Logo/UI 元素**
+- 后期：`tools/make-app-icon.py`（Lanczos 降采样；≤72px 提对比 1.08 / 亮度 1.05 + UnsharpMask 保住小尺寸可读性；96px mild 锐化；自适应前景按 72dp 安全区缩放 0.6486 + 径向羽化）
+- 验收：`python3 tools/verify-app-icon.py dist/android/<apk>`，逐像素比对源图与 Cordova 默认图（不同），详见 `docs/APP-ICON.md`
+- 复核：上架前按火山方舟商用条款复核，商店页注明「AI 生成美术」

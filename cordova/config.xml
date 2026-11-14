@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <widget id="com.universest.avm" version="0.1.9" android-versionCode="10" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
-    <name>Assassins vs Miners</name>
+    <name>刺客vs矿工</name>
     <description>《刺客大战矿工》—— 竖屏回合制 RPG。潜入梦域，解离矿工。</description>
     <author email="dev@universest.com" href="https://universest.com">Universest</author>
     <content src="index.html" />
@@ -23,4 +23,27 @@
     <preference name="android-targetSdkVersion" value="36" />
     <preference name="android-compileSdkVersion" value="36" />
     <preference name="AndroidInsecureFileMode" value="false" />
+
+    <!-- App 图标：res/icon/android/*.png 由 tools/make-app-icon.py 生成（见 docs/APP-ICON.md）
+         src = 传统 mipmap（Android 7 及以下）；foreground/background = 自适应图标（Android 8+） -->
+    <platform name="android">
+        <icon density="ldpi" src="res/icon/android/ic_launcher_ldpi.png"
+              foreground="res/icon/android/ic_launcher_foreground_ldpi.png"
+              background="res/icon/android/ic_launcher_background_ldpi.png" />
+        <icon density="mdpi" src="res/icon/android/ic_launcher_mdpi.png"
+              foreground="res/icon/android/ic_launcher_foreground_mdpi.png"
+              background="res/icon/android/ic_launcher_background_mdpi.png" />
+        <icon density="hdpi" src="res/icon/android/ic_launcher_hdpi.png"
+              foreground="res/icon/android/ic_launcher_foreground_hdpi.png"
+              background="res/icon/android/ic_launcher_background_hdpi.png" />
+        <icon density="xhdpi" src="res/icon/android/ic_launcher_xhdpi.png"
+              foreground="res/icon/android/ic_launcher_foreground_xhdpi.png"
+              background="res/icon/android/ic_launcher_background_xhdpi.png" />
+        <icon density="xxhdpi" src="res/icon/android/ic_launcher_xxhdpi.png"
+              foreground="res/icon/android/ic_launcher_foreground_xxhdpi.png"
+              background="res/icon/android/ic_launcher_background_xxhdpi.png" />
+        <icon density="xxxhdpi" src="res/icon/android/ic_launcher_xxxhdpi.png"
+              foreground="res/icon/android/ic_launcher_foreground_xxxhdpi.png"
+              background="res/icon/android/ic_launcher_background_xxxhdpi.png" />
+    </platform>
 </widget>
