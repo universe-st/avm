@@ -143,7 +143,7 @@ export const CH01_NODES: Readonly<Record<Ch01NodeId, Ch01Node>> = {
     repeatable: true,
     lines: [
       { speaker: '旁白', text: '呼噜噜——咯。' },
-      { speaker: '周全', text: '……行，你睡。' },
+      { speaker: '周全', text: '万一真是沉睡症可就不妙了，赶紧叫救护车吧。' },
     ],
   },
   'phone-locked': {
@@ -233,6 +233,8 @@ export const CH01_NODES: Readonly<Record<Ch01NodeId, Ch01Node>> = {
       { speaker: '周全', text: '明明是周六，连个打球的人都没有。' },
       // 家里的事挪到窗边再说：开场独白不一次倒完，看窗外时补上「反正回去也是一个人」。
       { speaker: '周全', text: '（奶奶也出远门了，家里没人。回去也是一个人，还不如在学校待着。）' },
+      // 看完窗外才回过神：发呆这一会儿老郑还躺着，得赶紧叫救护车。
+      { speaker: '周全', text: '……不对，我这是在干什么？赶紧叫救护车啊。', emotion: 'surprised' },
     ],
   },
   door: {
