@@ -143,7 +143,7 @@ export const CH01_NODES: Readonly<Record<Ch01NodeId, Ch01Node>> = {
     repeatable: true,
     lines: [
       { speaker: '旁白', text: '呼噜噜——咯。' },
-      { speaker: '周全', text: '……行，你睡。' },
+      { speaker: '周全', text: '万一真是沉睡症可就不妙了，赶紧先打电话报警吧。' },
     ],
   },
   'phone-locked': {
