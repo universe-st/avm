@@ -258,7 +258,7 @@ export const CH01_DREAM_ENTRY_PERFORMANCE: PerformanceTimeline = {
 export const CH01_DREAM_FLASH_PERFORMANCE: PerformanceTimeline = {
   id: 'dreamFlash',
   steps: [
-    // 最后一句是「全被白光吞没」，给玩家一拍反应时间就起白场。
+    // 对白最后一句是「什么……情况……」，给玩家一拍反应时间就起白场。
     { kind: 'wait', ms: 320, reducedMs: 120 },
     {
       kind: 'flash',
