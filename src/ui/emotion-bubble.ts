@@ -1,48 +1,43 @@
 import Phaser from 'phaser';
 import { LAYERS } from '../render/layers';
 import type { EmotionKind } from '../story/dialogue';
+import {
+  BUBBLE_ACCENT_LINE_Y,
+  BUBBLE_FILL,
+  BUBBLE_FRAME,
+  BUBBLE_LINE,
+  BUBBLE_LINE_WIDTH,
+  BUBBLE_TAIL,
+  EMOTION_ICONS,
+  ICON_FILL_OUTLINE_WIDTH,
+  ICON_STROKE_WIDTH,
+  type EmotionIcon,
+  type IconPoint,
+} from './emotion-bubble-model';
 
-const BUBBLE_FILL = 0xfff9e8;
-const BUBBLE_LINE = 0x3a2e28;
-
-const EMOTIONS: Record<EmotionKind, { glyph: string; color: string }> = {
-  confused: { glyph: '?', color: '#2f6fed' },
-  angry: { glyph: '怒', color: '#c0392b' },
-  happy: { glyph: '笑', color: '#c28a12' },
-  surprised: { glyph: '!', color: '#d35400' },
-  sad: { glyph: '泪', color: '#2f6fed' },
-  annoyed: { glyph: '汗', color: '#6b5bb5' },
-};
+const DEG_TO_RAD = Math.PI / 180;
 
 /**
  * 角色头顶的表情气泡。
  *
  * 先冒气泡、再开始打字，属于世界内 UI（effects 层）：盖住角色，但低于 CG/Compose UI。
- * 气泡不走图片资源，用 Graphics + Text 生成，避免六个情绪各占一张图。
+ * 气泡与图标全部是 Graphics 路径（2026-11 用户要求「表情不要用汉字，用图画」后，
+ * 连 `?` / `!` 也从 Text 换成了矢量笔画）：零图片资源、任意 DPR 都清晰，
+ * 六个情绪的几何定义在 `emotion-bubble-model.ts`，本文件只负责画。
  */
 export class EmotionBubble {
   private readonly scene: Phaser.Scene;
   private readonly reduced: boolean;
   private readonly container: Phaser.GameObjects.Container;
   private readonly graphics: Phaser.GameObjects.Graphics;
-  private readonly glyph: Phaser.GameObjects.Text;
   private timer: Phaser.Time.TimerEvent | null = null;
 
   constructor(scene: Phaser.Scene, reduced = false) {
     this.scene = scene;
     this.reduced = reduced;
     this.graphics = scene.add.graphics();
-    this.glyph = scene.add
-      .text(0, -2, '?', {
-        fontFamily: '"Noto Sans SC", "PingFang SC", system-ui, sans-serif',
-        fontSize: '28px',
-        fontStyle: 'bold',
-        color: '#2f6fed',
-        align: 'center',
-      })
-      .setOrigin(0.5);
     this.container = scene.add
-      .container(0, 0, [this.graphics, this.glyph])
+      .container(0, 0, [this.graphics])
       .setDepth(LAYERS.effects + 40)
       .setVisible(false);
   }
@@ -52,9 +47,7 @@ export class EmotionBubble {
   }
 
   show(kind: EmotionKind, x: number, y: number, holdMs = 980): void {
-    const meta = EMOTIONS[kind];
-    this.glyph.setText(meta.glyph).setColor(meta.color);
-    this.drawBubble(meta.color);
+    this.draw(EMOTION_ICONS[kind]);
 
     this.timer?.remove();
     this.timer = null;
@@ -111,17 +104,89 @@ export class EmotionBubble {
     this.container.destroy(true);
   }
 
-  private drawBubble(accent: string): void {
+  private draw(icon: EmotionIcon): void {
+    const accent = Phaser.Display.Color.HexStringToColor(icon.color).color;
     const g = this.graphics;
     g.clear();
+    this.drawFrame(accent);
+    this.drawIcon(icon, accent);
+  }
+
+  /** 圆角框 + 尾巴 + 底部一条 accent 短线。 */
+  private drawFrame(accent: number): void {
+    const g = this.graphics;
+    const { x, y, width, height, radius } = BUBBLE_FRAME;
     g.fillStyle(BUBBLE_FILL, 0.98);
-    g.lineStyle(2, BUBBLE_LINE, 0.96);
-    g.fillRoundedRect(-31, -31, 62, 52, 13);
-    g.strokeRoundedRect(-31, -31, 62, 52, 13);
-    g.fillTriangle(-9, 19, 9, 19, 0, 34);
-    g.lineBetween(-9, 19, 0, 34);
-    g.lineBetween(0, 34, 9, 19);
-    g.lineStyle(2, Phaser.Display.Color.HexStringToColor(accent).color, 0.55);
-    g.lineBetween(-18, 17, 18, 17);
+    g.lineStyle(BUBBLE_LINE_WIDTH, BUBBLE_LINE, 0.96);
+    g.fillRoundedRect(x, y, width, height, radius);
+    g.strokeRoundedRect(x, y, width, height, radius);
+    const [left, right, tip] = BUBBLE_TAIL;
+    g.fillTriangle(left.x, left.y, right.x, right.y, tip.x, tip.y);
+    g.lineBetween(left.x, left.y, tip.x, tip.y);
+    g.lineBetween(tip.x, tip.y, right.x, right.y);
+    g.lineStyle(BUBBLE_LINE_WIDTH, accent, 0.55);
+    g.lineBetween(-18, BUBBLE_ACCENT_LINE_Y, 18, BUBBLE_ACCENT_LINE_Y);
+  }
+
+  /**
+   * 按模型里的笔画顺序画图标。描边类（弧/折线）用 accent 线；实心类（水滴/眼点）
+   * 用 accent 填充 + 一圈细的 BUBBLE_LINE 描边，和气泡的深色轮廓同一个色系。
+   */
+  private drawIcon(icon: EmotionIcon, accent: number): void {
+    const g = this.graphics;
+    for (const shape of icon.shapes) {
+      switch (shape.kind) {
+        case 'arc': {
+          g.lineStyle(ICON_STROKE_WIDTH, accent, 1);
+          g.beginPath();
+          // 弧度按「屏幕坐标顺时针」给：0° 右、90° 下、270° 上。
+          g.arc(
+            shape.cx,
+            shape.cy,
+            shape.radius,
+            shape.fromDeg * DEG_TO_RAD,
+            shape.toDeg * DEG_TO_RAD,
+            false,
+          );
+          g.strokePath();
+          break;
+        }
+        case 'polyline': {
+          g.lineStyle(ICON_STROKE_WIDTH, accent, 1);
+          this.tracePath(shape.points, false);
+          g.strokePath();
+          break;
+        }
+        case 'fillCircle': {
+          g.fillStyle(accent, 1);
+          g.fillCircle(shape.cx, shape.cy, shape.radius);
+          g.lineStyle(ICON_FILL_OUTLINE_WIDTH, BUBBLE_LINE, 0.9);
+          g.strokeCircle(shape.cx, shape.cy, shape.radius);
+          break;
+        }
+        case 'fillPolygon': {
+          g.fillStyle(accent, 1);
+          this.tracePath(shape.points, true);
+          g.fillPath();
+          g.lineStyle(ICON_FILL_OUTLINE_WIDTH, BUBBLE_LINE, 0.9);
+          g.strokePath();
+          break;
+        }
+      }
+    }
+  }
+
+  private tracePath(points: readonly IconPoint[], close: boolean): void {
+    const g = this.graphics;
+    g.beginPath();
+    let started = false;
+    for (const point of points) {
+      if (started) g.lineTo(point.x, point.y);
+      else {
+        g.moveTo(point.x, point.y);
+        started = true;
+      }
+    }
+    if (started && close) g.closePath();
   }
 }
