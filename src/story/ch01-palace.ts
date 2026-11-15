@@ -135,7 +135,10 @@ export const PALACE_BEATS: readonly PalaceBeat[] = [
   {
     kind: 'act',
     actions: [
-      { kind: 'sfx', key: PALACE_ASSET_KEYS.sfx.heartbeat, volume: 0.45, loop: true },
+      // 只敲一记心跳，不 loop：旧版从这里起了一条 3 秒循环、一直响到进战斗，
+      // 手机上听着就是「隔一秒一记闷响」，还盖住了本该有的 BGM。
+      // 循环心跳留给裂皮那一刻（见下面 `crack` 那一拍）。
+      { kind: 'sfx', key: PALACE_ASSET_KEYS.sfx.heartbeat, volume: 0.35 },
       { kind: 'camera', zoom: 1.06, ms: 1100 },
       { kind: 'pan', dx: 0, dy: -60, ms: 1100 },
     ],
@@ -306,6 +309,9 @@ export const PALACE_BEATS: readonly PalaceBeat[] = [
     actions: [
       { kind: 'portraitHide' },
       { kind: 'fx', fx: 'flash' },
+      // 喜剧收工、恐怖接手：这里必须**硬切**（不淡出），切点就落在裂皮那一帧。
+      { kind: 'bgm', id: 'ch01Dream', hard: true },
+      { kind: 'sfx', key: PALACE_ASSET_KEYS.sfx.heartbeat, volume: 0.5 },
       { kind: 'sfx', key: PALACE_ASSET_KEYS.sfx.crack, volume: 1.0 },
       { kind: 'camera', zoom: 1.2, ms: 260 },
       { kind: 'speedlines', color: 'red', ms: 480 },

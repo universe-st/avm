@@ -9,8 +9,9 @@
  * 楚老师 = 楚公公（同一个人，梦里被投影成太监总管）。
  */
 
-export type PalaceActorId = 'zhou' | 'zheng' | 'chu' | 'eunuchLeft' | 'eunuchRight' | 'miner';
+import type { BgmId } from '../audio/bgm-tracks';
 
+export type PalaceActorId = 'zhou' | 'zheng' | 'chu' | 'eunuchLeft' | 'eunuchRight' | 'miner';
 export type PalaceFx = 'flash' | 'flashRed' | 'shake' | 'rumble';
 
 export type PalaceAction =
@@ -41,7 +42,14 @@ export type PalaceAction =
       readonly key: string;
       readonly volume?: number;
       readonly loop?: boolean;
-    };
+    }
+  /** 停掉一条登记在 `audioDirector` 里的循环音（例如心跳只在某一段响）。 */
+  | { readonly kind: 'sfxStop'; readonly key: string }
+  /**
+   * 场景内切曲（剧情 cue）。`hard: true` = 旧曲不淡出、当场掐掉，
+   * 用在「太监裂皮」这种一帧翻脸的地方。
+   */
+  | { readonly kind: 'bgm'; readonly id: BgmId; readonly hard?: boolean };
 
 export interface PalaceSay {
   readonly kind: 'say';

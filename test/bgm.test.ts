@@ -61,7 +61,7 @@ describe('BGM 场景绑定表', () => {
     expect(resolveSceneTrack(SCENE_KEYS.ch01Opening)).toEqual(SCENE_HOLD);
     expect(resolveSceneTrack(SCENE_KEYS.ch01Dorm)).toEqual(sceneTrack('ch01Dorm'));
     expect(resolveSceneTrack(SCENE_KEYS.ch01Kitchen)).toEqual(sceneTrack('ch01Crisis'));
-    expect(resolveSceneTrack(SCENE_KEYS.ch01Palace)).toEqual(sceneTrack('ch01Dream'));
+    expect(resolveSceneTrack(SCENE_KEYS.ch01Palace)).toEqual(sceneTrack('ch01Palace'));
     expect(resolveSceneTrack(SCENE_KEYS.battleCh01)).toEqual(sceneTrack('ch01Dream'));
     expect(resolveSceneTrack(SCENE_KEYS.cgStage)).toEqual(SCENE_HOLD);
     expect(resolveSceneTrack(SCENE_KEYS.battleSandbox)).toEqual(SCENE_HOLD);
@@ -120,7 +120,7 @@ describe('运行时改绑（resolveSceneTrack + overrides）', () => {
     const overrides = withSceneBinding({}, SCENE_KEYS.ch01Dorm, sceneTrack('ch01Crisis'));
     expect(resolveSceneTrack(SCENE_KEYS.ch01Dorm, overrides)).toEqual(sceneTrack('ch01Crisis'));
     // 其它场景仍走默认表。
-    expect(resolveSceneTrack(SCENE_KEYS.ch01Palace, overrides)).toEqual(sceneTrack('ch01Dream'));
+    expect(resolveSceneTrack(SCENE_KEYS.ch01Palace, overrides)).toEqual(sceneTrack('ch01Palace'));
     expect(resolveSceneTrack(SCENE_KEYS.ch01Kitchen, overrides)).toEqual(sceneTrack('ch01Crisis'));
   });
 
@@ -219,7 +219,7 @@ describe('「继续游戏」检查点 → BGM（防回归）', () => {
   /** 检查点 → 模块 → 场景 key → 解析出的曲目。 */
   const expected: Record<(typeof CHECKPOINTS)[number], BgmId> = {
     'dorm.explore': 'ch01Dorm',
-    'dorm.palace': 'ch01Dream',
+    'dorm.palace': 'ch01Palace',
     'dorm.after': 'ch01Dorm',
     'ch01.complete': 'ch01Dorm',
     'kitchen.explore': 'ch01Crisis',

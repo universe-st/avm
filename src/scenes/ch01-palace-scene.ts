@@ -499,6 +499,14 @@ export class Ch01PalaceScene extends UIScene {
         });
         return;
       }
+      case 'sfxStop': {
+        audioDirector.stopLoop(action.key);
+        return;
+      }
+      case 'bgm': {
+        bgmManager.play(action.id, action.hard === true ? { hard: true } : undefined);
+        return;
+      }
       case 'fx': {
         if (this.reduced) return;
         if (action.fx === 'flash') this.cameras.main.flash(200, 255, 255, 255);

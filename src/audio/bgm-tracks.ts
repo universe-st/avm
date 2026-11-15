@@ -50,6 +50,19 @@ export const BGM_TRACKS = {
     fadeInMs: 900,
     fadeOutMs: 700,
   },
+  /**
+   * 金殿过场的「开场牌面」：诙谐宫廷古风。
+   *
+   * 这一段是荒诞戏（梦里的小皇帝、楚公公喊护驾、两个太监像打手），配乐要先把
+   * 「庄严的早朝」摆出来、再让它滑稽。裂皮变矿工那一下用 `play(id, { hard: true })`
+   * 硬切回《清除协议》——喜剧 BGM 拖到恐怖揭示里会把吓点抹平。
+   */
+  ch01Palace: {
+    key: CH01_ASSET_KEYS.audio.palaceBgm,
+    label: '金殿过场《小皇帝的早朝》',
+    fadeInMs: 700,
+    fadeOutMs: 500,
+  },
 } as const satisfies Record<string, BgmTrack>;
 
 export type BgmId = keyof typeof BGM_TRACKS;
@@ -99,8 +112,9 @@ export const SCENE_BGM: Readonly<Record<ContentSceneKey, SceneBinding>> = {
   [SCENE_KEYS.ch01Dorm]: sceneTrack('ch01Dorm'),
   // 御膳房是潜入戏：复用《危机来临》的冷脉冲/心跳底子，进战斗再由 battleCh01 交叉淡化到《清除协议》。
   [SCENE_KEYS.ch01Kitchen]: sceneTrack('ch01Crisis'),
-  // 金殿过场就是梦域本体，直接上《清除协议》；随后进战斗是同一首，实例与进度连续。
-  [SCENE_KEYS.ch01Palace]: sceneTrack('ch01Dream'),
+  // 金殿过场前半段是荒诞早朝，配诙谐宫廷古风；太监裂皮翻脸那一刻由剧本 cue 硬切
+  // 到《清除协议》，随后进战斗是同一首，实例与进度连续。
+  [SCENE_KEYS.ch01Palace]: sceneTrack('ch01Palace'),
   [SCENE_KEYS.battleCh01]: sceneTrack('ch01Dream'),
   // CG 预览 / 战斗沙盒是调试入口，从标题点进去时不打断标题曲。
   [SCENE_KEYS.cgStage]: SCENE_HOLD,

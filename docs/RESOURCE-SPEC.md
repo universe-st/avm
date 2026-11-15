@@ -38,7 +38,7 @@ interface AssetDef {
 | `cutscene.ch01palace.walk` | 郑卿 / 楚公公 八方向行走 sheet（各 8 张 × 16 帧 × 200×420，WebP） | 12 MB | `cutscene.ch01palace` | 只在金殿过场加载；走位时播帧，停下回静态图 |
 | `cutscene.ch01palace.sfx` | 金殿音效 14 条（环境/脚步/跪地/裂皮/心跳…，mp3 24kHz 单声道，共约 300 KB） | 1 MB | `cutscene.ch01palace` | 过场音效；缺失时静默跳过，不阻断 |
 | `ch.01` | 33×54 寝室整图（重组窗光版）、郑卿睡床 4 帧、周全 Q 版八向/行走、小白/郑卿、沉睡症新闻 CG、呼噜/拳击/手机 SFX、寝室环境音与木地板脚步 A/B；`img.char.ch01.zhou_sit_right`（坐地朝右正式图 160×400）+ `img.char.ch01.zhou_stand_up`（起身 8 帧 × 160×400 横排）+ `img.char.ch01.zhou_idle_right`（正侧面站立 idle 160×400，t39 入库、暂未接场景）；依赖 `ch01.bgm`（寝室曲 + 回忆 cue） | 12 MB | — | 进入第一章 |
-| `ch01.bgm` | 第一章共享 BGM 三首：《午后小憩》`ch01_dorm`（寝室）、《危机来临》`ch01_crisis`（回忆/御膳房）、《清除协议》`ch01_dream`（金殿/剧情战），约 3.3 MB | 4 MB | — | `ch.01` / `battle.ch01` 依赖它；`ch01Kitchen` / `ch01Palace` 显式 requires |
+| `ch01.bgm` | 第一章共享 BGM 四首：《午后小憩》`ch01_dorm`（寝室）、《危机来临》`ch01_crisis`（回忆/御膳房）、《清除协议》`ch01_dream`（裂皮之后/剧情战）、《小皇帝的早朝》`ch01_palace`（金殿过场前半），约 5.2 MB | 6 MB | — | `ch.01` / `battle.ch01` 依赖它；`ch01Kitchen` / `ch01Palace` 显式 requires |
 | `battle.common` | 战斗公共资源（本期为空，依赖 `ui`） | 3 MB | — | 进入剧情战 |
 | `battle.ch01` | 战斗专用舞台 `miner_hall.webp`（720×1280）、矿工 sprite、金属 SFX；依赖 `ch.01` 复用周全 sprite、依赖 `ch01.bgm` 取战斗曲 | 5 MB | — | 进入剧情战 |
 

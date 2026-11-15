@@ -300,6 +300,13 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
   - 后期：截取 12–92s（80s），首尾 0.6/0.8s 淡化，loudnorm -16 LUFS，MP3 128k
   - 原始件：`assets-src/audio/ch01/ch01_campus_source.m4a`
 - 梦域与音效：`ch01_dream.mp3`、`ch01_punch.mp3`、`ch01_metal.mp3`、`ch01_phone.mp3` 仍由 `tools/make-ch01-audio.py` 程序化合成（临时占位，零计费）。
+- 金殿过场 BGM《小皇帝的早朝》（2026-11-15）：
+  - 文件：`public/assets/audio/bgm/ch01_palace.mp3`（118.8s，1.90 MB，128 kbps / 44.1 kHz 立体声）
+  - 来源：游戏素材大师 · 音乐生成（Suno `chirp-v6`，纯音乐 custom），任务 `amwh4v9l6c392d6`，歌曲 `75c4fdd9-9800-47f9-8a3e-e12dfaaa38b6`（同批另一首 `ae48a3fe…` 备选）
+  - 方向：宫廷喜剧古风、118 BPM、唢呐 + 琵琶/古筝 + 笛子 + 堂鼓/木鱼 + 编钟，庄严里带滑头；写明「instrumental / 不要人声 / 不要太史诗 / 不要悲伤」
+  - 为什么换：原绑的《清除协议》能量 99% 在 120 Hz 以下，手机扬声器上等于没声音，实机反馈是「这个场景没有 BGM，只有隔一秒一记闷响」（闷响是心跳循环）。新曲中频占 73%，手机外放能听清。
+  - 后期：整曲 loudnorm 到 -16.4 LUFS / TP -2.5 dB（与第一章其它 BGM 对齐），首 0.35s / 尾 2.2s 淡化（BGM 是 `loop:true` 硬循环，首尾必须收到静音，否则接缝会「咔」），MP3 128k
+  - 用法：金殿过场开场即播；太监裂皮那一拍 `play('ch01Dream', { hard: true })` 不淡出硬切回《清除协议》，随后进战斗续播同一实例
 - 呼噜声 SFX：
   - 文件：`public/assets/audio/sfx/ch01_snore.mp3`（6.03s，96 KB，可循环）
   - 来源：游戏素材大师 · 音效生成，任务 `fmvn72wj9687b04`，take `kmvn73xdec716e1`

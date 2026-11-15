@@ -149,7 +149,11 @@ export class BgmManager {
   }
 
   /** 剧情 cue / 场景内阶段切曲：立即执行一个绑定，不写改绑表。 */
-  play(id: BgmId): void {
+  play(id: BgmId, options: { readonly hard?: boolean } = {}): void {
+    if (options.hard === true) {
+      this.start(id, true);
+      return;
+    }
     this.applyBinding({ kind: 'track', id });
   }
 
@@ -281,7 +285,13 @@ export class BgmManager {
     this.syncVolume(400);
   }
 
-  private start(id: BgmId): void {
+  /**
+   * 起一首曲子。
+   *
+   * `hard` 用于「一个画面就翻脸」的戏（金殿太监裂皮）：旧曲**不做淡出**、当场掐掉，
+   * 新曲 160ms 内起来——切点必须落在冲击帧上，600ms 的淡出会把惊吓抹平。
+   */
+  private start(id: BgmId, hard = false): void {
     const scene = this.scene;
     if (!scene) return;
     const track: BgmTrack = BGM_TRACKS[id];
@@ -292,7 +302,16 @@ export class BgmManager {
     }
 
     const previous = this.current;
-    if (previous) this.fadeOutAndDestroy(previous, track.fadeOutMs);
+    if (previous) {
+      if (hard) {
+        this.killFade(previous);
+        this.volumes.delete(previous);
+        previous.stop();
+        previous.destroy();
+      } else {
+        this.fadeOutAndDestroy(previous, track.fadeOutMs);
+      }
+    }
 
     const sound = scene.sound.add(track.key, { loop: true, volume: 0 });
     this.current = sound;
@@ -303,7 +322,7 @@ export class BgmManager {
     // 读的是节点默认值 1，tween 若在这之前取起点，就会从满音量「淡出」到目标音量。
     sound.play();
     this.applyVolume(sound, 0);
-    this.fadeTo(sound, bgmVolume(settings.muted, settings.bgm), track.fadeInMs);
+    this.fadeTo(sound, bgmVolume(settings.muted, settings.bgm), hard ? 160 : track.fadeInMs);
     this.hookUnlock(scene);
   }
 

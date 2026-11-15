@@ -1610,7 +1610,7 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
     ],
   },
   /**
-   * 第一章的共享 BGM（3 首，~3.3 MB）。
+   * 第一章的共享 BGM（4 首，~5.2 MB）。
    *
    * 单拎出来的原因：寝室（`ch.01`）、御膳房（`ch01.kitchen`）、金殿过场（`cutscene.ch01palace`）
    * 和剧情战（`battle.ch01`）都要用其中的一两首，但它们的其它资源互不复用。
@@ -1619,7 +1619,7 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
    */
   'ch01.bgm': {
     id: 'ch01.bgm',
-    budgetKB: 4096,
+    budgetKB: 6144,
     assets: [
       {
         key: 'audio.bgm.ch01_dorm',
@@ -1645,6 +1645,17 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         url: 'assets/audio/bgm/ch01_dream.mp3',
         required: false,
         label: '梦域金殿《清除协议》',
+        tags: ['bgm'],
+      },
+      {
+        // 金殿过场前半段的诙谐宫廷古风；裂皮翻脸那一刻硬切回《清除协议》。
+        // 旧版全程用《清除协议》：它 99% 的能量在 120 Hz 以下，手机扬声器上等于没声音，
+        // 玩家只会听到心跳循环（约 1 秒一记），被误认成「没有 BGM + 奇怪的环境音」。
+        key: 'audio.bgm.ch01_palace',
+        kind: 'audio',
+        url: 'assets/audio/bgm/ch01_palace.mp3',
+        required: false,
+        label: '金殿过场《小皇帝的早朝》',
         tags: ['bgm'],
       },
     ],

@@ -37,7 +37,7 @@ type SceneBinding =
 | `ch01-opening` | 沿用（hold） | 开场 CG 自带同轨环境声，且可能在标题页单点预览；沿用当前曲目，正常流程里是开幕曲的尾巴 |
 | `ch01-dorm` | 《午后小憩》`ch01Dorm` | 寝室日常 |
 | `ch01-kitchen` | 《危机来临》`ch01Crisis` | 潜入戏的冷脉冲底子（`P2-KITCHEN-ASSETS.md`：复用现有曲目，不新增整首 BGM） |
-| `ch01-palace` | 《清除协议》`ch01Dream` | 金殿过场就是梦域本体；随后进战斗是同一首，实例/进度连续 |
+| `ch01-palace` | 《小皇帝的早朝》`ch01Palace` | 前半是荒诞早朝（诙谐宫廷古风）；太监裂皮那一刻由剧本 cue 硬切《清除协议》，随后进战斗是同一首，实例/进度连续 |
 | `battle-ch01` | 《清除协议》`ch01Dream` | 剧情战 |
 | `cg-stage` | 沿用（hold） | 调试用 CG 查看器，不要打断当前曲目 |
 | `battle-sandbox` | 沿用（hold） | 调试用战斗沙盒 |
@@ -86,6 +86,9 @@ bgmManager.clearSceneBinding(SCENE_KEYS.ch01Dorm);
 - 只影响被改的场景；别的场景仍走 `SCENE_BGM`。
 - 解析是纯函数：`resolveSceneTrack(sceneKey, overrides)` / `withSceneBinding(overrides, key, binding | null)`，可在 Node 单测。
 - **剧情 cue 不要用改绑**：对话 `bgm` 字段、场景内的阶段切曲仍然用 `bgmManager.play(id)`；它只切当前曲目，不写表，所以不会把剧情切曲「打回默认值」。
+- **需要「一帧翻脸」时用 `play(id, { hard: true })`**：旧曲不做淡出、当场掐掉，新曲 160ms 起来。
+  例：金殿太监裂皮那一刻从《小皇帝的早朝》硬切《清除协议》——600ms 交叉淡化会把惊吓抹平。
+  默认的 600–900ms 交叉淡化仍然适用于「换场/换幕」这类平滑过渡。
 - 场景内换阶段、需要回到绑定曲（例如寝室睡觉戏结束进探索）用 `bgmManager.applySceneBinding()`，不要在场景里写死曲目 id，否则会把运行时改绑盖掉。
 
 ## 6. 资源：BGM 必须在场景的 requires 闭包里
@@ -93,7 +96,7 @@ bgmManager.clearSceneBinding(SCENE_KEYS.ch01Dorm);
 音频 key 只是登记在 bundle 里还不够——切换场景后 `AssetService.releaseExcept()` 会释放不属于目标场景的资源，
 `BgmManager.play()` 发现 `cache.audio` 不存在时只会 `console.warn` 并静音（不阻断流程），表现出来就是「场景没音乐」。
 
-第一章三首曲子在共享包 **`ch01.bgm`**（`audio.bgm.ch01_dorm` / `ch01_crisis` / `ch01_dream`，约 3.3 MB）：
+第一章四首曲子在共享包 **`ch01.bgm`**（`audio.bgm.ch01_dorm` / `ch01_crisis` / `ch01_dream` / `ch01_palace`，约 5.2 MB）：
 
 - `ch.01`、`battle.ch01` 通过 `dependsOn` 依赖它；
 - `ch01Kitchen` / `ch01Palace` 的 `MODULES.requires` 和舞台目录的 `requires` 都显式带上它；

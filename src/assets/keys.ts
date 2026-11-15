@@ -167,6 +167,8 @@ export const CH01_ASSET_KEYS = {
     dormBgm: 'audio.bgm.ch01_dorm',
     dreamBgm: 'audio.bgm.ch01_dream',
     crisisBgm: 'audio.bgm.ch01_crisis',
+    /** 金殿过场专用：《小皇帝的早朝》（诙谐宫廷古风），裂皮翻脸那一下硬切回《清除协议》。 */
+    palaceBgm: 'audio.bgm.ch01_palace',
     punch: 'audio.sfx.ch01_punch',
     metal: 'audio.sfx.ch01_metal',
     phone: 'audio.sfx.ch01_phone',
