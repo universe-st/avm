@@ -55,9 +55,17 @@
 - 提示词：卡通角色头顶冒出一个表情气泡的拟音：短促轻快的「啵」声，木质与纸面质感的轻弹，带一点气泡上浮的绒毛感；近场、干声、无混响、无尾音拖沓，约 0.3 秒，可无缝连续重复。不要电子提示音／UI 嘀声，不要人声、字词或旋律。
 - 后期（ffmpeg）：`atrim=0.160–0.360`（0.200s）→ `volume=-4.6dB` → `afade=t=out:st=0.130:d=0.070` → 单声道 44.1kHz / 128 kbps mp3
 - 实测：峰值 -5.7 dBFS，平均 -23.5 dB（`volumedetect`）
-- 设计：气泡出现动画只有 180ms，所以只保留 200ms；播放走 `audioDirector.playSfxAt(..., { volume: 0.35, rate })`，明显低于打字 blip；只在 `show()` 播、`hide()` 不播；120ms 节流防连点叠音；六个情绪各一个固定 rate（0.96–1.05）做微变
+- 设计：气泡出现动画只有 180ms，所以只保留 200ms；播放走 `audioDirector.playSfxAt(..., { volume: BUBBLE_POP_VOLUME, rate })`；只在 `show()` 播、`hide()` 不播；120ms 节流防连点叠音；六个情绪各一个固定 rate（0.96–1.05）做微变
 - 原始件：`docs/audio/emotion_bubble_pop_source.wav`
 - 备选 take：`docs/audio/emotion_bubble_pop_takeB.mp3`（木质小木块轻磕纸面，0.21s，峰值 -5.5 dBFS）、`docs/audio/emotion_bubble_pop_takeC.mp3`（气泡上浮绒毛感更重，0.23s，峰值 -8.0 dBFS）
+
+#### 响度复核（t67 实测 → t68 调整）
+
+- 口径：运行时 tap（Playwright 包住 `AudioContext.createBufferSource`，逐 buffer 记录时长/峰值与 `muteNode→volumeNode` 链路增益；`settings.sfx=0.8`），有效峰值 = buffer 峰值 × 链路增益；RMS = `ffmpeg volumedetect mean_volume` × 链路增益。取证见 `docs/screenshots/emotion-bubble-sfx-volume/`（`README.md`、`measurements.json`、`level-comparison.png`）。
+- 改前（`BUBBLE_POP_VOLUME = 0.35`）：pop 峰值 **−16.7 dBFS** / RMS −34.6 dB；旁白 blip **−16.3 dBFS** / −26.6 dB —— 峰值只低 0.4 dB，而 pop 是 200ms 瞬态、blip 是 30–45ms 极短音，主观上 pop 更响，违背「垫在打字音下面」。
+- 改后（`BUBBLE_POP_VOLUME = 0.18`）：pop 峰值 **−22.5 dBFS** / RMS −40.3 dB；比旁白低 **6.1 dB**、比周全 blip（−11.0 dBFS）低 **11.5 dB**，比郑卿（−14.3）低 8.2 dB。0.22 试值只低 4.4/9.7 dB，未达阈值，故取 0.18。
+- 路线：只降运行时增益，**源 mp3 不重编**——GainNode 只改电平不改音色，200ms 的「啵」仍清晰可辨；重编只会在降电平后多一层有损编码。
+- 契约：pop 峰值至少比旁白 blip 低 6 dB、比周全低 10 dB；`test/emotion-bubble-sfx.test.ts` 解析三条 voice blip 的 WAV 峰值 + `TYPE_VOICE_GAIN` 做数值断言，并把 `BUBBLE_POP_VOLUME` 锁在 [0.18, 0.26]。
 
 ## 5. 程序生成的位图与图标
 
