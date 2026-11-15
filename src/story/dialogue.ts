@@ -36,6 +36,97 @@ export interface DialogueLine {
   readonly emotionBy?: EmotionTarget;
 }
 
+/**
+ * 一行台词能携带的 cue key。
+ *
+ * **新增 cue 字段时先加到这里，再到 `DIALOGUE_CUE_KINDS` 里表态**：新 cue 到底属于
+ * 「状态型」还是「表现型」。下面用 `satisfies` 兜住，漏分类直接编译失败。
+ */
+export type DialogueCueKey = 'cg' | 'fx' | 'bgm' | 'emotion';
+
+/**
+ * 行 cue 的两类语义（这是机制，不是补丁）。
+ *
+ * - **状态型 stateful**：这行只是「在这里把状态改成 X」。玩家可能永远看不到这行
+ *   （点「跳过」、自动播放、节点被其它流程推过去），但状态必须生效。跳过时要**补**。
+ * - **表现型 expressive**：这行真的被看到才有意义（CG、镜头特效、表情气泡）。
+ *   跳过时不补播，否则跳过会闪一张 CG / 冒一个气泡。
+ *
+ * 判定标准一句话：**「这行没被看见，世界还该不该变？」** 该变 → 状态型。
+ */
+export const DIALOGUE_CUE_KINDS = {
+  bgm: 'stateful',
+  cg: 'expressive',
+  fx: 'expressive',
+  emotion: 'expressive',
+} as const satisfies Readonly<Record<DialogueCueKey, 'stateful' | 'expressive'>>;
+
+export type DialogueCueKind = (typeof DIALOGUE_CUE_KINDS)[DialogueCueKey];
+
+/** 状态型 cue 的 key 集合（编译期从分类表推出来，不手写第二份）。 */
+export type StatefulCueKey = {
+  readonly [K in DialogueCueKey]: (typeof DIALOGUE_CUE_KINDS)[K] extends 'stateful' ? K : never;
+}[DialogueCueKey];
+
+/** 表现型 cue 的 key 集合（同上）。 */
+export type ExpressiveCueKey = {
+  readonly [K in DialogueCueKey]: (typeof DIALOGUE_CUE_KINDS)[K] extends 'expressive' ? K : never;
+}[DialogueCueKey];
+
+export function cueKeysOfKind(kind: DialogueCueKind): readonly DialogueCueKey[] {
+  return (Object.keys(DIALOGUE_CUE_KINDS) as DialogueCueKey[]).filter(
+    (key) => DIALOGUE_CUE_KINDS[key] === kind,
+  );
+}
+
+/** 状态型 cue 的归约结果；以后加 objective/checkpoint 就往这里加字段。 */
+export interface DialogueStateCues {
+  /** 这段对话结束（跳过也算）后应该生效的 BGM。 */
+  readonly bgm?: BgmId;
+}
+
+/** 空状态：常量复用，避免每行都建对象。 */
+export const EMPTY_STATE_CUES: DialogueStateCues = Object.freeze({});
+
+/** 单独一行携带的状态型 cue。 */
+export function stateCuesOfLine(line: DialogueLine): DialogueStateCues {
+  return line.bgm === undefined ? EMPTY_STATE_CUES : { bgm: line.bgm };
+}
+
+/** 后者覆盖前者：同一状态多行设置时，以更靠后的为准。 */
+export function mergeStateCues(
+  base: DialogueStateCues,
+  next: DialogueStateCues,
+): DialogueStateCues {
+  if (next.bgm === undefined) return base;
+  return { ...base, bgm: next.bgm };
+}
+
+/**
+ * 「从 `fromIndex`（含）到末尾还没生效的状态型 cue」。
+ *
+ * - 跳过时从**当前游标**开始归约，补上被跨过的行；
+ * - 自然过完时游标已经在末尾，归约结果为空 → 行为与改动前一致；
+ * - 纯函数：同样的入参永远同样的结果，多次调用不会累积（幂等）。
+ */
+export function reduceStateCues(
+  lines: readonly DialogueLine[],
+  fromIndex = 0,
+): DialogueStateCues {
+  const start = clampCueIndex(fromIndex, lines.length);
+  let cues = EMPTY_STATE_CUES;
+  for (let index = start; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (line !== undefined) cues = mergeStateCues(cues, stateCuesOfLine(line));
+  }
+  return cues;
+}
+
+function clampCueIndex(index: number, length: number): number {
+  if (!Number.isFinite(index)) return 0;
+  return Math.min(Math.max(0, Math.trunc(index)), length);
+}
+
 /** 地图对话比开幕稍快；55ms 在逐句点击时显得拖。 */
 export const DIALOGUE_TYPE_MS = 32;
 

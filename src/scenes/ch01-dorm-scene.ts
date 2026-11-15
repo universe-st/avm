@@ -94,9 +94,12 @@ import { playCutsceneVideo, type CutsceneVideoHandle } from '../ui/cutscene-vide
 import { mountFlashOverlay, type FlashOverlayHandle } from '../ui/flash-overlay';
 import {
   DIALOGUE_TYPE_MS,
+  reduceStateCues,
   speakerLabel,
   speakerTone,
+  stateCuesOfLine,
   type DialogueLine,
+  type DialogueStateCues,
   type SpeakerTone,
 } from '../story/dialogue';
 import { DialogueHistory } from '../story/dialogue-history';
@@ -206,6 +209,20 @@ export class Ch01DormScene extends UIScene {
   private joystick: VirtualJoystick | null = null;
   private keys: MovementKeys | null = null;
   private dialogue: DialoguePlayer | null = null;
+  /**
+   * 当前这段对话的完整台词。
+   *
+   * 「跳过」时玩家从没显示过后面的行，但**状态型 cue**（BGM 等）仍然必须生效，
+   * 所以必须留着这份数据，在 `finishDialogue()` 里按游标补算（见 `flushStateCues()`）。
+   */
+  private dialogueLines: readonly DialogueLine[] = [];
+  /**
+   * 第一条「状态型 cue 还没生效」的行索引。
+   *
+   * 每显示一行就前进一步；跳过/自然结束时从这里归约到末尾，补完即置为 `lines.length`。
+   * 有了游标，`finishDialogue()` 可以重复调用（幂等），也不会把已经生效的 cue 再补一遍。
+   */
+  private stateCueCursor = 0;
   /** 手机 CG 的全屏播放句柄；非空时屏蔽场景输入。 */
   private cutscene: CutsceneVideoHandle | null = null;
   /** 手机 CG 只在第一次「查看手机」时播；重进本节不再打扰。 */
@@ -381,6 +398,8 @@ export class Ch01DormScene extends UIScene {
     this.flow = null as unknown as Ch01Flow;
     this.room = BASE_ROOM;
     this.dialogue = null;
+    this.dialogueLines = [];
+    this.stateCueCursor = 0;
     this.deferred = [];
     this.near = null;
     this.lastTyped = 0;
@@ -926,6 +945,9 @@ export class Ch01DormScene extends UIScene {
       balanceLines: true,
       typeMs: Math.round(DIALOGUE_TYPE_MS * textSpeedFactor(settings.textSpeed)),
     });
+    // 记下完整台词与状态型 cue 的游标：跳过时要靠它们补算「被跨过的行」。
+    this.dialogueLines = lines;
+    this.stateCueCursor = 0;
     this.dialogueVisible.value = true;
     this.dialogueSpeaker.value = '';
     this.dialogueRole = null;
@@ -953,6 +975,8 @@ export class Ch01DormScene extends UIScene {
         this.dialogueSpeaker.value = speakerLabel(event.speaker);
         this.dialoguePageIndex.value = event.pageIndex;
         this.dialoguePageCount.value = event.pageCount;
+        // 状态型 cue 走游标（跨行也要生效）；表现型 cue 才挂在这一行的显示上。
+        this.applyStateCueAt(event.index, event.line);
         this.applyLineCue(event.line);
         this.recordHistory(event);
         if (this.dialogueRole === 'xiaobai' || event.speaker === '小白') this.showXiaobai();
@@ -1045,6 +1069,11 @@ export class Ch01DormScene extends UIScene {
 
   private finishDialogue(): void {
     this.cancelAutoAdvance();
+    // 先补状态型 cue（BGM…），再推进节点：
+    // - 跳过时那些行从没显示过，但它们改的状态必须生效；
+    // - 自然过完时游标已在末尾，这里什么也不做（行为与改动前一致）；
+    // - 放在 `nodeCompleted()` 之前，节点完成事件自己再切曲时以后者为准。
+    this.flushStateCues();
     // 玩家用「跳过」提前结束征召段时，起身表演还没播过；至少把坐姿切回站立，
     // 别让后面的结束卡背后还坐着一个已经「站起来」说过话的人。
     if (this.wakePerformancePending) {
@@ -1091,8 +1120,47 @@ export class Ch01DormScene extends UIScene {
     this.updateNear();
   }
 
+  /** 这一行显示出来了：应用它自己的状态型 cue，并把游标推到它之后。 */
+  private applyStateCueAt(index: number, line: DialogueLine): void {
+    this.applyStateCues(stateCuesOfLine(line));
+    this.stateCueCursor = Math.max(this.stateCueCursor, index + 1);
+  }
+
+  /**
+   * 把「从游标到这段对话末尾」还没生效的状态型 cue 补上（跳过 / 自然结束时调用）。
+   *
+   * 只补一次：归约完把游标推到末尾，重复调用是空操作。
+   */
+  private flushStateCues(): void {
+    if (!this.dialogue) return;
+    const pending = reduceStateCues(this.dialogueLines, this.stateCueCursor);
+    this.stateCueCursor = this.dialogueLines.length;
+    this.dialogueLines = [];
+    this.applyStateCues(pending);
+  }
+
+  /**
+   * 执行状态型 cue。
+   *
+   * 同一首正在播就不重复 `play()`：节点完成事件（`handleEvents`）总是后执行、
+   * 以它为准，这里不抢。
+   */
+  private applyStateCues(cues: DialogueStateCues): void {
+    if (cues.bgm === undefined) return;
+    if (bgmManager.currentBgmId === cues.bgm && bgmManager.currentSound?.isPlaying === true) {
+      return;
+    }
+    bgmManager.play(cues.bgm);
+  }
+
+  /**
+   * **表现型 cue**：只有这一行真的显示出来才播（跳过不补）。
+   *
+   * 状态型 cue（`bgm`）**不许**挂在这里——那是「这行被看见」才生效的写法，
+   * 跳过就会丢（2026-11-15 寝室「叫醒郑卿」跳过丢《危机来临》）。走
+   * `applyStateCueAt()` / `flushStateCues()`，分类见 `DIALOGUE_CUE_KINDS`。
+   */
   private applyLineCue(line: DialogueLine): void {
-    if (line.bgm !== undefined) bgmManager.play(line.bgm);
     // 战后第一句会先盖着醒来 CG（旁白是「坐在寝室地板上」）；起身表演开始后不再让
     // 后续 `cg: wake` 把画面重新盖上，否则坐→站的过程全在 CG 底下，玩家根本看不见。
     const suppressedWakeCg =
