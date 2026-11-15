@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { BUNDLES } from '../src/assets/bundles';
 import { CH01_ASSET_KEYS } from '../src/assets/keys';
+import { TYPE_VOICE_GAIN } from '../src/audio/type-voice';
 import type { EmotionKind } from '../src/story/dialogue';
 import {
   BUBBLE_POP_MIN_INTERVAL_MS,
@@ -25,6 +26,57 @@ import {
  */
 
 const BUBBLE_SOURCE = readFileSync(join('src/ui', 'emotion-bubble.ts'), 'utf8');
+const SFX_SOURCE = readFileSync(join('src/ui/emotion-bubble-sfx.ts'), 'utf8');
+
+/**
+ * 读 16-bit PCM WAV 的采样峰值（dBFS）。
+ *
+ * 三条 voice blip 都是 22.05kHz / 16bit / 单声道；这里只解析 `fmt ` 的位深与 `data` 块，
+ * 不新增任何依赖（也不把 ffmpeg 拖进 vitest）。
+ */
+function wavPeakDbfs(path: string): number {
+  const buffer = readFileSync(path);
+  if (buffer.toString('ascii', 0, 4) !== 'RIFF' || buffer.toString('ascii', 8, 12) !== 'WAVE') {
+    throw new Error(`${path} 不是 WAV`);
+  }
+  let offset = 12;
+  let dataOffset = -1;
+  let dataSize = 0;
+  let bits = 0;
+  while (offset + 8 <= buffer.length) {
+    const id = buffer.toString('ascii', offset, offset + 4);
+    const size = buffer.readUInt32LE(offset + 4);
+    if (id === 'fmt ') bits = buffer.readUInt16LE(offset + 22);
+    if (id === 'data') {
+      dataOffset = offset + 8;
+      dataSize = size;
+      break;
+    }
+    offset += 8 + size + (size % 2);
+  }
+  if (dataOffset < 0 || bits !== 16) throw new Error(`${path} 不是 16-bit PCM`);
+  let peak = 0;
+  const end = Math.min(buffer.length, dataOffset + dataSize);
+  for (let i = dataOffset; i + 1 < end; i += 2) {
+    const value = Math.abs(buffer.readInt16LE(i)) / 32768;
+    if (value > peak) peak = value;
+  }
+  if (peak === 0) throw new Error(`${path} 是静音`);
+  return 20 * Math.log10(peak);
+}
+
+const BLIP_FILES = {
+  narrator: join('public/assets/audio/sfx', 'voice_blip_narrator.wav'),
+  zhou: join('public/assets/audio/sfx', 'voice_blip_zhou.wav'),
+  zheng: join('public/assets/audio/sfx', 'voice_blip_zheng.wav'),
+} as const;
+
+/**
+ * pop 的文件峰值（`ffmpeg volumedetect` 实测；换 mp3 后必须同步这个数）。
+ * 运行时有效峰值 = 文件峰值 + 20log10(settings.sfx × BUBBLE_POP_VOLUME)；
+ * blip 同理由 `TYPE_VOICE_GAIN` 决定。`settings.sfx` 在两者差值里抵消，所以比较时不用带。
+ */
+const POP_FILE_PEAK_DBFS = -5.7;
 
 const EMOTION_KINDS: readonly EmotionKind[] = [
   'confused',
@@ -104,9 +156,33 @@ describe('表情气泡冒出音效', () => {
     );
   });
 
-  it('音量压在打字 blip 之下，但不至于听不见', () => {
-    expect(BUBBLE_POP_VOLUME).toBeGreaterThanOrEqual(0.3);
-    expect(BUBBLE_POP_VOLUME).toBeLessThanOrEqual(0.4);
+  it('音量落在 [0.18, 0.26]：t67 实测后按契约压过一遍，别再调回 0.35', () => {
+    expect(BUBBLE_POP_VOLUME).toBeGreaterThanOrEqual(0.18);
+    expect(BUBBLE_POP_VOLUME).toBeLessThanOrEqual(0.26);
+    // 常数注释里必须留着依据（旁白 −16.3 dBFS、要求再低 6 dB），别让后人只看到数字。
+    expect(SFX_SOURCE).toContain('−16.3');
+    expect(SFX_SOURCE).toContain('6 dB');
+  });
+
+  it('pop 峰值至少比旁白 blip 低 6 dB、比周全 blip 低 10 dB（数值断言）', () => {
+    // 先锁住三条 blip 的文件峰值基线（t68 实测：−9.2 / −8.6 / −11.0 dBFS）。
+    expect(wavPeakDbfs(BLIP_FILES.narrator)).toBeCloseTo(-9.2, 1);
+    expect(wavPeakDbfs(BLIP_FILES.zhou)).toBeCloseTo(-8.6, 1);
+    expect(wavPeakDbfs(BLIP_FILES.zheng)).toBeCloseTo(-11.0, 1);
+
+    // settings.sfx 同时乘在 pop 与 blip 上，差值里抵消，故直接用单位增益。
+    const effectivePeak = (filePeakDbfs: number, gain: number): number =>
+      filePeakDbfs + 20 * Math.log10(gain);
+
+    const pop = effectivePeak(POP_FILE_PEAK_DBFS, BUBBLE_POP_VOLUME);
+    const narrator = effectivePeak(
+      wavPeakDbfs(BLIP_FILES.narrator),
+      TYPE_VOICE_GAIN.narrator,
+    );
+    const zhou = effectivePeak(wavPeakDbfs(BLIP_FILES.zhou), TYPE_VOICE_GAIN.zhou);
+
+    expect(narrator - pop, 'pop 峰值必须比旁白 blip 低至少 6 dB').toBeGreaterThanOrEqual(6);
+    expect(zhou - pop, 'pop 峰值必须比周全 blip 低至少 10 dB').toBeGreaterThanOrEqual(10);
   });
 
   it('六个情绪各有一个固定 rate，全部在 ±5% 内且互不相同', () => {

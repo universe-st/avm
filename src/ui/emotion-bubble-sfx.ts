@@ -10,7 +10,21 @@ import type { EmotionKind } from '../story/dialogue';
  * 这里只放常数、不 import Phaser：单测（`test/emotion-bubble-sfx.test.ts`）可以直接读，
  * 渲染与播放时机在 `emotion-bubble.ts`。
  */
-export const BUBBLE_POP_VOLUME = 0.35;
+/**
+ * 相对音量（再乘 `settings.sfx`）。
+ *
+ * 0.18 不是拍脑袋：t67 用「运行时 tap」实测（AudioBuffer 峰值 × 链路增益），
+ * 0.35 时「啵」峰值 −16.7 dBFS、旁白逐字 blip −16.3 dBFS，只低 0.4 dB。
+ * 逐字音是 30–45ms 的极短音、每句连响二十来次；200ms 的 pop 与它等峰值时
+ * 主观明显更响，与「气泡音要垫在打字音下面」的设计相反。
+ *
+ * t68 按契约反算（pop 峰值至少比旁白低 6 dB、比周全低 10 dB）：
+ * 0.22 → −20.7 dBFS（只低 4.4/9.7 dB，不够）；0.18 → −22.5 dBFS
+ * （比旁白 −16.3 低 6.1 dB、比周全 −11.0 低 11.5 dB）。
+ * 只降增益、不重编源文件：GainNode 不改音色，200ms 的「啵」仍清晰可辨。
+ * 护栏 `test/emotion-bubble-sfx.test.ts` 解析三条 voice blip 的 WAV 峰值做数值断言。
+ */
+export const BUBBLE_POP_VOLUME = 0.18;
 
 /**
  * 距上一次「啵」不到这么久就再起一记（对话连点/连续两行都有 emotion 时，
