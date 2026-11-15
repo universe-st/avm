@@ -11,7 +11,7 @@
   cordova/res/icon/android/ic_launcher_<density>.png             传统图标
   cordova/res/icon/android/ic_launcher_foreground_<density>.png  自适应前景
   cordova/res/icon/android/ic_launcher_background_<density>.png  自适应背景
-  docs/screenshots/verify-2026-11-14/appicon/*.png               验收预览（3 张）
+  .evidence/docs/screenshots/verify-2026-11-14/appicon/*.png     验收预览（3 张）
 
 几何依据（Android 自适应图标规范）：
   - 前景/背景层各 108×108dp，系统把中间 72×72dp 当作可见视口；
@@ -33,7 +33,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "assets-src" / "app-icon"
 RAW = SRC / "raw"
 OUT_ICONS = ROOT / "cordova" / "res" / "icon" / "android"
-OUT_PREVIEW = ROOT / "docs" / "screenshots" / "verify-2026-11-14" / "appicon"
+OUT_PREVIEW = ROOT / ".evidence" / "docs" / "screenshots" / "verify-2026-11-14" / "appicon"
 
 MASTER_LEGACY = SRC / "icon-1024.png"
 MASTER_SAFE = RAW / "icon-safe-v1-b.png"

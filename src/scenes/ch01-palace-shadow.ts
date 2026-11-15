@@ -126,7 +126,7 @@ export const PALACE_SHADOW_STYLE: Readonly<Record<PalacePose, PalaceShadowStyle>
   // 跪姿：膝+小腿摊在地上，接触面更宽更扁；阴影上移贴住膝盖，和下摆重叠 6px。
   // 为什么不写 3：椭圆上边缘是个尖，渲染后最上面 1–2px 覆盖率太低（alpha < 1/255）看不见，
   // 几何重叠 3px 时画面上只是「刚碰到」，缩放一取整就会露出一条缝。实测 6px 在 390 宽屏幕上
-  // 还剩 2–3px 可见重叠（见 docs/screenshots/palace-shadow/）。
+  // 还剩 2–3px 可见重叠（见 .evidence/docs/screenshots/palace-shadow/，本机取证，不入库）。
   kneel: { minWidth: 56, widthFactor: 1.4, heightRatio: 0.22, alpha: 0.3, overlap: 6 },
 };
 

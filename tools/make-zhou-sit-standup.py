@@ -7,7 +7,7 @@
 输出：
     public/assets/img/character/ch01/zhou_sit_right.png      160×400（坐姿，高 160 / 底边 394 / 中心 80）
     public/assets/img/character/ch01/zhou_stand_up.webp      8 帧横排 1280×400（每帧 160×400）
-    docs/screenshots/sitting/review-sheet.png                坐姿 + 起身逐帧并排验收图
+    .evidence/docs/screenshots/sitting/review-sheet.png      坐姿 + 起身逐帧并排验收图
 
 三条铁律（踩过的坑）：
 1. 绿幕不能用 RGB 距离键，要用 `greenness = g - max(r, b)`：背光半边带绿幕反光，
@@ -33,7 +33,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "public" / "assets" / "img" / "character" / "ch01"
-REVIEW_DIR = ROOT / "docs" / "screenshots" / "sitting"
+REVIEW_DIR = ROOT / ".evidence" / "docs" / "screenshots" / "sitting"
 
 FRAME_W, FRAME_H = 160, 400
 # Q 版站立帧的基准：底边 394、水平中心 80、站立高 371。

@@ -10,8 +10,8 @@
     ~/.dsh/game-material-master/image-jobs/<id>/out/img-XX.png
 输出：
     public/assets/img/character/ch01/zhou_idle_right.png   160×400（高 371 / 底边 394 / 中心 80）
-    docs/screenshots/sitting/idle-right-preview.png        390×844 深底：1:1 原图 + 实机尺寸放大
-    docs/screenshots/sitting/idle-vs-standup8.png          与起身末帧并排 + 差值表
+    .evidence/docs/screenshots/sitting/idle-right-preview.png        390×844 深底：1:1 原图 + 实机尺寸放大
+    .evidence/docs/screenshots/sitting/idle-vs-standup8.png          与起身末帧并排 + 差值表
 
 复用的铁律（与 `make-zhou-sit-standup.py` 同一套，别另写一份）：
 1. 绿幕用 `greenness = g - max(r, b)`，背景绿度按四角实测自适应（生成图的「纯绿」常是
@@ -37,7 +37,7 @@ from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "public" / "assets" / "img" / "character" / "ch01"
-SHOT_DIR = ROOT / "docs" / "screenshots" / "sitting"
+SHOT_DIR = ROOT / ".evidence" / "docs" / "screenshots" / "sitting"
 STANDUP_SHEET = OUT / "zhou_stand_up.webp"
 Q_RIGHT = ROOT / "public" / "assets" / "img" / "character" / "ch01" / "q" / "zhou_q_right.png"
 IDLE = OUT / "zhou_idle_right.png"

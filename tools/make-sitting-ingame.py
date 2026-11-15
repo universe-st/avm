@@ -6,8 +6,8 @@
     <src>/stand-at-spot.png   同一格、切回站立帧（PLAYER_SCALE 0.6138）
     <src>/animp-0..7.png      把起身 sheet 逐帧打到实机画布上（scene.pause() 后截图）
 输出：
-    docs/screenshots/sitting/ingame-390.png          坐姿 / 站立 两个 390 宽实机面板
-    docs/screenshots/sitting/ingame-standup-frames.png  起身 8 帧的实机 1:1 像素裁切
+    .evidence/docs/screenshots/sitting/ingame-390.png          坐姿 / 站立 两个 390 宽实机面板
+    .evidence/docs/screenshots/sitting/ingame-standup-frames.png  起身 8 帧的实机 1:1 像素裁切
 
 重新截图的做法见 tools/README 与本次报告；脚本本身只吃图，不启动浏览器。
 """
@@ -20,7 +20,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT_DIR = ROOT / "docs" / "screenshots" / "sitting"
+OUT_DIR = ROOT / ".evidence" / "docs" / "screenshots" / "sitting"
 
 # 运行时实测（浏览器 evaluate 读到的值，别手推）：脚底 (360, 782) 设计坐标。
 FOOT_DESIGN = (360, 782)
