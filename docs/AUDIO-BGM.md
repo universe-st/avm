@@ -86,6 +86,7 @@ bgmManager.clearSceneBinding(SCENE_KEYS.ch01Dorm);
 - 只影响被改的场景；别的场景仍走 `SCENE_BGM`。
 - 解析是纯函数：`resolveSceneTrack(sceneKey, overrides)` / `withSceneBinding(overrides, key, binding | null)`，可在 Node 单测。
 - **剧情 cue 不要用改绑**：对话 `bgm` 字段、场景内的阶段切曲仍然用 `bgmManager.play(id)`；它只切当前曲目，不写表，所以不会把剧情切曲「打回默认值」。
+- **对话 `bgm` 是状态型 cue**：它挂在台词上，但真正生效靠节点收尾的幂等归约（`reduceStateCues` → 场景 `flushStateCues()`），跳过与自然过完走同一条收尾；`applyLineCue()` 里不许切曲。分类与检查清单见 [对话 cue 契约](CUE-CONTRACT.md) 与 `AGENTS.md` §2 第 17 条。
 - **需要「一帧翻脸」时用 `play(id, { hard: true })`**：旧曲不做淡出、当场掐掉，新曲 160ms 起来。
   例：金殿太监裂皮那一刻从《小皇帝的早朝》硬切《清除协议》——600ms 交叉淡化会把惊吓抹平。
   默认的 600–900ms 交叉淡化仍然适用于「换场/换幕」这类平滑过渡。

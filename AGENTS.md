@@ -42,6 +42,7 @@ pnpm android:release
 14. 预览模式（`StageLaunchContext.preview === true`）**不得写存档/进度/成就**；随机必须用 `seed`（`src/dev/random.ts`），禁止直接 `Math.random()`。同一 seed + params 必须能复现同一画面/开局。
 15. 原生渲染分层只能取 `src/render/layers.ts` 的 `LAYERS` / `SCREEN_LAYERS` / `characterDepth()`；资源 key 只能取 `src/assets/keys.ts` 的分组。**过场里推拉镜头只能缩放世界层容器（`worldRoot`），禁止改 `cameras.main.zoom`（会把 Compose 对话框一起放大、挤出屏幕）；屏幕层特效（立绘/遮幅/字卡/速度线）只能用 `SCREEN_LAYERS`。**地图、角色、UI、CG 的归属见 `docs/RENDER-LAYERS.md`，不要在场景里写魔法 depth 或手写资源 key。
 16. **资源随场景走**：内容场景只通过 `GameModule.requires` 声明资源，切场景必须走 `enterModule` / `launchStage`；`AssetService` 会在目标场景 `create` 后释放旧 bundle（`core`/`ui` 常驻）。禁止跨场景 `prefetch`，禁止场景里手工 `textures.remove` / `cache.*.remove`；验收看 `__AVM__.assets.bundles()`。
+17. **状态型 cue 不得挂在单行台词显示上**：行 cue 的现状是**只有 `bgm` 属于状态型**，`cg` / `fx` / `emotion` 属于表现型（分类真值：`src/story/dialogue.ts` 的 `DIALOGUE_CUE_KINDS`）。状态型 cue 只能由节点/阶段收尾的幂等归约（`reduceStateCues` → 场景 `flushStateCues()`）给出，**「跳过」与自然过完必须走同一条收尾并补状态型 cue**；表现型跳过时**不得**补播。以后加目标/检查点这类世界状态（往 `DialogueStateCues` 加字段）同样走归约，不许挂在行显示上；新增 cue 先在分类表里表态（漏分类 `pnpm typecheck` 直接失败），并补「每个 lineIndex 都当跳过点」的单测；禁止在 `skipDialogue()` 里硬写某首曲子。契约见 `docs/CUE-CONTRACT.md`，护栏 `test/dorm-stateful-cues.test.ts`。
 
 ## 3. 代码风格
 

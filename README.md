@@ -92,6 +92,7 @@ docs/          架构、资源规范、美术、Android、版权、ADR
 
 - [架构](docs/ARCHITECTURE.md)
 - [渲染层级与模块边界](docs/RENDER-LAYERS.md)
+- [对话 cue 契约（状态型 vs 表现型 + 跳过）](docs/CUE-CONTRACT.md)
 - [资源规范与预加载规则](docs/RESOURCE-SPEC.md)
 - [美术风格](docs/ART-STYLE.md)
 - [Android 构建与签名](docs/ANDROID.md)
