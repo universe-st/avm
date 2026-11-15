@@ -26,7 +26,14 @@ import {
   sparkBurst,
 } from '../ui/fx-kit';
 import { addStageFrame, type StageFrameHandle } from '../ui/stage-frame';
-import { speakerLabel, speakerTone, type SpeakerTone } from '../story/dialogue';
+import {
+  speakerLabel,
+  speakerTone,
+  type DialogueRole,
+  type SpeakerTone,
+} from '../story/dialogue';
+import { Typewriter, typewriterIntervalMs, type TypewriterStep } from '../story/typewriter';
+import { typeVoiceForSpeaker } from '../audio/type-voice';
 import { DialogueHistory } from '../story/dialogue-history';
 import { setLinearTextures } from '../ui/pixel';
 import {
@@ -82,6 +89,13 @@ export class Ch01PalaceScene extends UIScene {
   private autoTimer: Phaser.Time.TimerEvent | null = null;
   private shuttingDown = false;
   private readonly history = new DialogueHistory();
+  /** 当前这句的逐字状态；say 事件进入时 start，点击补全/打完/跳过时清干净。 */
+  private readonly typewriter = new Typewriter();
+  /** 当前这句的声线与角色：逐字音按它选 blip（旁白最轻）。 */
+  private lineSpeaker: string | undefined;
+  private lineRole: DialogueRole | undefined;
+  /** 上一帧已经显示的字数：一帧补多个字时也只播一次逐字音。 */
+  private lastTyped = 0;
 
   private get reduced(): boolean {
     return resolveReducedMotion();
@@ -146,6 +160,10 @@ export class Ch01PalaceScene extends UIScene {
     this.sayHint.value = '点击继续';
     this.sayPageIndex.value = 0;
     this.sayPageCount.value = 1;
+    this.typewriter.reset();
+    this.lineSpeaker = undefined;
+    this.lineRole = undefined;
+    this.lastTyped = 0;
   }
 
   override update(_time: number, delta: number): void {
@@ -154,11 +172,14 @@ export class Ch01PalaceScene extends UIScene {
     if (this.transitioning) return;
     const dt = Math.min(80, Math.max(0, delta));
     this.handleEvents(this.player.tick(dt));
+    this.advanceTypewriter(dt);
   }
 
   shutdown(): void {
     this.shuttingDown = true;
     this.cancelAutoAdvance();
+    this.typewriter.reset();
+    this.lastTyped = 0;
     this.historyModal?.close();
     this.historyModal = null;
     this.input.off('pointerdown', this.onPointerDown, this);
@@ -333,20 +354,27 @@ export class Ch01PalaceScene extends UIScene {
         const tone = speakerTone(event.speaker, event.role);
         this.sayTone.value = tone;
         this.saySpeaker.value = speakerLabel(event.speaker);
-        this.sayText.value = event.text;
+        this.lineSpeaker = event.speaker;
+        this.lineRole = event.role;
+        this.lastTyped = 0;
         this.sayVisible.value = true;
-        this.sayHint.value = '点击继续';
         this.sayPageIndex.value = 0;
         this.sayPageCount.value = 1;
+        // 整句原文进历史；屏幕上先只露出遮罩文本（全角空格占位，行数不变），逐字填。
         this.history.push({
           speaker: speakerLabel(event.speaker),
           text: event.text,
           narration: tone === 'narration',
           at: this.time.now,
         });
-        this.scheduleAutoAdvance();
+        this.applyTypeStep(
+          this.typewriter.start(event.text, typewriterIntervalMs(settings.textSpeed)),
+          { blip: false },
+        );
       } else if (event.type === 'complete') {
         this.cancelAutoAdvance();
+        this.typewriter.reset();
+        this.lastTyped = 0;
         this.finish();
       }
     }
@@ -418,9 +446,45 @@ export class Ch01PalaceScene extends UIScene {
     this.walking.delete(id);
   }
 
+  /**
+   * 每帧推进逐字。历史弹窗/切场/收尾期间不喂 delta，等于就地暂停。
+   */
+  private advanceTypewriter(deltaMs: number): void {
+    if (this.shuttingDown || this.transitioning) return;
+    if (this.historyModal?.open === true) return;
+    const step = this.typewriter.tick(deltaMs);
+    if (step === null) return;
+    this.applyTypeStep(step);
+  }
+
+  /**
+   * 把逐字状态画到 Compose 面板上。
+   *
+   * - 文本用遮罩串，固定文本框不会逐字跳行；
+   * - 一帧「新增字数 > 0」只播一次 blip（掉帧一帧补多字也不连发）；
+   * - `blip: false` 用于开场/点击补全：补出来的字不发声。
+   */
+  private applyTypeStep(step: TypewriterStep, options: { blip?: boolean } = {}): void {
+    this.sayText.value = step.text;
+    this.sayHint.value = step.done ? '点击继续' : '点击补全';
+    const gained = step.revealed - this.lastTyped;
+    this.lastTyped = step.revealed;
+    if (options.blip !== false && gained > 0) {
+      audioDirector.playTypeBlip(typeVoiceForSpeaker(this.lineSpeaker, this.lineRole));
+    }
+    if (step.done) this.scheduleAutoAdvance();
+    else this.cancelAutoAdvance();
+  }
+
   private advance(): void {
     if (!this.player || this.transitioning) return;
     if (!this.player.state.waiting) return;
+    // 打字中点击 = 先补全本句：不进下一句，也不播点击音。
+    if (this.typewriter.typing) {
+      this.cancelAutoAdvance();
+      this.applyTypeStep(this.typewriter.complete(), { blip: false });
+      return;
+    }
     audioDirector.playClick();
     this.cancelAutoAdvance();
     this.sayVisible.value = false;
@@ -430,6 +494,8 @@ export class Ch01PalaceScene extends UIScene {
   private skip(): void {
     if (!this.player || this.transitioning) return;
     this.cancelAutoAdvance();
+    this.typewriter.reset();
+    this.lastTyped = 0;
     this.sayVisible.value = false;
     this.handleEvents(this.player.skip());
   }
@@ -439,11 +505,13 @@ export class Ch01PalaceScene extends UIScene {
     this.autoTimer = null;
   }
 
-  /** 金殿的台词一次显示整句，停留时长按字数估算。 */
+  /** 金殿的台词逐字打完后再停留；停留时长按字数估算，从打完那一刻开始计时。 */
   private scheduleAutoAdvance(): void {
     this.cancelAutoAdvance();
     if (this.shuttingDown) return;
     if (!settings.autoAdvance || !this.player || this.transitioning) return;
+    // 打字中不计时：打完那一帧会再次调到这里。
+    if (this.typewriter.typing) return;
     const delay = autoAdvanceDelay(Array.from(this.sayText.value).length, settings.textSpeed);
     this.autoTimer = this.time.delayedCall(delay, () => {
       this.autoTimer = null;
@@ -458,7 +526,8 @@ export class Ch01PalaceScene extends UIScene {
     this.historyModal = openDialogueHistory(this.mvvm, this.history.entries, {
       onClose: () => {
         this.historyModal = null;
-        if (this.player?.state.waiting) this.scheduleAutoAdvance();
+        // 关掉记录时若还在逐字，就让它继续打；打完自然会排自动播放。
+        if (this.player?.state.waiting && !this.typewriter.typing) this.scheduleAutoAdvance();
       },
     });
   }
@@ -622,6 +691,8 @@ export class Ch01PalaceScene extends UIScene {
     if (this.transitioning) return;
     this.transitioning = true;
     this.cancelAutoAdvance();
+    this.typewriter.reset();
+    this.lastTyped = 0;
     this.sayVisible.value = false;
     this.cameras.main.fadeOut(this.reduced ? 120 : 320, 4, 4, 8);
     audioDirector.stopAllLoops();
