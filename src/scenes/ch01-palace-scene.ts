@@ -26,6 +26,7 @@ import {
   sparkBurst,
 } from '../ui/fx-kit';
 import { addStageFrame, type StageFrameHandle } from '../ui/stage-frame';
+import { isPointerOnUiControl } from '../ui/ui-pointer-guard';
 import {
   speakerLabel,
   speakerTone,
@@ -340,8 +341,9 @@ export class Ch01PalaceScene extends UIScene {
     this.input.keyboard?.on('keydown-ENTER', () => this.advance());
   }
 
-  private onPointerDown(): void {
-    if (this.historyModal?.open === true) return;
+  private onPointerDown(pointer: Phaser.Input.Pointer): void {
+    // 按在「跳过 / 自动 / 记录 / 菜单」或任意 Compose 弹窗上时，这次点击不属于对话推进。
+    if (isPointerOnUiControl(this, pointer)) return;
     this.advance();
   }
 

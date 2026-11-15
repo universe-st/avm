@@ -148,7 +148,8 @@ export interface DialoguePanelModel {
 /**
  * 底部对话面板：固定 672×300，正文 34px / 最多 5 行。
  *
- * 面板只展示；「点屏幕任意位置推进」由场景的全局指针处理，按钮点击区域除外。
+ * 面板只展示；「点屏幕任意位置推进」由场景的全局指针处理，按钮/弹窗点击区域除外
+ * （实现落点：`src/ui/ui-pointer-guard.ts` 的 `isPointerOnUiControl()`，场景推进处理器开头早退）。
  * 正文按 tone 换色：旁白天蓝、小白淡青、矿工朱红、其余纸白。
  */
 export function buildDialoguePanel(model: DialoguePanelModel): void {

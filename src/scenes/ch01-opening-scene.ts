@@ -8,6 +8,7 @@ import { planCgExit, runCgHandoff, type CgExitReason } from '../app/cg-handoff';
 import { MODULES } from '../app/modules';
 import { applyCamera } from '../app/viewport';
 import { audioDirector } from '../audio/audio-director';
+import { isPointerOnUiControl } from '../ui/ui-pointer-guard';
 import { bgmManager } from '../audio/bgm-manager';
 import { assetService } from '../resource/asset-service';
 import { gateOverlay } from '../resource/gate-overlay';
@@ -299,8 +300,10 @@ export class Ch01OpeningScene extends UIScene {
     this.reveal = null;
   };
 
-  private handlePointer = (): void => {
+  private handlePointer = (pointer: Phaser.Input.Pointer): void => {
     if (!this.needsTap.value || !this.surface) return;
+    // 点「开启声音 / 跳过」是 UI 操作：按钮自己会处理，不能顺带当成“点画面起播”。
+    if (isPointerOnUiControl(this, pointer)) return;
     this.surface.setMuted(false);
     this.muted.value = this.surface.muted;
     this.needsTap.value = false;

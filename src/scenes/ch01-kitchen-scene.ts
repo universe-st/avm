@@ -71,6 +71,7 @@ import { openDialogueHistory } from '../ui/history-modal';
 import { GOLD, TitleCard, makeSceneText } from '../ui/cinematic';
 import { addVignette } from '../ui/fx-kit';
 import { VirtualJoystick } from '../ui/joystick';
+import { isPointerOnUiControl } from '../ui/ui-pointer-guard';
 
 const DIALOGUE_PAGE_CHARS = 68;
 const PLAYER_SCALE = 0.6138;
@@ -1652,16 +1653,15 @@ export class Ch01KitchenScene extends UIScene {
   }
 
   private onScenePointerDown(pointer: Phaser.Input.Pointer): void {
-    const plan = getViewportPlan();
-    const x = pointer.x / (plan.scale || 1);
-    const y = pointer.y / (plan.scale || 1);
-    const inTopRightButtons = y < 150 && x > plan.designWidth - 230;
+    // Compose 控件（顶栏按钮 / 底栏操作键 / 弹窗）和原生摇杆都不算“点画面推进”。
+    if (isPointerOnUiControl(this, pointer) || this.joystick?.containsPointer(pointer) === true) {
+      return;
+    }
     if (this.dialogueVisible.value) {
-      if (inTopRightButtons) return;
       this.advanceDialogue();
       return;
     }
-    if (this.cardVisible && !inTopRightButtons) this.finishCard();
+    if (this.cardVisible) this.finishCard();
   }
 
   private toggleSneak(): void {

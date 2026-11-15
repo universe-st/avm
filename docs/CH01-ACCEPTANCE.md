@@ -224,6 +224,13 @@
 5. 对话记录用分页而非滚动（避免 ScrollView 在短生命周期弹窗里的焦点风险）。
 6. 仍无多槽存档；检查点只记「第一章走到哪一段」，不含战斗内状态。
 
+### 8.7 HUD 按钮不再顺带推进对话（2026-11-15，t70）
+
+- 场景的全局 `pointerdown` 与 Compose 按钮是两条通路，旧版点「记录 / 跳过 / 自动 / 菜单」会顺带补全或推进当前台词。现在统一在推进处理器开头问 `isPointerOnUiControl(this, pointer)`（`src/ui/ui-pointer-guard.ts`），按布局树命中，覆盖顶栏 4 键、Compose 控件与任意模态遮罩；对话面板正文/装饰文字不算控件，点面板空白仍推进。
+- 原生摇杆不在 Compose 树里，由 `VirtualJoystick#containsPointer()` 单独判断；旧的「右上角矩形估算」补丁已删除。
+- 已接：金殿、寝室、御膳房、开幕、开场动画；标题页没有推进处理器，无需接。
+- 取证：`docs/screenshots/hud-button-pointer/`（5 张关键帧 + 6.6s 带真实音轨的流程 mp4 + 3.8s 聚焦 mp4）。
+
 ## 7. P1 白盒：第一章第二节《御膳房》
 
 - 预览：`?stage=scene.ch01.kitchen&phase=explore`（`phase=intro|explore|gate|hide|haystack|done|fail`；`debug=1` 画巡逻/躲藏/触发区；`spot=kitchen|backstab|hay|gate` 为验收定位）
