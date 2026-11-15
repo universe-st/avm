@@ -83,6 +83,7 @@ pnpm android:release
   由 `test/kitchen-sheet-size.test.ts` 守住，别再往上加。
 - sprite 转圈的斜向 pick 要按实际帧校准：西北/东北容易取到正侧或正背；抽不准就直接用 `direct` 逐张生成，验收时看 8 方向图而不是只看四向。
 - 坐姿图如果自带椅子，必须用 `sittingOffsetY` 把椅子脚对齐地面，并在坐着时隐藏独立椅子；表情气泡用 `headPoint` 定位，别用脚底坐标。
+- 角色贴图的**不透明底边不一定等于 origin 的脚底线**：`setOrigin(0.5, 400/420)` 把落点钉在画布第 400 行，但跪姿 `zhou_kneel_up` 只画到第 383 行（比落点高 8.5 设计 px），站姿都画到 399。所以脚底阴影不能给所有角色共用一条 `ellipse(x, y+3, 118, 24)`——跪着的周全就是这么悬起来的。金殿现在按贴图 alpha 轮廓查表（`src/scenes/ch01-palace-shadow.ts` + `tools/measure-actor-footprint.py`），换贴图重跑工具、把数抄回表，`test/palace-shadow.test.ts` 会现场解码 PNG 对表。
 
 ## 6. 提交
 

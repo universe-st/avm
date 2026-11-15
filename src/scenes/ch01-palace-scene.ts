@@ -50,6 +50,7 @@ import {
   type PalaceActorId,
   type PalaceEvent,
 } from '../story/palace-player';
+import { PALACE_ACTOR_SCALE, palaceShadowFor } from './ch01-palace-shadow';
 
 /** 金殿房间：33×54 格，和寝室同一套坐标口径（设计宽 720）。 */
 const PALACE_ROOM = {
@@ -62,8 +63,11 @@ const PALACE_ROOM = {
  * 角色帧是 200×420，脚底基准线在 400：
  * 金殿比寝室大得多（也要同时站五个人），按 0.5 缩放后约 186 设计像素高，
  * 一个人横向约 5 格宽，才排得下「龙椅 + 楚公公 + 两个太监 + 跪着的周全」。
+ *
+ * 缩放值本身由 `ch01-palace-shadow.ts` 定义：阴影的接触面换算要用同一个数，
+ * 两处各写一份迟早会飘。
  */
-const ACTOR_SCALE = 0.5;
+const ACTOR_SCALE = PALACE_ACTOR_SCALE;
 const ACTOR_FOOT_RATIO = 400 / 420;
 
 export class Ch01PalaceScene extends UIScene {
@@ -71,6 +75,11 @@ export class Ch01PalaceScene extends UIScene {
   private readonly actors = new Map<PalaceActorId, Phaser.GameObjects.Image>();
   /** 每个角色的脚底接触阴影，跟着走位一起移动。 */
   private readonly shadows = new Map<PalaceActorId, Phaser.GameObjects.Ellipse>();
+  /**
+   * 阴影相对角色落点的偏移（设计 px）。跪姿比站姿高、侧身/翻面会左右偏，
+   * 走位每帧只动位置，偏移量从这张小表里取，不重新算一遍像素轮廓。
+   */
+  private readonly shadowOffsets = new Map<PalaceActorId, { x: number; y: number }>();
   /** 舞台框 + 氛围层（光柱/余烬/暗角），shutdown 统一销毁。 */
   private stageFrame: StageFrameHandle | null = null;
   private ambientFx: Phaser.GameObjects.GameObject[] = [];
@@ -137,6 +146,7 @@ export class Ch01PalaceScene extends UIScene {
     bgmManager.enterScene(this);
     this.actors.clear();
     this.shadows.clear();
+    this.shadowOffsets.clear();
     this.transitioning = false;
     this.shuttingDown = false;
 
@@ -193,6 +203,7 @@ export class Ch01PalaceScene extends UIScene {
     for (const fx of this.ambientFx) fx.destroy();
     this.ambientFx = [];
     this.shadows.clear();
+    this.shadowOffsets.clear();
     this.worldRoot?.destroy(true);
     this.worldRoot = null;
     this.director?.destroy();
@@ -309,12 +320,15 @@ export class Ch01PalaceScene extends UIScene {
 
     for (const [id, at, texture] of spawns) {
       const { x, y } = this.toPixel(at);
-      // 脚底接触阴影：先建影子再建人，深度靠 LAYERS.props 压在人物下面。
+      // 脚底接触阴影：尺寸/位置按这张贴图自己的 alpha 轮廓算（跪姿和站姿不是一套参数），
+      // 参数表在 `ch01-palace-shadow.ts`，像素数字由 `tools/measure-actor-footprint.py` 量出来。
+      const params = palaceShadowFor(texture, { scale: ACTOR_SCALE });
       const shadow = this.add
-        .ellipse(x, y + 3, 118, 24, 0x000000, 0.28)
+        .ellipse(x + params.offsetX, y + params.offsetY, params.width, params.height, 0x000000, params.alpha)
         .setDepth(LAYERS.props - 1);
       this.worldRoot?.add(shadow);
       this.shadows.set(id, shadow);
+      this.shadowOffsets.set(id, { x: params.offsetX, y: params.offsetY });
 
       const image = this.add
         .image(x, y, texture)
@@ -324,6 +338,32 @@ export class Ch01PalaceScene extends UIScene {
       this.worldRoot?.add(image);
       this.actors.set(id, image);
     }
+  }
+
+  /**
+   * 重算一个角色的阴影：换姿势（跪/裂皮/矿工）、换朝向、走完停下都要走这里。
+   *
+   * 行走 sheet 里没有登记接触面，会按站姿兜底——走路时本来就该用站姿阴影。
+   * 换贴图后阴影的**宽度和上边缘**都要跟着动，否则跪姿又会出现「人悬在一摊影子上面」。
+   */
+  private syncShadow(id: PalaceActorId): void {
+    const actor = this.actors.get(id);
+    const shadow = this.shadows.get(id);
+    if (!actor || !shadow) return;
+    const params = palaceShadowFor(actor.texture.key, { scale: ACTOR_SCALE, flipX: actor.flipX });
+    shadow.setSize(params.width, params.height);
+    shadow.setFillStyle(0x000000, params.alpha);
+    shadow.setPosition(actor.x + params.offsetX, actor.y + params.offsetY);
+    this.shadowOffsets.set(id, { x: params.offsetX, y: params.offsetY });
+  }
+
+  /** 走位时阴影跟着落点走（偏移量来自接触面表：跪姿的阴影比站姿高 7.5 设计 px）。 */
+  private followShadow(id: PalaceActorId): void {
+    const actor = this.actors.get(id);
+    const shadow = this.shadows.get(id);
+    const offset = this.shadowOffsets.get(id);
+    if (!actor || !shadow || !offset) return;
+    shadow.setPosition(actor.x + offset.x, actor.y + offset.y);
   }
 
   private toPixel(at: { x: number; y: number }): { x: number; y: number } {
@@ -427,6 +467,7 @@ export class Ch01PalaceScene extends UIScene {
       }
     }
     actor.setTexture(sheet, 0);
+    this.syncShadow(id);
     const timer = this.time.addEvent({
       delay: 65,
       loop: true,
@@ -443,6 +484,7 @@ export class Ch01PalaceScene extends UIScene {
     if (!entry) return;
     entry.timer.remove(false);
     if (entry.base) this.actors.get(id)?.setTexture(entry.base, 0);
+    this.syncShadow(id);
     this.walking.delete(id);
   }
 
@@ -593,7 +635,6 @@ export class Ch01PalaceScene extends UIScene {
         const dy = to.y - actor.y;
         const far = Math.hypot(dx, dy) > PALACE_ROOM.tileSize * 1.5;
         if (far) this.startWalk(action.actor, palaceDirOf(dx, dy));
-        const shadow = this.shadows.get(action.actor);
         this.tweens.add({
           targets: actor,
           x: to.x,
@@ -603,7 +644,7 @@ export class Ch01PalaceScene extends UIScene {
           // 走位时同步脚底深度，否则走到别人前面会被挡住。
           onUpdate: () => {
             actor.setDepth(characterDepth(actor.y));
-            shadow?.setPosition(actor.x, actor.y + 3);
+            this.followShadow(action.actor);
           },
           onComplete: () => this.stopWalk(action.actor),
         });
@@ -614,6 +655,8 @@ export class Ch01PalaceScene extends UIScene {
         if (!actor) return;
         this.stopWalk(action.actor);
         actor.setTexture(action.texture);
+        // 跪姿/裂皮/矿工的接触面和站姿完全不同，换完贴图立刻把影子按新轮廓重算。
+        this.syncShadow(action.actor);
         // 裂皮 / 现出矿工：金属碎片 + 火星 + 轻微震屏，再给核心一盏脉动红光。
         if (action.texture === PALACE_TEXTURES.eunuchCrack || action.texture === PALACE_TEXTURES.miner) {
           shardBurst(this, actor.x, actor.y - 70, {
@@ -664,16 +707,20 @@ export class Ch01PalaceScene extends UIScene {
       }
       case 'faceLeft':
         this.actors.get(action.actor)?.setFlipX(true);
+        // 翻面会把接触面镜像到另一侧，影子跟着挪，不然侧身时影子会偏到身体一侧之外。
+        this.syncShadow(action.actor);
         return;
       case 'faceRight':
         this.actors.get(action.actor)?.setFlipX(false);
+        this.syncShadow(action.actor);
         return;
       case 'spawn': {
         const actor = this.actors.get(action.actor);
         const to = this.toPixel({ x: action.x, y: action.y });
         if (actor) {
           actor.setPosition(to.x, to.y).setVisible(true);
-          this.shadows.get(action.actor)?.setPosition(to.x, to.y + 3).setVisible(true);
+          this.syncShadow(action.actor);
+          this.shadows.get(action.actor)?.setVisible(true);
           return;
         }
         return;
