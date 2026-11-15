@@ -30,14 +30,14 @@
 - 减少动态（`prefers-reduced-motion: reduce`）：`scene.reduced === true`，无震屏；剧情仍可完整播放。
 - 控制台：修复 favicon 后，新页面加载 0 error / 0 warning。
 - 截图：
-  - [深夜天幕](screenshots/web-prologue-sky.png)
-  - [你，有做过梦吗？](screenshots/web-prologue-question.png)
-  - [梦的本源](screenshots/web-prologue-dream.png)
-  - [梦坠地球](screenshots/web-prologue-disaster.png)
-  - [无声的战争](screenshots/web-prologue-war.png)
-  - [群英高中](screenshots/web-prologue-school.png)
-  - [日期卡](screenshots/web-prologue-card.png)
-  - [1200×648](screenshots/web-prologue-1200x648.png)
+  - [深夜天幕](images/web-prologue-sky.png)
+  - [你，有做过梦吗？](images/web-prologue-question.png)
+  - [梦的本源](images/web-prologue-dream.png)
+  - [梦坠地球](images/web-prologue-disaster.png)
+  - [无声的战争](images/web-prologue-war.png)
+  - [群英高中](images/web-prologue-school.png)
+  - [日期卡](images/web-prologue-card.png)
+  - [1200×648](images/web-prologue-1200x648.png)
 
 ## 3. Android 验收
 
@@ -48,8 +48,8 @@
 - 返回键：开幕中按系统返回，回到标题。
 - logcat：未发现 `Uncaught` / JS `TypeError` / `ReferenceError`；仅有 Chromium/Google 服务的网络握手日志。
 - 截图：
-  - [Android 标题](screenshots/android-title-0.1.0.png)
-  - [Android 开幕](screenshots/android-prologue.png)
+  - [Android 标题](images/android-title-0.1.0.png)
+  - [Android 开幕](images/android-prologue.png)
 - 已知环境问题：模拟器在冷启动时多次弹出 `System UI / Pixel Launcher isn't responding`，属于模拟器系统负载；应用本身可操作。完整「点击继续 → 占位页」与「跳过」交互已在 Web 端验证。
 
 ## 4. 资源与版权
@@ -93,7 +93,7 @@
   - 「跳过」→ 占位页；返回键 → 标题；`prefers-reduced-motion: reduce` 下仍是手动逐句、无震屏；
   - 控制台 0 error、0 warning。逐字音在首次用户手势解锁音频前自动静音（`SoundManager.locked`），因此无手势的 `?stage=` 首屏也不会刷 AudioContext autoplay 警告。
 - 已知：舞台预览 HUD 会盖住右上角 ▶▶ 图标；预览验收用 `&hud=0`，或先点 HUD 的「×」收起。
-- 截图：[首句（手动）](screenshots/web-prologue-first-line.png)、[自动模式](screenshots/web-prologue-auto-mode.png)、[舞台预览](screenshots/stage-preview-prologue-390x844.png)
+- 截图：[首句（手动）](images/web-prologue-first-line.png)、[自动模式](images/web-prologue-auto-mode.png)、[舞台预览](images/stage-preview-prologue-390x844.png)
 
 ### 5.3 资源
 

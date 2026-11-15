@@ -24,10 +24,10 @@
 
 截图：
 
-- `docs/screenshots/web-title-390x844.png`
-- `docs/screenshots/web-title-360x640.png`
-- `docs/screenshots/web-settings.png`
-- `docs/screenshots/web-credits.png`
+- `docs/images/web-title-390x844.png`
+- `docs/images/web-title-360x640.png`
+- `docs/images/web-settings.png`
+- `docs/images/web-credits.png`
 
 ## 3. Android 验收
 
@@ -42,8 +42,8 @@
 
 截图：
 
-- `docs/screenshots/android-title.png`
-- `docs/screenshots/android-placeholder.png`
+- `docs/images/android-title.png`
+- `docs/images/android-placeholder.png`
 
 ## 4. 资源与素材
 

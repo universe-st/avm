@@ -60,21 +60,21 @@
 
 | 图 | 说明 |
 | --- | --- |
-| [寝室 390×844](screenshots/ch01-dorm-390x844.png) | 探索、目标条、摇杆、交互按钮 |
-| [对话 390×844](screenshots/ch01-dialogue-390x844.png) | 逐字对话、说话人、继续 |
-| [CG 390×844](screenshots/ch01-cg-phone-390x844.png) | 手机白光 CG；UI 在 CG 之上 |
-| [行走 390×844](screenshots/ch01-walk-390x844.png) | 行走中段；上身与静态图同宽 |
-| [八方向](screenshots/ch01-directions-8.png) | 四个斜向改为 direct 逐张生成 |
-| [正北返工前后](screenshots/ch01-q-up-orientation-fix.png) | `back` 截帧 16→18、行走视频按「正背面锁定」重出；见 `ASSET-CREDITS.md` 11.3.3 |
-| [朝上站立 390×844](screenshots/ch01-q-up-ingame-390x844.png) | 实机正背面：两肩对称、头部左右露耳一致 |
-| [角色 90% 缩放](screenshots/ch01-q-player-scale-90.png) | `spriteScale 0.682 → 0.6138`、`headOffset 258 → 232`；对比图左 0.682 / 右 0.6138 |
-| [开局坐姿](screenshots/ch01-sitting-390x844.png) | 周全坐在书桌前；先放呼噜声、不播 BGM |
-| [心情气泡](screenshots/ch01-emotion-390x844.png) | 表情气泡在头顶，然后才开始打字 |
-| [战斗 390×844](screenshots/ch01-battle-390x844.png) | 金殿背景、矿工、HP、攻击/防御 |
-| [战败 390×844](screenshots/ch01-battle-defeat-390x844.png) | 剧情战败覆盖层（必败） |
-| [结束卡 390×844](screenshots/ch01-end-390x844.png) | 第一节完、重看/返回 |
-| [寝室 1200×648](screenshots/ch01-dorm-1200x648.png) | 横屏居留边 |
-| [战斗 1200×648](screenshots/ch01-battle-1200x648.png) | 横屏战败覆盖层 |
+| [寝室 390×844](images/ch01-dorm-390x844.png) | 探索、目标条、摇杆、交互按钮 |
+| [对话 390×844](images/ch01-dialogue-390x844.png) | 逐字对话、说话人、继续 |
+| [CG 390×844](images/ch01-cg-phone-390x844.png) | 手机白光 CG；UI 在 CG 之上 |
+| [行走 390×844](images/ch01-walk-390x844.png) | 行走中段；上身与静态图同宽 |
+| [八方向](images/ch01-directions-8.png) | 四个斜向改为 direct 逐张生成 |
+| [正北返工前后](images/ch01-q-up-orientation-fix.png) | `back` 截帧 16→18、行走视频按「正背面锁定」重出；见 `ASSET-CREDITS.md` 11.3.3 |
+| [朝上站立 390×844](images/ch01-q-up-ingame-390x844.png) | 实机正背面：两肩对称、头部左右露耳一致 |
+| [角色 90% 缩放](images/ch01-q-player-scale-90.png) | `spriteScale 0.682 → 0.6138`、`headOffset 258 → 232`；对比图左 0.682 / 右 0.6138 |
+| [开局坐姿](images/ch01-sitting-390x844.png) | 周全坐在书桌前；先放呼噜声、不播 BGM |
+| [心情气泡](images/ch01-emotion-390x844.png) | 表情气泡在头顶，然后才开始打字 |
+| [战斗 390×844](images/ch01-battle-390x844.png) | 金殿背景、矿工、HP、攻击/防御 |
+| [战败 390×844](images/ch01-battle-defeat-390x844.png) | 剧情战败覆盖层（必败） |
+| [结束卡 390×844](images/ch01-end-390x844.png) | 第一节完、重看/返回 |
+| [寝室 1200×648](images/ch01-dorm-1200x648.png) | 横屏居留边 |
+| [战斗 1200×648](images/ch01-battle-1200x648.png) | 横屏战败覆盖层 |
 
 - 390×844 与 1200×648 均检查：目标/按钮不重叠、对话不溢出、房间完整可见。
 - 控制台 0 error / 0 warning。
@@ -144,17 +144,17 @@
 
 截图：
 
-- `docs/screenshots/ch01-tutorial-spawn-390x844.png`（出生点 + 新手指引）
-- `docs/screenshots/ch01-tutorial-dismissed.png`（首次移动后指引收起）
-- `docs/screenshots/ch01-tutorial-1200x648.png`（1200×648 视口）
-- `docs/screenshots/zheng-approach.png`（郑卿头侧的 `[E]` 提示）
-- `docs/screenshots/zheng-shake.png`、`zheng-smile.png`（摇醒 + 笑气泡）
-- `docs/screenshots/ch01-news-cg.png`、`ch01-news-male.png`、`ch01-news-female2.png`、`ch01-news-back.png`（黑白新闻回忆、回到寝室）
-- `docs/screenshots/ch01-crisis-explore.png`（回忆结束后自由探索，BGM 仍是《危机来临》）
-- `docs/screenshots/ch01-narration-skyblue.png`（旁白：无说话人、天蓝色、第二人称）
-- `docs/screenshots/ch01-speech-normal.png`、`ch01-xiaobai-voice.png`、`ch01-anchor-generic-voice.png`（周全 / 小白 / 配角普通文字与声线）
-- `docs/screenshots/ch01-narration-1200x648.png`（1200×648 下的旁白排版）
-- `docs/screenshots/cg-ch01-news-stage.png`（`?stage=cg.ch01.news`）
+- `docs/images/ch01-tutorial-spawn-390x844.png`（出生点 + 新手指引）
+- `docs/images/ch01-tutorial-dismissed.png`（首次移动后指引收起）
+- `docs/images/ch01-tutorial-1200x648.png`（1200×648 视口）
+- `docs/images/zheng-approach.png`（郑卿头侧的 `[E]` 提示）
+- `docs/images/zheng-shake.png`、`zheng-smile.png`（摇醒 + 笑气泡）
+- `docs/images/ch01-news-cg.png`、`ch01-news-male.png`、`ch01-news-female2.png`、`ch01-news-back.png`（黑白新闻回忆、回到寝室）
+- `docs/images/ch01-crisis-explore.png`（回忆结束后自由探索，BGM 仍是《危机来临》）
+- `docs/images/ch01-narration-skyblue.png`（旁白：无说话人、天蓝色、第二人称）
+- `docs/images/ch01-speech-normal.png`、`ch01-xiaobai-voice.png`、`ch01-anchor-generic-voice.png`（周全 / 小白 / 配角普通文字与声线）
+- `docs/images/ch01-narration-1200x648.png`（1200×648 下的旁白排版）
+- `docs/images/cg-ch01-news-stage.png`（`?stage=cg.ch01.news`）
 
 ## 8. 2026-10-31 全面优化（界面 / 美术 / 特效 / 剧情）
 
@@ -206,14 +206,14 @@
 
 | 图 | 说明 |
 | --- | --- |
-| [标题 390](screenshots/opt-title-390.png) | 继续游戏可用 + 上次检查点 |
-| [寝室 390](screenshots/opt-dorm-390.png) | 重组后的窗光/地毯/行李箱/接触阴影 |
-| [对话 390](screenshots/opt-dialogue-390.png) | 统一 HUD、天蓝旁白、记录/自动 |
-| [金殿 390](screenshots/opt-palace-390.png) | 窗棂光柱、角色接触阴影 |
-| [战斗 390](screenshots/opt-battle-390.png) | 战斗舞台图、贴头血条、核心脉动 |
-| [战败 390](screenshots/opt-defeat-390.png) | 清除协议 · 战败 |
-| [结束卡 390](screenshots/opt-endcard-390.png) | 章节卡式结束页 |
-| [标题 1200](screenshots/opt-title-1200.png) / [寝室 1200](screenshots/opt-dorm-1200.png) / [战斗 1200](screenshots/opt-battle-1200.png) | 横屏居留边 |
+| [标题 390](images/opt-title-390.png) | 继续游戏可用 + 上次检查点 |
+| [寝室 390](images/opt-dorm-390.png) | 重组后的窗光/地毯/行李箱/接触阴影 |
+| [对话 390](images/opt-dialogue-390.png) | 统一 HUD、天蓝旁白、记录/自动 |
+| [金殿 390](images/opt-palace-390.png) | 窗棂光柱、角色接触阴影 |
+| [战斗 390](images/opt-battle-390.png) | 战斗舞台图、贴头血条、核心脉动 |
+| [战败 390](images/opt-defeat-390.png) | 清除协议 · 战败 |
+| [结束卡 390](images/opt-endcard-390.png) | 章节卡式结束页 |
+| [标题 1200](images/opt-title-1200.png) / [寝室 1200](images/opt-dorm-1200.png) / [战斗 1200](images/opt-battle-1200.png) | 横屏居留边 |
 
 已知限制：
 
@@ -229,7 +229,7 @@
 - 场景的全局 `pointerdown` 与 Compose 按钮是两条通路，旧版点「记录 / 跳过 / 自动 / 菜单」会顺带补全或推进当前台词。现在统一在推进处理器开头问 `isPointerOnUiControl(this, pointer)`（`src/ui/ui-pointer-guard.ts`），按布局树命中，覆盖顶栏 4 键、Compose 控件与任意模态遮罩；对话面板正文/装饰文字不算控件，点面板空白仍推进。
 - 原生摇杆不在 Compose 树里，由 `VirtualJoystick#containsPointer()` 单独判断；旧的「右上角矩形估算」补丁已删除。
 - 已接：金殿、寝室、御膳房、开幕、开场动画；标题页没有推进处理器，无需接。
-- 取证：`docs/screenshots/hud-button-pointer/`（5 张关键帧 + 6.6s 带真实音轨的流程 mp4 + 3.8s 聚焦 mp4）。
+- 取证：`.evidence/docs/screenshots/hud-button-pointer/`（5 张关键帧 + 6.6s 带真实音轨的流程 mp4 + 3.8s 聚焦 mp4）。
 
 ## 7. P1 白盒：第一章第二节《御膳房》
 
@@ -240,13 +240,13 @@
 
 | 图 | 说明 |
 | --- | --- |
-| [视锥/迷雾 390](screenshots/ch01-kitchen-fov-390.png) | 玩家面朝方向的扇形可见区，未探索区全黑、记忆区压暗 |
-| [背后偷袭 390](screenshots/ch01-kitchen-backstab-390.png) | 教学御厨背后的 `[J] 偷袭` 与右下高亮按钮 |
-| [草堆偷袭 390](screenshots/ch01-kitchen-haystack-390.png) | 善变前：藏在干草堆，老肯贴脸搜索，`[J] 偷袭` 就绪 |
-| [结束卡 390](screenshots/ch01-kitchen-end-390.png) | P1 第三幕到此；第四/五幕待接入 |
-| [失败重开 390](screenshots/ch01-kitchen-fail-390.png) | 被巡逻抓住 → 「再进去」回检查点 |
-| [门口躲藏 390](screenshots/ch01-kitchen-hide-390.png) | 第二幕门开，老麦/老肯/门卫进门，玩家躲屏风 |
-| [横屏 1200](screenshots/ch01-kitchen-fov-1200.png) | 1200×648 竖屏居留边（HUD 压在中部，横屏不是目标形态） |
+| [视锥/迷雾 390](images/ch01-kitchen-fov-390.png) | 玩家面朝方向的扇形可见区，未探索区全黑、记忆区压暗 |
+| [背后偷袭 390](images/ch01-kitchen-backstab-390.png) | 教学御厨背后的 `[J] 偷袭` 与右下高亮按钮 |
+| [草堆偷袭 390](images/ch01-kitchen-haystack-390.png) | 善变前：藏在干草堆，老肯贴脸搜索，`[J] 偷袭` 就绪 |
+| [结束卡 390](images/ch01-kitchen-end-390.png) | P1 第三幕到此；第四/五幕待接入 |
+| [失败重开 390](images/ch01-kitchen-fail-390.png) | 被巡逻抓住 → 「再进去」回检查点 |
+| [门口躲藏 390](images/ch01-kitchen-hide-390.png) | 第二幕门开，老麦/老肯/门卫进门，玩家躲屏风 |
+| [横屏 1200](images/ch01-kitchen-fov-1200.png) | 1200×648 竖屏居留边（HUD 压在中部，横屏不是目标形态） |
 
 ## 8. 金殿过场 BGM 与心跳（2026-11-15 实机反馈修复）
 
@@ -268,4 +268,4 @@
 | 心跳 | 去掉全程循环，只留「看见郑卿」与「裂皮」各一记（不 loop） | `__AVM__.audio.loops()` 全程只有 `palace.ambience` |
 | 护栏 | `test/ch01-palace-audio.test.ts`（心跳不循环、切曲 cue 唯一且与裂皮同拍、场景绑定与战斗绑定） | `pnpm check` 41 files / 373 tests |
 
-截图：`docs/screenshots/bgm-palace/01-opening-realflow.png`（开场，BGM=`ch01Palace`）、`03-crack-realflow.png`（裂皮，BGM 已切 `ch01Dream`）。
+截图：`docs/images/bgm-palace/01-opening-realflow.png`（开场，BGM=`ch01Palace`）、`03-crack-realflow.png`（裂皮，BGM 已切 `ch01Dream`）。

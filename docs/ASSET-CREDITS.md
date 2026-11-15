@@ -61,7 +61,7 @@
 
 #### 响度复核（t67 实测 → t68 调整）
 
-- 口径：运行时 tap（Playwright 包住 `AudioContext.createBufferSource`，逐 buffer 记录时长/峰值与 `muteNode→volumeNode` 链路增益；`settings.sfx=0.8`），有效峰值 = buffer 峰值 × 链路增益；RMS = `ffmpeg volumedetect mean_volume` × 链路增益。取证见 `docs/screenshots/emotion-bubble-sfx-volume/`（`README.md`、`measurements.json`、`level-comparison.png`）。
+- 口径：运行时 tap（Playwright 包住 `AudioContext.createBufferSource`，逐 buffer 记录时长/峰值与 `muteNode→volumeNode` 链路增益；`settings.sfx=0.8`），有效峰值 = buffer 峰值 × 链路增益；RMS = `ffmpeg volumedetect mean_volume` × 链路增益。取证见 `.evidence/docs/screenshots/emotion-bubble-sfx-volume/`（`README.md`、`measurements.json`、`level-comparison.png`）。
 - 改前（`BUBBLE_POP_VOLUME = 0.35`）：pop 峰值 **−16.7 dBFS** / RMS −34.6 dB；旁白 blip **−16.3 dBFS** / −26.6 dB —— 峰值只低 0.4 dB，而 pop 是 200ms 瞬态、blip 是 30–45ms 极短音，主观上 pop 更响，违背「垫在打字音下面」。
 - 改后（`BUBBLE_POP_VOLUME = 0.18`）：pop 峰值 **−22.5 dBFS** / RMS −40.3 dB；比旁白低 **6.1 dB**、比周全 blip（−11.0 dBFS）低 **11.5 dB**，比郑卿（−14.3）低 8.2 dB。0.22 试值只低 4.4/9.7 dB，未达阈值，故取 0.18。
 - 路线：只降运行时增益，**源 mp3 不重编**——GainNode 只改电平不改音色，200ms 的「啵」仍清晰可辨；重编只会在降电平后多一层有损编码。
@@ -227,7 +227,7 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
   python3 .dsh/skills/avm-8dir-sprite/scripts/make-static-sprite.py --only up
   python3 .dsh/skills/avm-8dir-sprite/scripts/make-walk-sheet.py --dir-map "back=up"
   ```
-- 对比图：[正北返工前后](screenshots/ch01-q-up-orientation-fix.png)（静态 + 行走，f0/f5/f10/f15）、[实机朝上站立](screenshots/ch01-q-up-ingame-390x844.png)。
+- 对比图：[正北返工前后](images/ch01-q-up-orientation-fix.png)（静态 + 行走，f0/f5/f10/f15）、[实机朝上站立](images/ch01-q-up-ingame-390x844.png)。
 
 ### 11.4 寝室零部件（模块化，不画整张）
 
@@ -275,7 +275,7 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
 - 产物与实测：
   - `public/assets/img/character/ch01/zhou_sit_right.png` 160×400，人物高 160 / 底边 394 / 中心 80（scale 1.0 时屏显 87px @390 宽）。
   - `public/assets/img/character/ch01/zhou_stand_up.webp` 8 帧 1280×400，逐帧高 160/161/162/163/168/202/227/228（严格递增），头宽 76/74/76/78/74/75/75/75（±3%），底边全 394，中心 80/82/78/84/84/83/79/74（躯干锚点，腿收放会小幅漂移）。
-- 验收图：`docs/screenshots/sitting/review-sheet.png`（静帧 + 8 帧并排，带实测数字）、`docs/screenshots/sitting/ingame-390.png`（390 宽实机：坐地 / 站立对照）、`docs/screenshots/sitting/ingame-standup-frames.png`（实机 1:1 像素的 8 帧）。
+- 验收图：`docs/images/sitting/review-sheet.png`（静帧 + 8 帧并排，带实测数字）、`docs/images/sitting/ingame-390.png`（390 宽实机：坐地 / 站立对照）、`docs/images/sitting/ingame-standup-frames.png`（实机 1:1 像素的 8 帧）。
 
 #### 11.4.4 周全侧面站立 idle（2026-11-07，t39）
 
@@ -287,7 +287,7 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
 - 后期：`tools/make-zhou-idle-right.py`（复用 `make-zhou-sit-standup.py` 的绿度软键 + 暗绿地面投影剔除 + 缩放后 bbox 重新居中）。
 - 实测：人物高 371 / 底边 394 / 水平中心 80 / 头宽 121，与 `zhou_stand_up` 末帧（归一到 371 高）比——头顶差 0、肩高差 0、脚底差 0、头宽差 −3、剪影 IoU 0.882。基线写进 `assets-src/character/ch01/idle-right-manifest.json`，由 `test/ch01-idle-right.test.ts` 守住（含 PNG alpha 包围盒解码）。
 - 状态：**只入库，暂未接入场景**（`img.char.ch01.zhou_idle_right`；代码接线是后续任务）。
-- 验收图：`docs/screenshots/sitting/idle-right-preview.png`（1:1 + 实机尺寸）、`docs/screenshots/sitting/idle-vs-standup8.png`（与起身末帧并排 + 差值表）。
+- 验收图：`docs/images/sitting/idle-right-preview.png`（1:1 + 实机尺寸）、`docs/images/sitting/idle-vs-standup8.png`（与起身末帧并排 + 差值表）。
 
 
 ### 11.5 梦域金殿战斗背景
@@ -500,7 +500,7 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
 - 拼图：`tools/compose-kitchen-map.py` → `assets-src/map/ch01/kitchen-map/map-final.png`（1024×2048，32px/格）、`map-manifest.json`、`map-pass.png`。
 - 墙：B1 `wall-cap.png` 取石顶纹理平铺，墙/地交界加 1px 暗金线；中央两个 4×10 石岛用 4×2 `long-island` 叠 5 段；竖道具按 2.5D 底边贴墙。
 - 入游戏：`public/assets/img/map/ch01/kitchen.png`；key `img.map.ch01.kitchen`；bundle `ch01.kitchen`；舞台/模块 requires 已加 `ch01.kitchen`；`Ch01KitchenRoomView` 有图用图、无图回退灰盒。
-- 验收：`pnpm check` 绿（192 tests / 24 files；assets 127 files）；390×844 实机截图见 `docs/screenshots/ch01-kitchen-art-390.png`、`ch01-kitchen-art-kitchen-390.png`。
+- 验收：`pnpm check` 绿（192 tests / 24 files；assets 127 files）；390×844 实机截图见 `docs/images/ch01-kitchen-art-390.png`、`ch01-kitchen-art-kitchen-390.png`。
 
 ### 12.3 B3/B4 角色与 B5/B6 图标音效（2026-10-31）
 
@@ -546,14 +546,14 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
 - B5 图标：6 张 128×128，HUD 的潜行/偷袭/交互带图标；其余 eye/alert/reply 留在包里备用。
 - B6 音效：9 条 WAV 由插件 export，ffmpeg 转 mp3 96k 到 `public/assets/audio/sfx/ch01_kitchen_*.mp3`；场景接 ambience/step A/B/alert/backstab/door/transform/heartbeat；`latch` 备用。
 - 视野/淡入：`drawFog` 只给未探索格刷黑，探索过保持正常色；`KitchenEnemy`/`PairActor` 容器 alpha 180ms 向视线目标淡入淡出。
-- 验证：`pnpm check` 绿（192 tests / 24 files；assets 174 files）；390×844 实机截图 `docs/screenshots/phantom-ingame-2.png`、`fog-explored-1.png`。
+- 验证：`pnpm check` 绿（192 tests / 24 files；assets 174 files）；390×844 实机截图 `docs/images/ch01-kitchen-phantom-ingame-390.png`、`docs/images/ch01-kitchen-fog-explored-390.png`。
 
 ### 12.5 B7 共享角色包拆分（2026-10-31）
 
 - 新 bundle `ch01.char`：周全 Q 版八向静态（8）+ 20 帧行走（8）+ 小白（1），共 17 项；`ch.01` 与 `ch01.kitchen` 都 `dependsOn: ['ui','ch01.char']`。
 - 厨房模块/舞台 requires 由 `ch.01` 改为 `ch01.char`，寝室仍走 `ch.01`（依赖闭包会自动带上 `ch01.char`）。
 - `test/resource-scope.test.ts` 同步依赖释放：返回标题时释放 `['ch01.char','ch.01']`。
-- 验收：`pnpm check` 192 tests / 24 files、assets 174；B4 门口截图 `docs/screenshots/ch01-kitchen-b4-gate-390.png`（老麦/老肯/门卫在视野边缘，仅名牌可见，属正常淡入/出）。
+- 验收：`pnpm check` 192 tests / 24 files、assets 174；B4 门口截图 `docs/images/ch01-kitchen-b4-gate-390.png`（老麦/老肯/门卫在视野边缘，仅名牌可见，属正常淡入/出）。
 
 ### 12.6 B4 角色归属纠正（2026-10-31，用户实测反馈）
 

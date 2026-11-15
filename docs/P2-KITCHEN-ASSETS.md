@@ -15,7 +15,7 @@
   - 老麦/老肯是**人形幻影**，用 `phantom_*` + 橙/绿 tint，不是机器人。
   B5 六图标进了 HUD，B6 九条音效已 export/接场景（环境/脚步/警戒/背刺/门轴/善变/心跳）。
 - 视野规则：探索过=正常色，未探索=黑；敌人/老麦老肯按玩家视线 180ms 淡入淡出。
-- B7 `ch01.char` 已从 `ch.01` 拆出（Q 版八向+20帧+小白）；`ch.01` 与 `ch01.kitchen` 都依赖它，厨房模块/舞台 requires 改 `ch01.char`；`pnpm check` 192 tests / 24 files，assets 174。B4 门口截图见 `docs/screenshots/ch01-kitchen-b4-gate-390.png`。P2 收尾。
+- B7 `ch01.char` 已从 `ch.01` 拆出（Q 版八向+20帧+小白）；`ch.01` 与 `ch01.kitchen` 都依赖它，厨房模块/舞台 requires 改 `ch01.char`；`pnpm check` 192 tests / 24 files，assets 174。B4 门口截图见 `docs/images/ch01-kitchen-b4-gate-390.png`。P2 收尾。
 
 ## 0. 原则
 
@@ -129,7 +129,7 @@ B1 只是风格样张，不直接进游戏；B2 拼合后才替换灰盒地图�
 3. **角色**：`KitchenEnemy`/`PairActor` 换成 8 向 sprite；`PlayerActor` 保持周全；朝向用 `facingFromVector`；脚底 depth 走 `characterDepth(y, 4096)`。
 4. **HUD**：图标替换；不改变 Compose 布局与命中。
 5. **音频**：`audioDirector` 播 SFX；环境 loop 低音量；警戒/被注视时心跳；`required:false`。
-6. **验收**：`pnpm check` 绿；390×844 走完第一幕到草堆；1200×648 只作居留边检查；截图进 `docs/screenshots/`；0 console error。
+6. **验收**：`pnpm check` 绿；390×844 走完第一幕到草堆；1200×648 只作居留边检查；截图进 `docs/images/`（调试/取证截图进 `.evidence/docs/screenshots/`）；0 console error。
 
 ## 8. 付费与失败规则
 

@@ -117,7 +117,7 @@
   （`33-ch01-transition-loading-fallback.png`，截到 82%），不再有「只有马赛克」的空档。
 - 单测：`test/cg-handoff.test.ts`（进入失败 / 一直不返回时过渡层仍按时收掉）、
   `test/loader-gate.test.ts`（预取批次 loading/error/ready 全程不亮页；`revealState` 只对进行中的批次生效）。
-- 证据：`docs/screenshots/ingame/30-ch01-opening-transition.gif`（12 帧 → 10 帧过渡）、
+- 证据：`docs/images/ingame/30-ch01-opening-transition.gif`（12 帧 → 10 帧过渡）、
   `31-ch01-opening-pixel-frame.png`、`32-ch01-dorm-first.png`。
 
 ## 8. 2026-11-03 修复②：开头近 1 秒被加载页吞掉 + 马赛克纵向拉伸
@@ -191,10 +191,10 @@ loadeddata      首帧就绪 → release()（门禁立刻撤罩，跳过 holdMs 
 
 ### 证据
 
-- `docs/screenshots/ingame/34-ch01-opening-start-v3.png`：遮罩撤掉那一帧（`currentTime = 0` 的构图）。
-- `docs/screenshots/ingame/35-ch01-pixel-frame-v3.png`：新的马赛克定格帧（前景 9:16 + 模糊铺底）。
-- `docs/screenshots/ingame/36-ch01-pixel-compare-v3.png`：视频末帧 / 马赛克 / 50% 叠加三栏对比。
-- `docs/screenshots/ingame/37-ch01-opening-transition-v3.gif`：写实 → 像素 → 寝室（8 帧 / 240 宽 / 96 色）。
+- `docs/images/ingame/34-ch01-opening-start-v3.png`：遮罩撤掉那一帧（`currentTime = 0` 的构图）。
+- `docs/images/ingame/35-ch01-pixel-frame-v3.png`：新的马赛克定格帧（前景 9:16 + 模糊铺底）。
+- `docs/images/ingame/36-ch01-pixel-compare-v3.png`：视频末帧 / 马赛克 / 50% 叠加三栏对比。
+- `docs/images/ingame/37-ch01-opening-transition-v3.gif`：写实 → 像素 → 寝室（8 帧 / 240 宽 / 96 色）。
 - 单测：`test/cg-reveal.test.ts`（遮罩没撤前不得 play、首帧没好不撤罩、取消要放行门禁、超时兜底）、
   `test/gate-overlay.test.ts`（遮罩信号与 hold/release）、`test/pixel-mosaic.test.ts`（像素层保持宽高比 + cover 裁切）。
 

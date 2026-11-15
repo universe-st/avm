@@ -75,3 +75,14 @@ desktop.ini
 # ===== 短剧工程生成物（成片已进 public/assets；源镜头可重出）=====
 drama/剧集/*/制作成果/
 drama/.short-drama/
+
+# ===== 取证 / 调试产物：统一放 .evidence/，绝不入库 =====
+# 调试截图、Playwright 录像、验收原始帧、测量 json 等一律进这里（保留原相对路径）。
+# 仓库里只留游戏素材（public/assets、assets-src）与文档（docs/ 下的 md + 文档引用的成品图 docs/images/）。
+.evidence/
+
+# ===== AgentTeams 运行状态（本机，不入库）=====
+.agent-teams/
+
+# ===== 兜底：旧截图目录不再入库（成品图请放 docs/images/）=====
+docs/screenshots/

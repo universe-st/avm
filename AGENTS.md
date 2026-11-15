@@ -89,4 +89,6 @@ pnpm android:release
 
 - 提交信息用 `feat/fix/docs/chore(scope): ...`。
 - 一次提交只做一件事；不要混入素材重生成与代码重构。
-- 涉及视觉的改动附截图（`docs/screenshots/`）。
+- 涉及视觉的改动附截图：**文档实际引用的成品图**放 `docs/images/`（跟 md 一起入库）；
+  调试/取证截图一律放 `.evidence/docs/screenshots/`（`.evidence/` 已 gitignore，不入库，也不要在文档里当链接提交）。
+  仓库里只留游戏素材与文档，验证截图不是素材。

@@ -192,7 +192,7 @@ pnpm android:debug                 # 或 pnpm android:release
 
 ## 9. 验收
 
-预览图（`docs/screenshots/verify-2026-11-14/appicon/`）：
+预览图（`.evidence/docs/screenshots/verify-2026-11-14/appicon/`）：
 
 | 文件 | 内容 |
 | --- | --- |

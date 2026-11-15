@@ -194,7 +194,7 @@ await launchStage(game, 'battle.ch01.tutorial', {
 
 HUD 是**调试 DOM**，不占设计空间、不抢游戏输入焦点；根容器 `pointer-events: none`，只有胶囊/面板接收点击。浏览器截图里会拍到它；需要干净截图时加 `&hud=0`。
 
-![舞台目录 HUD](screenshots/stage-preview-directory-390x844.png)
+![舞台目录 HUD](images/stage-preview-directory-390x844.png)
 
 ---
 
@@ -351,7 +351,7 @@ CG 构图要求见 `docs/ART-STYLE.md`：主体放中心 4:5 安全区；查看�
 
 目录里的 `battle.sandbox` 只是**契约自检页**：显示 seed、敌人列表、回合数、资源门禁和返回标题，不是战斗玩法。真实战斗接入后新增 `battle.*` 条目，把沙盒保留作回归入口。
 
-![战斗沙盒](screenshots/stage-preview-battle-390x844.png)
+![战斗沙盒](images/stage-preview-battle-390x844.png)
 
 ---
 
@@ -421,16 +421,16 @@ await __AVM__.stages.hud(false)
 
 | 图 | 说明 |
 | --- | --- |
-| ![CG](screenshots/stage-preview-cg-390x844.png) | `cg.prologue.disaster`，`hud=0` |
-| ![CG 连播](screenshots/stage-preview-cg-sequence-390x844.png) | `cg.prologue.sequence&frame=3` |
-| ![开幕](screenshots/stage-preview-prologue-390x844.png) | `scene.prologue`，HUD 与场景共存 |
-| ![战斗](screenshots/stage-preview-battle-390x844.png) | `battle.sandbox&seed=7`，HUD 可见 |
-| ![目录](screenshots/stage-preview-directory-390x844.png) | HUD 目录 + 筛选 |
-| ![无效 id](screenshots/stage-preview-invalid-390x844.png) | 未知 id 回退标题 + 提示 |
-| ![返回标题](screenshots/stage-preview-title-return-390x844.png) | 预览结束回到正常标题，HUD 自动消失 |
-| ![横屏](screenshots/stage-preview-battle-1200x648.png) | 1200×648 留边；HUD 不盖游戏主体 |
-| ![第一章寝室](screenshots/ch01-dorm-390x844.png) | `scene.ch01.dorm&phase=explore`，390×844 |
-| ![第一章剧情战](screenshots/ch01-battle-defeat-390x844.png) | `battle.ch01.first&phase=defeat`，390×844 |
+| ![CG](images/stage-preview-cg-390x844.png) | `cg.prologue.disaster`，`hud=0` |
+| ![CG 连播](images/stage-preview-cg-sequence-390x844.png) | `cg.prologue.sequence&frame=3` |
+| ![开幕](images/stage-preview-prologue-390x844.png) | `scene.prologue`，HUD 与场景共存 |
+| ![战斗](images/stage-preview-battle-390x844.png) | `battle.sandbox&seed=7`，HUD 可见 |
+| ![目录](images/stage-preview-directory-390x844.png) | HUD 目录 + 筛选 |
+| ![无效 id](images/stage-preview-invalid-390x844.png) | 未知 id 回退标题 + 提示 |
+| ![返回标题](images/stage-preview-title-return-390x844.png) | 预览结束回到正常标题，HUD 自动消失 |
+| ![横屏](images/stage-preview-battle-1200x648.png) | 1200×648 留边；HUD 不盖游戏主体 |
+| ![第一章寝室](images/ch01-dorm-390x844.png) | `scene.ch01.dorm&phase=explore`，390×844 |
+| ![第一章剧情战](images/ch01-battle-defeat-390x844.png) | `battle.ch01.first&phase=defeat`，390×844 |
 
 ---
 
