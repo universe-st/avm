@@ -1,15 +1,17 @@
 import Phaser from 'phaser';
 import { getViewportPlan } from '../app/viewport';
 import { SCREEN_LAYERS } from '../render/layers';
+import { portraitMetrics, type PortraitSide } from './portrait-metrics';
 
-/** 立绘从哪一侧滑入。 */
-export type PortraitSide = 'left' | 'right';
+export type { PortraitSide } from './portrait-metrics';
 
 /**
  * 半身立绘 cut-in。
  *
  * 只在"有人开口"时出场，旁白不出现——这样「有人说话 / 无人说话」在画面上能分得开。
- * 立绘是 720×900 的透明 PNG，底部对齐、按屏幕高度缩到 62%，不抢对话面板的位置。
+ * 尺寸与站位全部由 `portraitMetrics()` 算（纯逻辑、可单测）：720×900 的透明 PNG
+ * 宽度**是改版前的一半**，比例不变，底部对齐、不抢对话面板的位置。
+ * 本类只负责建 image、播入场 tween 和呼吸。
  */
 export class PortraitLayer {
   private readonly scene: Phaser.Scene;
@@ -31,14 +33,10 @@ export class PortraitLayer {
   show(key: string, side: PortraitSide = 'right'): void {
     if (!this.scene.textures.exists(key)) return;
     const plan = getViewportPlan();
-    const height = Math.round(plan.designHeight * 0.46);
-    const width = Math.round((height / 900) * 720);
-    // 站在画面一侧、露出大半身：右侧人物靠右，左侧人物靠左
-    const anchorX = side === 'right' ? plan.designWidth - width * 0.30 : width * 0.30;
-    const baseY = plan.designHeight - 210;
+    const metrics = portraitMetrics(plan, side);
 
     if (this.key === key && this.image) {
-      this.image.setPosition(anchorX, baseY);
+      this.image.setPosition(metrics.anchorX, metrics.baseY);
       return;
     }
 
@@ -46,11 +44,11 @@ export class PortraitLayer {
     this.stopBreath();
 
     const image = this.scene.add
-      .image(anchorX, baseY, key)
-      .setOrigin(side === 'right' ? 0.5 : 0.5, 1)
+      .image(metrics.anchorX, metrics.baseY, key)
+      .setOrigin(0.5, 1)
       .setDepth(SCREEN_LAYERS.portrait)
       .setAlpha(this.reduced ? 1 : 0);
-    image.setDisplaySize(width, height);
+    image.setDisplaySize(metrics.width, metrics.height);
     if (side === 'left') image.setFlipX(true);
 
     this.image = image;
@@ -61,11 +59,10 @@ export class PortraitLayer {
       return;
     }
 
-    const fromX = anchorX + (side === 'right' ? 260 : -260);
-    image.setX(fromX);
+    image.setX(metrics.fromX);
     this.scene.tweens.add({
       targets: image,
-      x: anchorX,
+      x: metrics.anchorX,
       alpha: 1,
       duration: 220,
       ease: 'Expo.easeOut',
