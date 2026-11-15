@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { audioDirector } from '../audio/audio-director';
+import { CH01_ASSET_KEYS } from '../assets/keys';
 import { LAYERS } from '../render/layers';
 import type { EmotionKind } from '../story/dialogue';
 import {
@@ -14,6 +16,11 @@ import {
   type EmotionIcon,
   type IconPoint,
 } from './emotion-bubble-model';
+import {
+  BUBBLE_POP_MIN_INTERVAL_MS,
+  BUBBLE_POP_RATE,
+  BUBBLE_POP_VOLUME,
+} from './emotion-bubble-sfx';
 
 const DEG_TO_RAD = Math.PI / 180;
 
@@ -31,6 +38,8 @@ export class EmotionBubble {
   private readonly container: Phaser.GameObjects.Container;
   private readonly graphics: Phaser.GameObjects.Graphics;
   private timer: Phaser.Time.TimerEvent | null = null;
+  /** 上一记「啵」的场景时间（ms）；用于 `BUBBLE_POP_MIN_INTERVAL_MS` 节流。 */
+  private lastPopAt = Number.NEGATIVE_INFINITY;
 
   constructor(scene: Phaser.Scene, reduced = false) {
     this.scene = scene;
@@ -58,6 +67,18 @@ export class EmotionBubble {
       .setAlpha(0)
       .setScale(this.reduced ? 1 : 0.72)
       .setVisible(true);
+
+    // 气泡冒出这一帧响一记「啵」（reduced 也照常响：音效与动效是两件事）。
+    // 走 audioDirector 而不是裸 scene.sound.add：静音/音量设置自动生效，
+    // 未 attach 场景时 playSfxAt 返回 null，不会抛。
+    const now = this.scene.time.now;
+    if (now - this.lastPopAt >= BUBBLE_POP_MIN_INTERVAL_MS) {
+      this.lastPopAt = now;
+      audioDirector.playSfxAt(CH01_ASSET_KEYS.audio.bubblePop, {
+        volume: BUBBLE_POP_VOLUME,
+        rate: BUBBLE_POP_RATE[kind],
+      });
+    }
 
     if (!this.reduced) {
       this.scene.tweens.add({

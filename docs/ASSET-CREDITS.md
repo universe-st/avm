@@ -47,6 +47,18 @@
 - 实测：峰值 -4.3 dBFS，平均 -19.4 dB
 - 原始件：`assets-src/audio/sfx_click_source.wav`
 
+### 4.1 表情气泡冒出「啵」（t61）
+
+- 文件：`public/assets/audio/sfx/ch01_bubble_pop.mp3`
+- 来源：游戏素材大师 · 音效生成（火山引擎 Seed-Audio）
+- 任务：`fmwhbsxm8ab9fc4`；同批 3 条 take，选用 `kmwhbt8cl496e85`（2.50s 原始 WAV）
+- 提示词：卡通角色头顶冒出一个表情气泡的拟音：短促轻快的「啵」声，木质与纸面质感的轻弹，带一点气泡上浮的绒毛感；近场、干声、无混响、无尾音拖沓，约 0.3 秒，可无缝连续重复。不要电子提示音／UI 嘀声，不要人声、字词或旋律。
+- 后期（ffmpeg）：`atrim=0.160–0.360`（0.200s）→ `volume=-4.6dB` → `afade=t=out:st=0.130:d=0.070` → 单声道 44.1kHz / 128 kbps mp3
+- 实测：峰值 -5.7 dBFS，平均 -23.5 dB（`volumedetect`）
+- 设计：气泡出现动画只有 180ms，所以只保留 200ms；播放走 `audioDirector.playSfxAt(..., { volume: 0.35, rate })`，明显低于打字 blip；只在 `show()` 播、`hide()` 不播；120ms 节流防连点叠音；六个情绪各一个固定 rate（0.96–1.05）做微变
+- 原始件：`docs/audio/emotion_bubble_pop_source.wav`
+- 备选 take：`docs/audio/emotion_bubble_pop_takeB.mp3`（木质小木块轻磕纸面，0.21s，峰值 -5.5 dBFS）、`docs/audio/emotion_bubble_pop_takeC.mp3`（气泡上浮绒毛感更重，0.23s，峰值 -8.0 dBFS）
+
 ## 5. 程序生成的位图与图标
 
 | 文件 | 生成方式 | 说明 |

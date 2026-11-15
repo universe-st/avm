@@ -180,6 +180,8 @@ export const CH01_ASSET_KEYS = {
     stepWoodB: 'audio.sfx.ch01_step_wood_b',
     /** 章节卡/结束卡钟声。 */
     chapterChime: 'audio.sfx.ch01_chapter_chime',
+    /** 头顶表情气泡「啵」地冒出来（t61；六情绪共用一条，靠 rate 微变区分）。 */
+    bubblePop: 'audio.sfx.ch01_bubble_pop',
   },
 } as const;
 

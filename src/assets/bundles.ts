@@ -901,6 +901,15 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         tags: ['sfx'],
       },
       {
+        key: 'audio.sfx.ch01_bubble_pop',
+        kind: 'audio',
+        url: 'assets/audio/sfx/ch01_bubble_pop.mp3',
+        // 缺这条只是气泡静音，不该挡住对话。
+        required: false,
+        label: '表情气泡冒出「啵」',
+        tags: ['sfx'],
+      },
+      {
         key: 'img.cg.ch01.phone',
         kind: 'image',
         url: 'assets/img/cg/ch01/phone.webp',
