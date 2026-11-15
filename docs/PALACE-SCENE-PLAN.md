@@ -55,6 +55,7 @@
 3. **揭破**：郑卿斥楚公公 → 楚公公跪下磕头 → 周全咆哮 → 全殿震 → 郑卿石化 → 小白机械音 → 太监摔人 → 太监裂皮变矿工（贴图替换 + 光效）→ 进战斗。
 
 实现方式：沿用 `prologue-player.ts` 的**纯逻辑时间线**（无 Phaser、可单测），场景只消费事件（`cue`：移动、切姿势、震屏、闪光、换贴图、播台词）。
+台词本身逐字显示：`src/story/typewriter.ts`（纯逻辑）按 `DIALOGUE_TYPE_MS × textSpeedFactor` 吐字，未显示部分用 `maskDialogueText` 占位；场景每帧按 delta 推进、每个新增字播一次 blip（旁白最轻），打字中点击只补全、打完再推进。
 
 ## 5. 待办
 
@@ -69,6 +70,7 @@
 - [x] 寝室 `dream` 节点改走金殿：`beginPalace()` → `ch01Palace` → `battleCh01`
 - [x] `pnpm check` 全绿 → 打包 APK → 坚果云
 - [x] 视觉打磨第一轮：地图合成脚本 `tools/compose-palace-hall.py`（台阶踏面/立面、柱与椅的接触阴影、光池、泛光与暗角）；楚公公八方向按帧重挑 + 镜像重出
+- [x] 台词逐字 + 逐字提示音（t62）：`src/story/typewriter.ts` + 场景接线，四档速度与 `instant` 生效；单测 `test/typewriter.test.ts`、`test/palace-typewriter.test.ts`
 
 ## 6. 2026-10-31 视觉增强（已完成）
 
