@@ -6,6 +6,7 @@ import { Button, Column, Row } from '@phaser-mvvm/widgets/compose';
 import { enterModule } from '../app/director';
 import { applyCamera, getViewportPlan } from '../app/viewport';
 import { audioDirector } from '../audio/audio-director';
+import { isPointerOnUiControl } from '../ui/ui-pointer-guard';
 import { bgmManager } from '../audio/bgm-manager';
 import { settings, textSpeedFactor } from '../app/settings';
 import {
@@ -357,15 +358,10 @@ export class PrologueScene extends UIScene {
     this.hint?.setAlpha(0);
   }
 
-  private onPointerDown(
-    pointer: Phaser.Input.Pointer,
-    currentlyOver: Phaser.GameObjects.GameObject[],
-  ): void {
+  private onPointerDown(pointer: Phaser.Input.Pointer): void {
     if (this.leaving || !this.started) return;
-    if (currentlyOver.length > 0) return;
-    const plan = getViewportPlan();
-    // Compose 按钮的命中区偶尔不在 currentlyOver 里；右上角整块都留给「自动」「跳过」。
-    if (pointer.worldX > plan.designWidth - 280 && pointer.worldY < 150) return;
+    // 右上角「自动 / 跳过」与任意 Compose 弹窗：按布局树命中，点按钮不推进剧情。
+    if (isPointerOnUiControl(this, pointer)) return;
     this.advance();
   }
 

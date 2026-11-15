@@ -4,6 +4,9 @@ import { LAYERS } from '../render/layers';
 import { INK, GOLD, PAPER } from './cinematic';
 import { getViewportPlan } from '../app/viewport';
 
+/** 按下点多远以内算“推摇杆”：1.55×半径（底座外圈 18px 再留一点余量）。 */
+const JOYSTICK_ACTIVATION_FACTOR = 1.55;
+
 /** 触屏浮动摇杆；只在按下点附近激活，不占用整块屏幕。 */
 export class VirtualJoystick {
   private readonly scene: Phaser.Scene;
@@ -55,6 +58,22 @@ export class VirtualJoystick {
   }
 
   /**
+   * 这次 `pointerdown` 是否落在摇杆的激活区（按下点半径 1.55×radius）。
+   *
+   * 场景的「点屏幕任意处推进对话」会把摇杆那一下也收进来；探索场景用它区分
+   * 「玩家在推摇杆」与「玩家在点画面推进」，避免摇杆按下时顺带触发推进/收卡。
+   * 禁用状态下摇杆不消费指针（和 `onPointerDown` 的 `!this.enabled` 一致）。
+   */
+  containsPointer(pointer: Phaser.Input.Pointer): boolean {
+    if (!this.enabled) return false;
+    const point = this.pointerPoint(pointer);
+    const limit = this.radius * JOYSTICK_ACTIVATION_FACTOR;
+    return (
+      Phaser.Math.Distance.Between(point.x, point.y, this.center.x, this.center.y) <= limit
+    );
+  }
+
+  /**
    * 开关摇杆。
    *
    * **禁用只是变暗、不是消失**：原来直接 setVisible(false)，于是每一次对话、每一段过场，
@@ -86,7 +105,7 @@ export class VirtualJoystick {
       this.center.x,
       this.center.y,
     );
-    if (distance > this.radius * 1.55) return;
+    if (distance > this.radius * JOYSTICK_ACTIVATION_FACTOR) return;
     this.pointerId = pointer.id;
     this.updateFromPointer(pointer);
   }

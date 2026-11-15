@@ -105,6 +105,7 @@ import { TitleCard, GOLD, makeSceneText } from '../ui/cinematic';
 import { addDustMotes, addLightShaft, addVignette } from '../ui/fx-kit';
 import { addStageFrame, type StageFrameHandle } from '../ui/stage-frame';
 import { VirtualJoystick } from '../ui/joystick';
+import { isPointerOnUiControl } from '../ui/ui-pointer-guard';
 import { setPixelTexture } from '../ui/pixel';
 
 interface MovementKeys {
@@ -763,21 +764,20 @@ export class Ch01DormScene extends UIScene {
   /**
    * 全局点击：对话中**点屏幕任意位置**都算「补全 / 继续」。
    *
-   * 右上角那条留给「跳过 / 菜单」按钮（点它们不该同时推进对话），
-   * 判定用设计坐标：UI 相机 1:1，`worldX/worldY` 就是设计像素。
+   * 顶栏按钮与 Compose 弹窗由 `isPointerOnUiControl()` 统一消费（按布局树命中，不再用
+   * 右上角矩形估算）；摇杆不在 Compose 树里，单独用 `containsPointer()` 判断。
+   * 对话面板正文不是控件，点它仍然推进。
    */
   private onScenePointerDown(pointer: Phaser.Input.Pointer): void {
     if (this.cutscene || this.performing) return;
-    if (this.historyModal?.open === true) return;
-    const plan = getViewportPlan();
-    const inTopRightButtons = pointer.worldY < 150 && pointer.worldX > plan.designWidth - 230;
+    if (isPointerOnUiControl(this, pointer) || this.joystick?.containsPointer(pointer) === true) {
+      return;
+    }
     if (this.dialogueVisible.value) {
-      if (inTopRightButtons) return;
       this.advanceDialogue();
       return;
     }
     if (!this.cardVisible) return;
-    if (inTopRightButtons) return;
     this.hideChapterCard();
   }
 
