@@ -27,7 +27,7 @@
 
 - 四个阶段场景（寝室/御膳房/金殿/剧情战）右上角都有**汉堡图标**（`hud-kit.ts` 的
   `buildMenuIcon()`：56×56 的可交互 Panel + 三条矢量 `Rect`，a11y 名字「菜单」，不引 png、不写文字）；
-- 点开是 Compose 模态菜单：**音量设置 / 返回标题 / 读取存档 / 保存存档**；
+- 点开是 Compose 模态菜单：**音量设置 / 读取存档 / 保存存档 / 返回标题**（「返回标题」是破坏性操作，固定放最后）；
 - 菜单打开期间**游戏暂停**：对话逐字与自动播放停住（`cancelAutoAdvance()` + `update()` 早退），
   SPACE/ENTER 与点屏推进被 `menuModal` 挡掉，点菜单面板不会顺带推进对话；
 - 「返回标题」沿用各场景原有的二次确认（`openCh01ExitConfirm` / `openKitchenExitConfirm` /

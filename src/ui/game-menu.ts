@@ -147,7 +147,7 @@ export function openGameMenu(mvvm: MVVMPlugin, options: GameMenuOptions): ModalH
                 },
               });
               // 不能存档时把原因直接写在按钮下面：玩家不需要点一下才知道为什么。
-              Text(options.availability.allowed ? '存档只在自由探索时可用' : options.availability.message, {
+              Text(options.availability.allowed ? '自由探索时可随时存档' : options.availability.message, {
                 size: 'xs',
                 tone: 'muted',
               });
