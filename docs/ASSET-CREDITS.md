@@ -112,6 +112,21 @@
 - 后期：1584×2816 → 中心裁 9:16 → 1080×1920 → UnsharpMask(半径 1.1，55%，阈值 2) → 对比度 1.025 → WebP q88；总体积约 1.1 MB
 - 复核：上架前按火山方舟商用条款复核，商店页注明「AI 生成美术」
 
+### 7.1 群英高中校门重绘：去掉门口排队的学生（2026-11-17，t72 D+E）
+
+- 文件：`public/assets/img/prologue/05_qunying_school.webp`（1080×1920，WebP q88，396.8 KB；key `img.prologue.school`，bundle `cutscene.prologue`，用在序章 `school-beginning` / `school-card`）
+- 起因：剧情是**周末**，走读生没来上学，但原图里有一排学生正排队进校门，和文案冲突。不许靠裁掉下半张图解决（会丢校门与地面透视），只能同构图重绘。
+- 来源：游戏素材大师 · 图片生成（火山方舟 `doubao-seedream-5-0-flash-260915`），任务 `imwkjuova1f871e`（`size: 2K`、`count: 1`、`watermark: false`，输出 1584×2816 = 9:16）
+- 参考资料：上传原图 `public/assets/img/prologue/05_qunying_school.webp` 作为唯一参考图（`refs/05_qunying_school_ref-f9bd.webp`），提示词要求「以参考图为唯一构图基准重绘」。
+- 提示词要点（一次出图即采用，未重跑）：
+  - 保留且位置/比例一致：横跨校门上方的红色横幅（无字）、左右米白石砌校门柱（带压顶石）、两侧敞开的深灰铁栅门、门内远处灰白四层教学楼与连廊栏杆、左上方路灯与树影、顶部与右侧梧桐树叶、左上方斜射的晨光光束与地面长条光影、水泥路纵向透视缝与斑驳树影、晨雾。
+  - 唯一改动：整条路上没有一个人——不要学生、背包背影、排队人群、人物剪影，只留光影与飘浮微尘。
+  - 画风：国风 HD-2D 像素 + 电影级体积光/浅景深/移轴/轻微泛光，暖黄晨光 + 灰蓝阴影，与参考图同一笔触与色温；竖屏 9:16 主体居中。
+  - 禁止：任何人物/人群/剪影，任何文字、标语、校名、水印、logo、招牌字样，构图偏移、镜头推拉、画面裁切。
+- 后期：1584×2816（已 9:16，无需裁切）→ Lanczos 缩 1080×1920 → UnsharpMask(半径 1.1，55%，阈值 2) → 对比度 1.025 → WebP q88（441.7 KB @q90 超 400 KB 预算，降到 q88 = 396.8 KB）
+- 原始件：`assets-src/prologue/05_qunying_school_v2.png`（模型原始输出，6.9 MB）；被替换的旧图备份为 `assets-src/prologue/05_qunying_school_v1.webp`（372 KB）。
+- 验收图（不入库）：`.evidence/docs/screenshots/2026-11-17-five-items/school-gate/`（`before-scene-school-390x844.png` / `scene-school-beginning-390x844.png` / `scene-school-card-390x844.png` / `cg-school-390x844.png` / `asset-before-after.png`）。
+
 ## 8. 字体
 
 - 当前：系统字体（PingFang SC / Noto Sans CJK / 微软雅黑），未随包分发。
@@ -456,6 +471,30 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
 
 - `tools/make-ch01-chime.py`：G5 784Hz / C6 1046.5Hz / G6 1568Hz 三个正弦钟音 + 二次/三次泛音，指数衰减，18ms 噪声槌子；2.2s，44.1kHz 单声道，mp3 96k。
 - 产物：`public/assets/audio/sfx/ch01_chapter_chime.mp3`（27 KB），章节卡与结束卡各播一次（音量 0.45 / 0.38）。
+
+### 11.15 金殿补两张半身立绘：小白 / 周全慌张（2026-11-17，t53）
+
+用户要求：金殿里「？？？」改称「莫名其妙出现的白色小精灵」并给它一张立绘；周全那句吐槽改成亲口说的「你不是罪该万死吗，饶什么命啊？」，也要一张「被按着跪在地上、脸上慌张」的头部特写——和郑卿/楚公公同一套画风，别拿 200×420 的角色图硬放大。
+
+- 文件（720×900 RGBA、透明底、约 517 KB / 756 KB）：
+  - `public/assets/img/character/palace/portrait_xiaobai.png` — 小白（兜帽 + 娃娃脸 + 两点黑眼 + 胸口淡蓝光核 + 展开的羽翼）
+  - `public/assets/img/character/palace/portrait_zhou_panic.png` — 周全被按跪、脸被压得上仰的慌张特写（白短袖 POLO + 藏蓝翻领、汗珠、压痕）
+- 来源：游戏素材大师 · 图片生成（火山方舟 `doubao-seedream-5-0-flash-260915`，1024×1280，`watermark: false`，2 张/次）
+- 任务：
+  | 用途 | jobId | 实际出图 | 采用 |
+  | --- | --- | --- | --- |
+  | 小白半身立绘 | `imwkjsgzwe048da` | 3 轮 × 2 张 = 6 张 | 第 3 轮第 2 张（`out/img-01.png`） |
+  | 周全慌张半身立绘 | `imwkjsh01c10d1a` | 1 轮 × 2 张 | 第 2 张（`out/img-01.png`） |
+- 参考图（`uploadImageRef`，base64 走本地脚本上传；大图不进工具面）：
+  - 小白：`剧集/EP002/…/XIAOBAI-SHEET.png` 的头部特写裁切、`cg/ch01/xiaobai.webp` 的悬浮精灵裁切、`palace/portrait_chu.png`（画风/构图基准）
+  - 周全：`character-zhou-v2.png` 底部脸特写裁切、`palace/zhou_kneel_up.png`（跪姿/校服）、`palace/portrait_chu.png`（画风基准）
+- 提示词要点：以参考图人物为身份基准 → 纯绿 `#00FF00` 一整片、无阴影/地面/渐变 → 画风照成年角色半身立绘（国风 HD-2D 手绘赛璐璐、粗深色描边、平涂 + 水彩纸纹）→ 从胸口以上入画、头部占画面高度 ~50–55%、正面略偏 → **羽翼必须完全落在画面内、两侧各留 15% 纯绿空白**（前两轮都是翅膀顶到画框被裁，第 3 轮才收住）→ 禁止文字/水印/第二个人/手。
+- 后期：
+  - 抠像：`keyImageJob`，`keyColor #00FF00 / keyLow 14 / keyHigh 80 / despill 0.65`，**`bgTolerance 0`（关掉背景空间分割）**。小白第一版用默认 `bgTolerance 90` 时，翅膀碰到画框把白色喂进四边采样的背景调色板，整件白袍被当背景抠没了——这是本次踩到的坑，白色主体 + 贴边素材必须关掉空间分割。
+  - 裁切：`tools/make-palace-portrait.py`（alpha 包围盒裁边 → 等比缩放到 720×900 → 左右各留 ≥24px 透明边 → 顶部对齐），输出即上面两个文件；脚本只做裁/缩放/居中，不改颜色。
+- 代码注册：`src/assets/keys.ts` 的 `PALACE_ASSET_KEYS.characters.portraitXiaobai / portraitZhouPanic`、`src/assets/bundles.ts` 的 `cutscene.ch01palace`（bundle 预算按实测 7.1 MB 调到 8192 KB）。
+- 验收：`test/palace-five-items.test.ts` 现场解码 PNG 断言 720×900 / RGBA / 四角透明 / 左右不贴边；实机截图（390×844）在 `.evidence/docs/screenshots/2026-11-17-five-items/palace/`。
+- 复核：上架前按火山方舟商用条款复核，商店页注明「AI 生成美术」。
 
 ## 12. 御膳房 P2 B1 地图风格样张（2026-10-31）
 

@@ -29,7 +29,7 @@
   },
   "assets/audio/sfx/ch01_bubble_pop.mp3": {
     "bytes": 4223,
-    "mtimeMs": 1794716596230
+    "mtimeMs": 1794717358910
   },
   "assets/audio/sfx/ch01_chapter_chime.mp3": {
     "bytes": 27316,
@@ -735,9 +735,17 @@
     "bytes": 709934,
     "mtimeMs": 1793527488420
   },
+  "assets/img/character/palace/portrait_xiaobai.png": {
+    "bytes": 698907,
+    "mtimeMs": 1794914151391
+  },
   "assets/img/character/palace/portrait_zheng.png": {
     "bytes": 1006826,
     "mtimeMs": 1793527488421
+  },
+  "assets/img/character/palace/portrait_zhou_panic.png": {
+    "bytes": 774877,
+    "mtimeMs": 1794914117972
   },
   "assets/img/character/palace/zheng_emperor_down.png": {
     "bytes": 108995,
@@ -856,8 +864,8 @@
     "mtimeMs": 1792850850226
   },
   "assets/img/prologue/05_qunying_school.webp": {
-    "bytes": 372160,
-    "mtimeMs": 1792850850713
+    "bytes": 406306,
+    "mtimeMs": 1794912297575
   },
   "assets/img/title/logo_mark.png": {
     "bytes": 6679,

@@ -34,7 +34,7 @@ interface AssetDef {
 | `cutscene.prologue` | 开幕剧情 5 张配图 + 开幕曲《星夜梦境》 | 6 MB | — | 点击开始 / 进入开幕 |
 | `cutscene.ch01opening` | 开场动画 `ch01-opening.mp4`（720×1280、12.8s、带同轨声音） | 5 MB | — | 开幕结束 / 跳过 → 进开场动画 |
 | `cutscene.ch01phone` | 手机 CG `ch01-phone.mp4`（720×1280、20.2s、三镜、带同轨声音） | 6 MB | — | 进入寝室时随场景加载；「查看手机」时全屏播放 |
-| `cutscene.ch01palace` | 梦域金殿地图 `hall.png`（1056×1728）+ 13 张殿上角色图（200×420）+ 2 张半身立绘（720×900） | 8 MB | — | 金殿过场 `scene.ch01.palace`；战斗 `battle.ch01.first` 也复用它当背景 |
+| `cutscene.ch01palace` | 梦域金殿地图 `hall.png`（1056×1728）+ 14 张殿上角色图（200×420）+ 4 张半身立绘（720×900：郑卿 / 楚公公 / 小白 / 周全慌张） | 8 MB | — | 金殿过场 `scene.ch01.palace`；战斗 `battle.ch01.first` 也复用它当背景 |
 | `cutscene.ch01palace.walk` | 郑卿 / 楚公公 八方向行走 sheet（各 8 张 × 16 帧 × 200×420，WebP） | 12 MB | `cutscene.ch01palace` | 只在金殿过场加载；走位时播帧，停下回静态图 |
 | `cutscene.ch01palace.sfx` | 金殿音效 14 条（环境/脚步/跪地/裂皮/心跳…，mp3 24kHz 单声道，共约 300 KB） | 1 MB | `cutscene.ch01palace` | 过场音效；缺失时静默跳过，不阻断 |
 | `ch.01` | 33×54 寝室整图（重组窗光版）、郑卿睡床 4 帧、周全 Q 版八向/行走、小白/郑卿、沉睡症新闻 CG、呼噜/拳击/手机 SFX、寝室环境音与木地板脚步 A/B；`img.char.ch01.zhou_sit_right`（坐地朝右正式图 160×400）+ `img.char.ch01.zhou_stand_up`（起身 8 帧 × 160×400 横排）+ `img.char.ch01.zhou_idle_right`（正侧面站立 idle 160×400，t39 入库、暂未接场景）；依赖 `ch01.bgm`（寝室曲 + 回忆 cue） | 12 MB | — | 进入第一章 |
@@ -62,6 +62,7 @@ interface AssetDef {
 - 2026-11-07（t33 起身帧序列落地）：`wakeUp` 的起身步骤从 tween 缩放改成 `kind: 'frame-sequence'`（8 帧 × 65ms = 520ms，`Linear`；reduced 260ms 等比例减半）。帧号由纯函数 `standUpFrameAt(elapsedMs, frameCount=8, durationMs=520)` 决定，播完切回站立静态图；素材不可用时直接落回静态图，不再做「缩小的站立图」tween。新增 `CH01_ZHOU_STAND_FRAME`（站立 Q 帧 160×400 / 人物高 371 / 底边 394 / scale 0.6138），与 `CH01_ZHOU_SIT_RIGHT`、`CH01_ZHOU_STAND_UP` 共用底边 394，`test/ch01-sit-standup.test.ts` 守住三者对齐与屏显高 160 → 228。
 - 2026-11-07（t39 侧面站立 idle）：新增 `img.char.ch01.zhou_idle_right` → `zhou_idle_right.png`（160×400，人物高 371 / 底边 394 / 水平中心 80，约 51 KB，正侧面朝右，与 `CH01_ZHOU_STAND_FRAME` 同一套画布基准、同一个 `displayScale` 0.6138）。存在理由：起身末帧是正侧面，`q/zhou_q_right.png` 是 3/4 朝镜头，切过去要 110ms 交叉淡入伪装转身；这张接在起身末帧后面不用转身。实测与起身末帧（归一到 371 高）头顶/肩高/脚底差均为 0、头宽 −3、剪影 IoU 0.882；基线在 `assets-src/character/ch01/idle-right-manifest.json`，`test/ch01-idle-right.test.ts` 守住包围盒。
 - 2026-11-07（t41 起身接侧面 idle）：寝室 `wakeUp` 的起身序列末帧不再切 3/4 面的 `q.right`，直接硬切到 `zhou_idle_right`（朝向一致，`STANDUP_TO_IDLE_FADE_MS = 0`，原来 110ms 的「转身」交叉淡入删除；上限 `STANDUP_TO_IDLE_FADE_MAX_MS = 40`，真机若闪 1 帧才允许极短融合）。姿态由 `PlayerPose.sideIdle` 表达，贴图归属链抽成纯函数 `planPlayerTexture()`（坐姿 > 行走 > 侧面 idle > 站立）；只在「起身后、玩家还没动」生效，一迈步/转向就回八向逻辑。`test/ch01-standup-idle.test.ts` 锁场景接线与过渡层兜底销毁。
+- 2026-11-17（t53 金殿补两张半身立绘）：`cutscene.ch01palace` 新增 `img.char.palace.portrait_xiaobai`（小白，517 KB）与 `img.char.palace.portrait_zhou_panic`（周全被按跪慌张，756 KB），都是 **720×900 RGBA 透明底**，与 `portrait_zheng` / `portrait_chu` 同一套画风与构图口径（`src/ui/portrait-metrics.ts` 按 720:900 算显示尺寸 = 屏高 15.8% × 18.4% 宽）。两张由 `tools/make-palace-portrait.py` 从「游戏素材大师」抠像输出裁成（左右各留 ≥24px 透明边，避免贴屏幕右侧时露出直切边）。`cutscene.ch01palace` 实测约 7.1 MB，`budgetKB` 由 6144 调到 8192。来源/任务/后期见 `docs/ASSET-CREDITS.md` §11.15。
 
 ## 3. 场景资源作用域（核心机制）
 
