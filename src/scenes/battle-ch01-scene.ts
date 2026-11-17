@@ -24,6 +24,9 @@ import {
 } from '../battle/core/scripted-battle';
 import type { BattleAction, BattleState } from '../battle/types';
 import { DANGER, GOLD, INK, makeSceneText } from '../ui/cinematic';
+import { openGameMenu } from '../ui/game-menu';
+import { evaluateSaveAvailability } from '../app/save/save-availability';
+import { restoreSaveFromScene } from '../app/save/load';
 import {
   addContactShadow,
   addDustMotes,
@@ -97,6 +100,8 @@ export class BattleCh01Scene extends UIScene {
   private introOpen = false;
   private defeatModal: ModalHandle | null = null;
   private exitModal: ModalHandle | null = null;
+  /** 右上角图标菜单。战斗不许存档（见 `app/save/save-availability.ts`）。 */
+  private menuModal: ModalHandle | null = null;
   /** 氛围/特效对象，shutdown 统一销毁。 */
   private fx: Phaser.GameObjects.GameObject[] = [];
   private corePulse: Phaser.GameObjects.Container | null = null;
@@ -216,11 +221,38 @@ export class BattleCh01Scene extends UIScene {
       onGuard: () => this.playerAction('guard'),
       onMenu: () => {
         audioDirector.playClick();
-        this.openExitConfirm();
+        this.openMenu();
       },
       ...(this.setup.damageRule === 'use-attack'
         ? { location: '梦域 / 御膳房', subtitle: '遭遇战 · 惊动' }
         : {}),
+    });
+  }
+
+  /**
+   * 右上角菜单（战斗里保存项恒禁用，只提供音量/返回标题/读档）。
+   *
+   * 打开期间 `playerAction()` 早退，战斗真正暂停；关闭后继续。
+   */
+  private openMenu(): void {
+    if (this.menuModal?.open === true) return;
+    this.menuModal = openGameMenu(this.mvvm, {
+      availability: evaluateSaveAvailability({
+        preview: this.preview,
+        module: 'battleCh01',
+        phase: this.state.phase,
+        ended: this.ended,
+      }),
+      sceneLabel: '梦域 · 遭遇战',
+      // 战斗存档恒禁用；这个回调只是兜底（正常走不到）。
+      onSave: (slot) => ({ ok: false, slot, reason: 'io' }),
+      onLoad: (save) => {
+        void restoreSaveFromScene(this, save);
+      },
+      onRequestTitle: () => this.openExitConfirm(),
+      onClose: () => {
+        this.menuModal = null;
+      },
     });
   }
 
@@ -306,6 +338,7 @@ export class BattleCh01Scene extends UIScene {
   }
 
   private playerAction(action: BattleAction): void {
+    if (this.menuModal?.open === true) return;
     if (this.busy || this.ended || this.transitioning) return;
     if (this.state.phase !== 'player') return;
     if (this.actionsDisabled.value) return;
@@ -655,6 +688,8 @@ export class BattleCh01Scene extends UIScene {
   }
 
   shutdown(): void {
+    this.menuModal?.close('scene');
+    this.menuModal = null;
     for (const object of this.fx) object.destroy();
     this.fx = [];
     this.corePulse = null;

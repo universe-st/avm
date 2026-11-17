@@ -22,6 +22,9 @@ import { addEmbers, addVignette } from '../ui/fx-kit';
 import { isStageLaunchContext } from '../dev/stage-types';
 import { launchStage } from '../dev/stage-runner';
 import { openStageListModal } from '../ui/stage-list-modal';
+import { openLoadSlotsModal } from '../ui/save-slots';
+import { hasReadableSave } from '../app/save/save-store';
+import { saveLoadRoute } from '../app/save/restore-plan';
 
 export class TitleScene extends UIScene {
   private fx: Phaser.GameObjects.GameObject[] = [];
@@ -29,6 +32,8 @@ export class TitleScene extends UIScene {
   private preview = false;
   /** 测试入口的清单模态（保持引用，方便随场景关闭一起释放）。 */
   private stageListModal: ModalHandle | null = null;
+  /** 读档槽位弹窗。 */
+  private loadModal: ModalHandle | null = null;
 
   constructor() {
     super(SCENE_KEYS.title);
@@ -92,12 +97,15 @@ export class TitleScene extends UIScene {
     this.fx = [];
     if (this.stageListModal?.open === true) this.stageListModal.close();
     this.stageListModal = null;
+    if (this.loadModal?.open === true) this.loadModal.close();
+    this.loadModal = null;
   }
 
   protected content(): void {
     const plan = getViewportPlan();
     const tall = plan.designHeight >= 1450;
     const progress = loadProgress();
+    const canLoad = hasReadableSave();
 
     Column(
       {
@@ -176,6 +184,21 @@ export class TitleScene extends UIScene {
               : '还没有进度：从「开始游戏」进入第一章',
             { size: 'xs', tone: 'muted', align: 'center' },
           );
+          // 正式存档的入口：和「继续游戏」并列，闭合「存档 → 退出 → 读档」这条路。
+          Button('读取存档', {
+            variant: 'secondary',
+            size: 'lg',
+            disabled: !canLoad,
+            onClick: () => {
+              audioDirector.playClick();
+              this.openLoadSlots();
+            },
+          });
+          Text(canLoad ? '从 3 个存档位之一继续' : '还没有存档：在自由探索时点右上角菜单存档', {
+            size: 'xs',
+            tone: 'muted',
+            align: 'center',
+          });
           Button('制作名单', {
             variant: 'ghost',
             size: 'lg',
@@ -225,6 +248,32 @@ export class TitleScene extends UIScene {
       },
     });
     this.stageListModal = modal;
+  }
+
+  /**
+   * 标题读档：选一个槽位 → 进存档对应的场景，带 `{ restore }` 数据。
+   *
+   * 路由在 `saveLoadRoute()`（纯函数、有单测）：存档只可能落在寝室/御膳房；
+   * 预览态启动的标题保持 `preview`，那样读进来的会话也不会写进度。
+   */
+  private openLoadSlots(): void {
+    this.loadModal = openLoadSlotsModal(this.mvvm, {
+      title: '读取存档',
+      onPick: (save) => {
+        const route = saveLoadRoute(save);
+        if (!route) {
+          console.warn(`[title] 存档模块不可读档：${String(save.module)}`);
+          return;
+        }
+        void enterModule(this, route.module, {
+          ...route.data,
+          ...(this.preview ? { preview: true } : {}),
+        });
+      },
+      onClose: () => {
+        this.loadModal = null;
+      },
+    });
   }
 
   private openSettings(): void {

@@ -9,7 +9,10 @@ M1a。已交付：M0.9 的全部内容 + 第一章第一节《寝室》（单房
 检查点 `dorm.*` / `ch01.complete` / `kitchen.explore` / `kitchen.done`，标题「继续游戏」可直达御膳房。
 标题左下角有**游戏内测试入口**（见 `docs/STAGE-PREVIEW.md` §13），APK 里也能跳任意场景。
 
-尚未接入：完整战斗系统、多槽存档、第三节。没有计划不要继续扩章节。
+尚未接入：完整战斗系统、第三节。没有计划不要继续扩章节。
+
+正式存档（3 槽 localStorage）已接入：自由活动判定、字段清单、损坏兜底与 BGM 恢复见
+`docs/SAVE-SYSTEM.md`；右上角「菜单」图标在 `src/ui/hud-kit.ts`，存读档 UI 在 `src/ui/game-menu.ts`。
 
 ## 1. 命令
 

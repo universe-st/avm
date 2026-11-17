@@ -104,12 +104,27 @@ import {
 } from '../story/dialogue';
 import { DialogueHistory } from '../story/dialogue-history';
 import { openDialogueHistory } from '../ui/history-modal';
+import { openGameMenu } from '../ui/game-menu';
 import { TitleCard, GOLD, makeSceneText } from '../ui/cinematic';
 import { addDustMotes, addLightShaft, addVignette } from '../ui/fx-kit';
 import { addStageFrame, type StageFrameHandle } from '../ui/stage-frame';
 import { VirtualJoystick } from '../ui/joystick';
 import { isPointerOnUiControl } from '../ui/ui-pointer-guard';
 import { setPixelTexture } from '../ui/pixel';
+import { evaluateSaveAvailability, type SaveAvailability } from '../app/save/save-availability';
+import {
+  createSaveData,
+  readRestorePayload,
+  type SaveDataV1,
+  type SaveSlotId,
+} from '../app/save/schema';
+import { writeSlot, type SaveWriteResult } from '../app/save/save-store';
+import {
+  flowSnapshotFromSave,
+  planBgmRestore,
+  resolvePlayerRestore,
+} from '../app/save/restore-plan';
+import { restoreSaveFromScene } from '../app/save/load';
 
 interface MovementKeys {
   readonly W: Phaser.Input.Keyboard.Key;
@@ -245,6 +260,17 @@ export class Ch01DormScene extends UIScene {
   private debug = false;
   private exitModal: ModalHandle | null = null;
   private historyModal: ModalHandle | null = null;
+  /** 右上角图标菜单（音量 / 返回标题 / 读档 / 存档）。打开期间暂停对话推进。 */
+  private menuModal: ModalHandle | null = null;
+  /** 读档进来的存档；null = 普通启动。 */
+  private restore: SaveDataV1 | null = null;
+  /**
+   * BGM 已按存档显式恢复（状态型 cue）。
+   *
+   * 置位后 `startExploreAudio()` 不能再调 `applySceneBinding()`——场景绑定是「默认曲」，
+   * 会把存档里的《危机来临》顶回校园日常（740ec3d/ede0145 的同类坑）。
+   */
+  private restoredBgm = false;
   /** 自动播放的推进计时器；同一时刻只允许一个。 */
   private autoTimer: Phaser.Time.TimerEvent | null = null;
   /** 已经写进对话记录的行号，避免分页/重绘时重复收录。 */
@@ -295,6 +321,15 @@ export class Ch01DormScene extends UIScene {
     this.debug = context ? stageBoolParam(context, 'debug', false) : false;
     this.seed = context?.seed ?? plainSeed;
     this.resumeMode = context === null && isCh01ResumeData(data) ? data.resume : 'start';
+    /**
+     * 读档：`{ restore: SaveDataV1 }` 由 `restoreSaveFromScene()` 统一投递。
+     *
+     * 读档一定落在自由探索，所以把 `resumeMode` 掰成 `'explore'`：
+     * - 不会走「睡觉戏静场 + 呼噜」的开场分支（`isOpening()` 为假）；
+     * - 真正的细粒度状态由传给 `Ch01Flow` 的 `snapshot` 恢复（目标/叫醒/手机）。
+     */
+    this.restore = readRestorePayload(data);
+    if (this.restore) this.resumeMode = 'explore';
 
     const rawPhase = context ? stageParam(context, 'phase') : undefined;
     this.previewPhase = normalizeCh01PreviewPhase(rawPhase);
@@ -309,17 +344,22 @@ export class Ch01DormScene extends UIScene {
     this.cameras.main.setBackgroundColor('#05060a');
 
     this.createWorld();
+    // 读档的落点在玩家创建之后、第一次 `update()` 之前：不会有「先站在出生点再瞬移」的一帧。
+    this.applyRestoredPlayer();
     super.create();
     audioDirector.attach(this);
     // 默认绑定是校园日常《午后小憩》（见 `bgm-tracks.ts` 的 SCENE_BGM）；只有「睡觉戏」开场
     // 明确静场（只有呼噜声），进探索时再由 startExploreAudio 切曲。
     bgmManager.enterScene(this, this.isOpening() ? SCENE_SILENT : undefined);
+    // 状态型 cue：`enterScene()` 只还原了「场景默认曲」，存档里的那首必须显式补上。
+    this.applyRestoredBgm();
     if (this.isOpening()) this.startSnore();
     this.cameras.main.fadeIn(this.reduced ? 220 : 460, 5, 6, 10);
 
     this.flow = new Ch01Flow({
       resume: this.resumeMode,
       previewPhase: this.previewPhase,
+      ...(this.restore ? { snapshot: flowSnapshotFromSave(this.restore) ?? undefined } : {}),
     });
 
     this.installInput();
@@ -332,6 +372,11 @@ export class Ch01DormScene extends UIScene {
 
   override update(_time: number, delta: number): void {
     const dt = Math.min(50, Math.max(0, delta));
+    // 菜单打开 = 游戏暂停：不推进逐字、不跑表演、不吃移动。
+    if (this.menuModal?.open === true) {
+      this.player?.sync();
+      return;
+    }
     // 表演期间不要 sync：起身/坐下是直接改 sprite 的 y/scale，sync 会把它们重置。
     if (this.performing) return;
     if (this.cardVisible) {
@@ -366,7 +411,7 @@ export class Ch01DormScene extends UIScene {
       tutorialVisible: this.tutorialVisible,
       onMenu: () => {
         audioDirector.playClick();
-        this.openExitConfirm();
+        this.openMenu();
       },
       onSkipDialogue: () => {
         audioDirector.playClick();
@@ -408,6 +453,10 @@ export class Ch01DormScene extends UIScene {
     this.ended = false;
     this.exitModal = null;
     this.historyModal = null;
+    this.menuModal = null;
+    // 注意：不要在这里清 `restore`——`init()` 先于 `create()` 读到它，而 `create()` 开头就会
+    // 调 `resetState()`；清掉等于读档被静默降级成普通「继续游戏」。
+    this.restoredBgm = false;
     this.autoTimer?.remove();
     this.autoTimer = null;
     this.history.clear();
@@ -762,12 +811,14 @@ export class Ch01DormScene extends UIScene {
 
   private onInteractKey(event: KeyboardEvent): void {
     event.preventDefault();
+    if (this.menuModal?.open === true) return;
     if (this.cutscene || this.performing) return;
     this.interact();
   }
 
   private onAdvanceKey(event: KeyboardEvent): void {
     event.preventDefault();
+    if (this.menuModal?.open === true) return;
     if (this.cutscene || this.performing) return;
     if (this.cardVisible) {
       this.hideChapterCard();
@@ -816,6 +867,7 @@ export class Ch01DormScene extends UIScene {
   }
 
   private interact(): void {
+    if (this.menuModal?.open === true) return;
     if (this.transitioning || this.ended || this.cutscene || this.performing) return;
     if (this.cardVisible) {
       this.hideChapterCard();
@@ -1037,19 +1089,21 @@ export class Ch01DormScene extends UIScene {
    */
   private scheduleAutoAdvance(): void {
     this.cancelAutoAdvance();
+    if (this.menuModal?.open === true) return;
     if (this.performing || !settings.autoAdvance || !this.dialogue) return;
     if (this.dialogue.state.phase !== 'waiting') return;
     const chars = Array.from(this.dialogue.pageText).length;
     const delay = autoAdvanceDelay(chars, settings.textSpeed);
     this.autoTimer = this.time.delayedCall(delay, () => {
       this.autoTimer = null;
-      if (!this.dialogue || this.historyModal?.open === true) return;
+      if (!this.dialogue || this.historyModal?.open === true || this.menuModal?.open === true) return;
       this.advanceDialogue();
     });
   }
 
   private openHistory(): void {
     if (this.performing) return;
+    if (this.menuModal?.open === true) return;
     if (this.historyModal?.open === true) return;
     this.cancelAutoAdvance();
     this.historyModal = openDialogueHistory(this.mvvm, this.history.entries, {
@@ -1063,6 +1117,7 @@ export class Ch01DormScene extends UIScene {
 
   private advanceDialogue(): void {
     if (!this.dialogue || this.performing) return;
+    if (this.menuModal?.open === true) return;
     this.cancelAutoAdvance();
     this.handleDialogueEvents(this.dialogue.requestAdvance());
   }
@@ -1262,7 +1317,8 @@ export class Ch01DormScene extends UIScene {
     this.roomView?.setChairVisible(true);
     // 睡觉戏开场是静场的，进探索时切回**场景绑定**里的曲子（不是写死 ch01Dorm：运行时改绑要生效）。
     // 从「继续游戏」直接进探索时绑定曲已经在 create 播过，这里是同一实例的续播判定（不会从头播）。
-    bgmManager.applySceneBinding();
+    // 读档例外：存档里的那首已经由 `applyRestoredBgm()` 显式播起来，不能再被默认绑定顶回去。
+    if (!this.restoredBgm) bgmManager.applySceneBinding();
     // 环境音：蝉鸣/操场/吊扇，压得很低，只负责「这个房间是活的」。
     audioDirector.playSfxAt(CH01_ASSET_KEYS.audio.ambienceDay, { volume: 0.22, loop: true });
   }
@@ -1853,6 +1909,118 @@ export class Ch01DormScene extends UIScene {
     });
   }
 
+  // ---------------------------------------------------------------- 菜单 / 存档
+
+  /** 当前能否存档（唯一判定在 `app/save/save-availability.ts`，菜单直接显示它的原因）。 */
+  private saveAvailability(): SaveAvailability {
+    return evaluateSaveAvailability({
+      preview: this.preview,
+      module: 'ch01Dorm',
+      phase: this.flow?.state.phase ?? 'intro',
+      dialogue: this.dialogue !== null,
+      performance: this.performing,
+      transition: this.transitioning,
+      cutscene: this.cutscene !== null,
+      card: this.cardVisible,
+      ended: this.ended,
+      modalOpen: this.menuModal?.open === true,
+    });
+  }
+
+  /**
+   * 打开右上角菜单。
+   *
+   * 打开前 `cancelAutoAdvance()`，关闭后按当前对话状态恢复；
+   * 菜单期间 `update()` 早退（逐字停住），SPACE/ENTER 与点屏推进也被挡（见 onAdvanceKey /
+   * `isPointerOnUiControl()` 的「有弹窗 = 整块 UI」规则）。这就是 history-modal 的同一套模式。
+   */
+  private openMenu(): void {
+    if (this.menuModal?.open === true) return;
+    this.cancelAutoAdvance();
+    this.menuModal = openGameMenu(this.mvvm, {
+      availability: this.saveAvailability(),
+      sceneLabel: '寝室',
+      onSave: (slot) => this.saveToSlot(slot),
+      onLoad: (save) => {
+        void this.loadSave(save);
+      },
+      onRequestTitle: () => this.openExitConfirm(),
+      onClose: () => {
+        this.menuModal = null;
+        if (this.dialogue) this.scheduleAutoAdvance();
+      },
+    });
+  }
+
+  /**
+   * 写一个槽位。
+   *
+   * 存档不碰 `progress`（检查点仍由既有的 `saveProgress()` 在流程节点上维护）：
+   * 「继续游戏」和「读档」是两条独立的路，不能让存档顺手改掉标题页的检查点。
+   */
+  private saveToSlot(slot: SaveSlotId): SaveWriteResult {
+    const player = this.player;
+    const flow = this.flow;
+    if (!player || !flow) return { ok: false, slot, reason: 'serialize' };
+    const save = createSaveData({
+      slot,
+      module: 'ch01Dorm',
+      objective: this.objective.value,
+      bgmId: bgmManager.currentBgmId,
+      player: {
+        // 房间局部坐标：设计高度变了也不会整体偏移（见 `SavePlayerV1`）。
+        x: player.position.x - this.room.origin.x,
+        y: player.position.y - this.room.origin.y,
+        facing: player.facing,
+      },
+      dorm: {
+        talkedZheng: flow.state.talkedZheng,
+        phoneFound: flow.state.phoneFound,
+      },
+      flags: {},
+    });
+    return writeSlot(save);
+  }
+
+  private async loadSave(save: SaveDataV1): Promise<void> {
+    this.cancelAutoAdvance();
+    this.stopSceneAudio();
+    await restoreSaveFromScene(this, save);
+  }
+
+  /** 读档落点：玩家位置/朝向 + 目标文案（流程状态由 `Ch01Flow` 的 snapshot 恢复）。 */
+  private applyRestoredPlayer(): void {
+    const save = this.restore;
+    if (!save || !this.player) return;
+    this.objective.value = save.objective;
+    const plan = resolvePlayerRestore(this.room, PLAYER_FOOT, save.player);
+    if (!plan.exact) {
+      console.info(`[ch01-dorm] 存档坐标不可用（${plan.reason}），回退出生点`);
+    }
+    this.player.moveTo(plan.position, plan.facing, false, 0);
+  }
+
+  /**
+   * 恢复存档里的 BGM（状态型 cue）。
+   *
+   * `enterScene()` 之后调用；决策在 `planBgmRestore()` 里（纯函数、有单测）。
+   * 恢复成功后置 `restoredBgm`，`startExploreAudio()` 不再用场景绑定把曲子顶回去。
+   */
+  private applyRestoredBgm(): void {
+    const save = this.restore;
+    if (!save || save.module !== 'ch01Dorm') return;
+    const plan = planBgmRestore({
+      saved: save.bgmId,
+      currentId: bgmManager.currentBgmId,
+      playing: bgmManager.currentSound?.isPlaying === true,
+    });
+    if (plan.action === 'play') {
+      // 显式 play：不能只靠场景绑定表（它只知道「寝室默认放校园日常」）。
+      bgmManager.play(plan.id);
+    }
+    this.restoredBgm = true;
+  }
+
   private openExitConfirm(): void {
     if (this.exitModal?.open === true) return;
     this.exitModal = openCh01ExitConfirm(this.mvvm, {
@@ -1906,6 +2074,8 @@ export class Ch01DormScene extends UIScene {
     this.exitModal = null;
     this.historyModal?.close('scene');
     this.historyModal = null;
+    this.menuModal?.close('scene');
+    this.menuModal = null;
     this.stageFrame?.destroy();
     this.stageFrame = null;
     for (const fx of this.ambientFx) fx.destroy();

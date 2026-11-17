@@ -17,7 +17,16 @@ import type { DialogueLine } from './dialogue';
  * 目标顺序：章节卡 → 叫醒郑卿 → 找手机 → 小白说明 → 战斗 → 战后征召 → 结束。
  */
 
-export type Ch01Phase = 'intro' | 'explore' | 'dream' | 'battle' | 'after' | 'complete';
+export const CH01_PHASES = [
+  'intro',
+  'explore',
+  'dream',
+  'battle',
+  'after',
+  'complete',
+] as const;
+
+export type Ch01Phase = (typeof CH01_PHASES)[number];
 
 export interface Ch01FlowState {
   readonly phase: Ch01Phase;
@@ -25,6 +34,40 @@ export interface Ch01FlowState {
   readonly talkedZheng: boolean;
   readonly phoneFound: boolean;
   readonly currentNode: Ch01NodeId | null;
+}
+
+/**
+ * 可序列化的流程快照（存档用）。
+ *
+ * 不含 `currentNode`：能存档的时刻一定没有正在进行的对话节点（`save-availability.ts`
+ * 的 `dialogue` 规则），所以「中场节点」不该被恢复；带上它反而会读回一段半截演出。
+ */
+export interface Ch01FlowSnapshot {
+  readonly phase: Ch01Phase;
+  readonly objective: string;
+  readonly talkedZheng: boolean;
+  readonly phoneFound: boolean;
+}
+
+function snapshotPhase(value: unknown): Ch01Phase | null {
+  return typeof value === 'string' && (CH01_PHASES as readonly string[]).includes(value)
+    ? (value as Ch01Phase)
+    : null;
+}
+
+/** 把不可信的存档/外部数据规整成快照；不合法返回 null（调用方回退普通开场）。 */
+export function normalizeCh01FlowSnapshot(value: unknown): Ch01FlowSnapshot | null {
+  if (value === null || typeof value !== 'object') return null;
+  const candidate = value as Partial<Ch01FlowSnapshot>;
+  const phase = snapshotPhase(candidate.phase);
+  if (phase === null) return null;
+  if (typeof candidate.objective !== 'string') return null;
+  return {
+    phase,
+    objective: candidate.objective,
+    talkedZheng: candidate.talkedZheng === true,
+    phoneFound: candidate.phoneFound === true,
+  };
 }
 
 export type Ch01Event =
@@ -49,6 +92,14 @@ export interface Ch01FlowOptions {
   readonly resume?: 'start' | 'afterBattle' | 'explore' | 'complete';
   /** 舞台预览的 phase 参数；未知值回退 opening。 */
   readonly previewPhase?: string;
+  /**
+   * 从一份存档快照继续（读档）。
+   *
+   * 与 `resume` 的分工：`resume` 是「继续游戏」这种**粗粒度检查点**（只认段），
+   * `snapshot` 是正式存档的**细粒度状态**（目标、叫醒没叫醒、手机找到没找到）。
+   * 两者同时给时 `snapshot` 优先——它更具体，且来自玩家真正写盘的那一刻。
+   */
+  readonly snapshot?: Ch01FlowSnapshot;
 }
 
 export const CH01_PREVIEW_PHASES = ['opening', 'explore', 'after', 'complete'] as const;
@@ -67,9 +118,20 @@ export class Ch01Flow {
   private currentNodeId: Ch01NodeId | null = null;
   private started = false;
   private readonly initialPhase: Ch01PreviewPhase;
+  /** 读档快照；非空时 `start()` 走快照分支，忽略 `initialPhase` 的默认目标。 */
+  private readonly resumeSnapshot: Ch01FlowSnapshot | null;
 
   constructor(options: Ch01FlowOptions = {}) {
-    if (options.resume === 'afterBattle') {
+    this.resumeSnapshot = normalizeCh01FlowSnapshot(options.snapshot);
+    if (this.resumeSnapshot) {
+      // 只用来挑「开场该长什么样」的兜底值；真正的状态由 `startFromSnapshot()` 填。
+      this.initialPhase =
+        this.resumeSnapshot.phase === 'after'
+          ? 'after'
+          : this.resumeSnapshot.phase === 'complete'
+            ? 'complete'
+            : 'explore';
+    } else if (options.resume === 'afterBattle') {
       this.initialPhase = 'after';
     } else if (options.resume === 'explore') {
       this.initialPhase = 'explore';
@@ -90,9 +152,51 @@ export class Ch01Flow {
     };
   }
 
+  /**
+   * 当前流程的可序列化快照（写存档用）。
+   *
+   * 只含「读档后能重建自由探索局面」的字段；`currentNode` 故意不导出
+   * （见 `Ch01FlowSnapshot` 的注释）。
+   */
+  snapshot(): Ch01FlowSnapshot {
+    return {
+      phase: this.phase,
+      objective: this.objectiveValue,
+      talkedZheng: this.talkedZheng,
+      phoneFound: this.phoneFound,
+    };
+  }
+
+  /**
+   * 读档开场：把快照里的状态原样装回去，只发「目标」事件。
+   *
+   * 不发章节卡/不发对话——玩家在存档那一刻就在自由探索，读档后应该直接能动。
+   * 快照里出现 `dream`/`battle` 这类不可存阶段（手工改过的档/未来版本）时按探索处理，
+   * 保证一定能落到一个可玩局面。
+   */
+  private startFromSnapshot(snapshot: Ch01FlowSnapshot): Ch01Event[] {
+    this.talkedZheng = snapshot.talkedZheng;
+    this.phoneFound = snapshot.phoneFound;
+    this.objectiveValue = snapshot.objective;
+
+    if (snapshot.phase === 'complete') {
+      this.phase = 'complete';
+      this.objectiveValue = CH01_OBJECTIVES.complete;
+      return [{ type: 'complete' }];
+    }
+    if (snapshot.phase === 'after') {
+      this.phase = 'after';
+      return this.enterNode('after');
+    }
+    this.phase = 'explore';
+    return [{ type: 'objective', text: this.objectiveValue }];
+  }
+
   start(): Ch01Event[] {
     if (this.started) return [];
     this.started = true;
+
+    if (this.resumeSnapshot) return this.startFromSnapshot(this.resumeSnapshot);
 
     if (this.initialPhase === 'complete') {
       this.phase = 'complete';
@@ -121,8 +225,7 @@ export class Ch01Flow {
   }
 
   /** 自由探索时与地图对象交互；对话中/非探索阶段一律忽略。 */
-  interact(objectId: string): Ch01Event[] {
-    if (this.phase !== 'explore' || this.currentNodeId !== null) return [];
+  interact(objectId: string): Ch01Event[] {    if (this.phase !== 'explore' || this.currentNodeId !== null) return [];
     if (!(objectId in CH01_INTERACTABLE_NODES)) return [];
 
     const id = objectId as Ch01InteractableId;

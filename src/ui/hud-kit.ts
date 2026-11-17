@@ -1,4 +1,4 @@
-import { Branch, Button, Column, Panel, Row, Text } from '@phaser-mvvm/widgets/compose';
+import { Branch, Button, Column, Panel, Rect, Row, Text } from '@phaser-mvvm/widgets/compose';
 import type { Ref } from '@phaser-mvvm/core';
 import type { SpeakerTone } from '../story/dialogue';
 import { settings } from '../app/settings';
@@ -45,15 +45,65 @@ export interface StageHeaderModel {
 }
 
 const SMALL_BUTTON_WIDTH = 92;
+
+/**
+ * 右上角「菜单」的图标按钮尺寸（设计 px）。
+ *
+ * 和 `theme.controlHeight.sm`（56）一致：正方形，比 92px 的文字按钮窄，
+ * 视觉上仍与 ghost 按钮同一档高度，但不再占一整块文字宽度。
+ */
+export const MENU_ICON_SIZE = 56;
+/** 汉堡图标三条横线的宽/高/间距（设计 px）。 */
+const MENU_BAR_WIDTH = 28;
+const MENU_BAR_HEIGHT = 3;
+const MENU_BAR_GAP = 6;
+/** 与主题 `colors.text`（宣纸白）一致的图标色；不做 hover 变色，靠 Panel 的 hover 底衬反馈。 */
+const MENU_ICON_COLOR = 0xf2efe6;
+
 /**
  * 顶部左侧信息栏的宽度预算（设计 px，720 宽减左右各 24 的内边距 = 672）。
  *
- * 对话时右上角会同时出现「跳过 / 自动 / 记录 / 菜单」四个 92px 按钮（4×92 + 3×8 = 392），
- * 左侧只剩 672 - 392 - 8 = 272。不收窄的话目标文字会把按钮顶出 390 宽屏幕：
- * 视线里就是「菜单」被切掉一半。
+ * 对话时右上角会同时出现「跳过 / 自动 / 记录」三个 92px 按钮 + 一个 56px 菜单图标
+ * （3×92 + 56 + 3×8 = 356），左侧只剩 672 - 356 - 8 = 308。
+ * 不收窄的话目标文字会把按钮顶出 390 宽屏幕：视线里就是「菜单」被切掉一半。
  */
-const HEADER_TEXT_WIDE = 672 - SMALL_BUTTON_WIDTH - 8;
-const HEADER_TEXT_DIALOGUE = 672 - (SMALL_BUTTON_WIDTH * 4 + 8 * 3) - 8;
+const HEADER_TEXT_WIDE = 672 - MENU_ICON_SIZE - 8;
+const HEADER_TEXT_DIALOGUE =
+  672 - (SMALL_BUTTON_WIDTH * 3 + MENU_ICON_SIZE + 8 * 3) - 8;
+
+/**
+ * 右上角菜单图标：三条横线（矢量绘制，不引 png、不写「菜单」两个字）。
+ *
+ * 用 `Panel({ interactive: true })` 而不是 `Button`：Button 只会画文字，
+ * 而这里要的是图标 + 56×56 的点击区。`label: '菜单'` 同时给无障碍镜像一个可读名字。
+ * 点击/键盘激活都走 `onActivate`（Button 也是同一条路径，`isPointerOnUiControl()` 认得出它）。
+ */
+function buildMenuIcon(onMenu: () => void): void {
+  const icon = Panel(
+    {
+      width: MENU_ICON_SIZE,
+      height: MENU_ICON_SIZE,
+      padding: 0,
+      gap: 0,
+      variant: 'plain',
+      border: false,
+      radius: 6,
+      interactive: true,
+      alignItems: 'center',
+      justifyContent: 'center',
+      label: '菜单',
+      name: 'stage-header-menu',
+    },
+    () => {
+      Column({ gap: MENU_BAR_GAP, alignItems: 'center' }, () => {
+        Rect({ width: MENU_BAR_WIDTH, height: MENU_BAR_HEIGHT, color: MENU_ICON_COLOR });
+        Rect({ width: MENU_BAR_WIDTH, height: MENU_BAR_HEIGHT, color: MENU_ICON_COLOR });
+        Rect({ width: MENU_BAR_WIDTH, height: MENU_BAR_HEIGHT, color: MENU_ICON_COLOR });
+      });
+    },
+  );
+  icon.onActivate = () => onMenu();
+}
 
 /** 顶部信息条：左侧地点/目标，右侧操作按钮。 */
 export function buildStageHeader(model: StageHeaderModel): void {
@@ -120,12 +170,7 @@ export function buildStageHeader(model: StageHeaderModel): void {
               onClick: model.onHistory,
             });
           }
-          Button('菜单', {
-            variant: 'ghost',
-            size: 'sm',
-            width: SMALL_BUTTON_WIDTH,
-            onClick: model.onMenu,
-          });
+          buildMenuIcon(model.onMenu);
         });
       });
     },

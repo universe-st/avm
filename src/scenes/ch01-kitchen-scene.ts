@@ -68,10 +68,21 @@ import {
 } from '../story/dialogue';
 import { DialogueHistory } from '../story/dialogue-history';
 import { openDialogueHistory } from '../ui/history-modal';
+import { openGameMenu } from '../ui/game-menu';
 import { GOLD, TitleCard, makeSceneText } from '../ui/cinematic';
 import { addVignette } from '../ui/fx-kit';
 import { VirtualJoystick } from '../ui/joystick';
 import { isPointerOnUiControl } from '../ui/ui-pointer-guard';
+import { evaluateSaveAvailability, type SaveAvailability } from '../app/save/save-availability';
+import {
+  createSaveData,
+  readRestorePayload,
+  type SaveDataV1,
+  type SaveSlotId,
+} from '../app/save/schema';
+import { writeSlot, type SaveWriteResult } from '../app/save/save-store';
+import { planBgmRestore, resolvePlayerRestore } from '../app/save/restore-plan';
+import { restoreSaveFromScene } from '../app/save/load';
 
 const DIALOGUE_PAGE_CHARS = 68;
 const PLAYER_SCALE = 0.6138;
@@ -227,6 +238,10 @@ export class Ch01KitchenScene extends UIScene {
   private failCard: ModalHandle | null = null;
   private endCard: ModalHandle | null = null;
   private exitModal: ModalHandle | null = null;
+  /** 右上角图标菜单（音量 / 返回标题 / 读档 / 存档）。打开期间暂停对话推进。 */
+  private menuModal: ModalHandle | null = null;
+  /** 读档进来的存档；null = 普通启动。 */
+  private restore: SaveDataV1 | null = null;
   private autoTimer: Phaser.Time.TimerEvent | null = null;
   private historyLineIndex = -1;
   private lastTyped = 0;
@@ -303,6 +318,7 @@ export class Ch01KitchenScene extends UIScene {
     this.retried = false;
     this.previewSpot = null;
     this.resumePhase = null;
+    this.restore = null;
 
     if (isStageLaunchContext(data)) {
       const context: StageLaunchContext = data;
@@ -334,6 +350,10 @@ export class Ch01KitchenScene extends UIScene {
       // 从战斗打回来仍然是预览会话，别写真实进度。
       if (data.preview === true) this.preview = true;
     }
+
+    // 读档：`{ restore: SaveDataV1 }`（由 `restoreSaveFromScene()` 统一投递）。
+    // 存档只写在自由探索，所以恢复目标就是「进入 explore」；位置/BGM 在 create 里落。
+    this.restore = readRestorePayload(data);
   }
 
   override create(): void {
@@ -348,12 +368,16 @@ export class Ch01KitchenScene extends UIScene {
     );
 
     this.createWorld();
+    // 读档落点：在玩家创建之后、第一帧 update 之前，避免「先出生再瞬移」的一帧。
+    this.applyRestoredPlayer();
     super.create();
     // 相机跟随玩家滚动；Compose 页面必须钉在屏幕上，否则 HUD 会跟着地图滚走。
     this.page?.setScrollFactor(0);
     audioDirector.attach(this);
     // 场景绑定：潜入戏复用《危机来临》的冷脉冲；进战斗再由 battleCh01 交叉淡化到《清除协议》。
     bgmManager.enterScene(this);
+    // 状态型 cue：存档里那首必须显式补播（场景绑定只知道「御膳房默认放危机曲」）。
+    this.applyRestoredBgm();
     audioDirector.playSfxAt(CH01_KITCHEN_ASSET_KEYS.audio.ambience, { volume: 0.22, loop: true });
     this.cameras.main.fadeIn(this.reduced ? 180 : 360, 5, 6, 10);
     this.installInput();
@@ -363,6 +387,12 @@ export class Ch01KitchenScene extends UIScene {
 
   override update(time: number, delta: number): void {
     const dt = Math.min(50, Math.max(0, delta));
+    // 菜单打开 = 游戏暂停：对话逐字/巡逻/视锥全部停住，关闭后从原状态继续。
+    if (this.menuModal?.open === true) {
+      this.player?.sync();
+      this.updateXiaobai();
+      return;
+    }
     if (this.cardVisible) {
       this.player?.sync();
       this.updateXiaobai();
@@ -414,7 +444,7 @@ export class Ch01KitchenScene extends UIScene {
       runOver: this.runOver,
       onMenu: () => {
         audioDirector.playClick();
-        this.openExitConfirm();
+        this.openMenu();
       },
       onSkipDialogue: () => {
         audioDirector.playClick();
@@ -693,6 +723,10 @@ export class Ch01KitchenScene extends UIScene {
   }
 
   private startFromPhase(): void {
+    if (this.restore) {
+      this.startFromRestore();
+      return;
+    }
     if (this.preview) {
       if (this.previewPhase === 'explore') {
         this.beginExplore();
@@ -1626,21 +1660,25 @@ export class Ch01KitchenScene extends UIScene {
 
   private onInteractKey(event: KeyboardEvent): void {
     event.preventDefault();
+    if (this.menuModal?.open === true) return;
     this.interact();
   }
 
   private onBackstabKey(event: KeyboardEvent): void {
     event.preventDefault();
+    if (this.menuModal?.open === true) return;
     this.onBackstab();
   }
 
   private onSneakKey(event: KeyboardEvent): void {
     event.preventDefault();
+    if (this.menuModal?.open === true) return;
     this.toggleSneak();
   }
 
   private onAdvanceKey(event: KeyboardEvent): void {
     event.preventDefault();
+    if (this.menuModal?.open === true) return;
     if (this.cardVisible) {
       this.finishCard();
       return;
@@ -1670,6 +1708,7 @@ export class Ch01KitchenScene extends UIScene {
   }
 
   private interact(): void {
+    if (this.menuModal?.open === true) return;
     if (this.ended || this.dialogue || this.cardVisible) return;
     if (this.hidden) {
       /**
@@ -1841,6 +1880,7 @@ export class Ch01KitchenScene extends UIScene {
 
   private advanceDialogue(): void {
     if (!this.dialogue) return;
+    if (this.menuModal?.open === true) return;
     this.cancelAutoAdvance();
     this.handleDialogueEvents(this.dialogue.requestAdvance());
   }
@@ -1873,18 +1913,20 @@ export class Ch01KitchenScene extends UIScene {
 
   private scheduleAutoAdvance(): void {
     this.cancelAutoAdvance();
+    if (this.menuModal?.open === true) return;
     if (!settings.autoAdvance || !this.dialogue) return;
     if (this.dialogue.state.phase !== 'waiting') return;
     const chars = Array.from(this.dialogue.pageText).length;
     const delay = autoAdvanceDelay(chars, settings.textSpeed);
     this.autoTimer = this.time.delayedCall(delay, () => {
       this.autoTimer = null;
-      if (!this.dialogue || this.historyModal?.open === true) return;
+      if (!this.dialogue || this.historyModal?.open === true || this.menuModal?.open === true) return;
       this.advanceDialogue();
     });
   }
 
   private openHistory(): void {
+    if (this.menuModal?.open === true) return;
     if (this.historyModal?.open === true) return;
     this.cancelAutoAdvance();
     this.historyModal = openDialogueHistory(this.mvvm, this.history.entries, {
@@ -1969,6 +2011,110 @@ export class Ch01KitchenScene extends UIScene {
     });
   }
 
+  // ---------------------------------------------------------------- 菜单 / 存档
+
+  /** 当前能否存档（唯一判定在 `app/save/save-availability.ts`）。 */
+  private saveAvailability(): SaveAvailability {
+    return evaluateSaveAvailability({
+      preview: this.preview,
+      module: 'ch01Kitchen',
+      phase: this.phase,
+      dialogue: this.dialogue !== null,
+      performance: false,
+      transition: false,
+      cutscene: false,
+      card: this.cardVisible,
+      ended: this.ended || this.phase === 'done' || this.phase === 'failed',
+      modalOpen: this.menuModal?.open === true,
+    });
+  }
+
+  private openMenu(): void {
+    if (this.menuModal?.open === true) return;
+    this.cancelAutoAdvance();
+    this.menuModal = openGameMenu(this.mvvm, {
+      availability: this.saveAvailability(),
+      sceneLabel: '御膳房',
+      onSave: (slot) => this.saveToSlot(slot),
+      onLoad: (save) => {
+        void this.loadSave(save);
+      },
+      onRequestTitle: () => this.openExitConfirm(),
+      onClose: () => {
+        this.menuModal = null;
+        if (this.dialogue) this.scheduleAutoAdvance();
+      },
+    });
+  }
+
+  /**
+   * 写一个槽位。
+   *
+   * `dorm` 字段写 `{ talkedZheng: true, phoneFound: true }`：能进御膳房就说明第一节已经打完，
+   * 这叫状态事实而不是占位值；读档时不拿它恢复寝室流程（`flowSnapshotFromSave` 只认寝室档）。
+   * 存档不碰 `progress`（检查点仍由既有的 `saveProgress()` 维护）。
+   */
+  private saveToSlot(slot: SaveSlotId): SaveWriteResult {
+    const player = this.player;
+    if (!player) return { ok: false, slot, reason: 'serialize' };
+    const save = createSaveData({
+      slot,
+      module: 'ch01Kitchen',
+      objective: this.objective.value,
+      bgmId: bgmManager.currentBgmId,
+      player: {
+        x: player.position.x - this.room.origin.x,
+        y: player.position.y - this.room.origin.y,
+        facing: player.facing,
+      },
+      dorm: { talkedZheng: true, phoneFound: true },
+      flags: {},
+    });
+    return writeSlot(save);
+  }
+
+  private async loadSave(save: SaveDataV1): Promise<void> {
+    this.cancelAutoAdvance();
+    audioDirector.stopAllLoops();
+    await restoreSaveFromScene(this, save);
+  }
+
+  /** 读档：位置/朝向落点（流程与服务入口一律从 explore 起）。 */
+  private applyRestoredPlayer(): void {
+    const save = this.restore;
+    if (!save || !this.player) return;
+    const plan = resolvePlayerRestore(this.room, KITCHEN_PLAYER_FOOT, save.player);
+    if (!plan.exact) {
+      console.info(`[ch01-kitchen] 存档坐标不可用（${plan.reason}），回退出生点`);
+    }
+    this.player.moveTo(plan.position, plan.facing, false, 0);
+    // 相机是 follow 模式，不显式对准会在读档第一帧从出生点滑过来。
+    this.cameras.main.centerOn(plan.position.x, plan.position.y);
+  }
+
+  private applyRestoredBgm(): void {
+    const save = this.restore;
+    if (!save || save.module !== 'ch01Kitchen') return;
+    const plan = planBgmRestore({
+      saved: save.bgmId,
+      currentId: bgmManager.currentBgmId,
+      playing: bgmManager.currentSound?.isPlaying === true,
+    });
+    if (plan.action === 'play') {
+      // 显式 play：不能只靠场景绑定表（它只知道「御膳房默认放危机曲」）。
+      bgmManager.play(plan.id);
+    }
+  }
+
+  /** 从存档进入自由探索：先照亮存档位置那一圈，再走正常的 `beginExplore()`。 */
+  private startFromRestore(): void {
+    if (this.player) {
+      const tile = worldToTile(this.room, this.player.position);
+      if (tile) this.revealAround(tile.col, tile.row, 2);
+    }
+    this.beginExplore();
+  }
+
   private openExitConfirm(): void {
     if (this.exitModal?.open === true) return;
     this.exitModal = openKitchenExitConfirm(this.mvvm, {
@@ -2004,6 +2150,8 @@ export class Ch01KitchenScene extends UIScene {
     this.exitModal = null;
     this.historyModal?.close('scene');
     this.historyModal = null;
+    this.menuModal?.close('scene');
+    this.menuModal = null;
     for (const enemy of this.enemies) enemy.destroy();
     this.enemies = [];
     this.pairMai?.destroy();
