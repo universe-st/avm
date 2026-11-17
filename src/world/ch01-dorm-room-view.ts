@@ -7,6 +7,17 @@ import { GOLD, makeSceneText } from '../ui/cinematic';
 import { setLinearTextures } from '../ui/pixel';
 
 /**
+ * 「Zzz」相对郑卿交互点（枕头左侧的床沿）的偏移，单位是设计 px。
+ *
+ * 基准来自 390×844 截图实测（2026-11-17）：交互点 ≈ (469.1, 412.4)，
+ * 床上那颗脑袋的水平中心在 +88（≈557），头发最高点 ≈ y335。
+ * 18px 文字里「Zzz」的墨迹半高约 7.5，所以 y 取 -98 → 墨迹底部离头顶 13px、
+ * 抬到枕头顶面（y≈332）以上；再往上会离开头顶，再往右下会压枕头/脸。
+ */
+const ZZZ_OFFSET_X = 129;
+const ZZZ_OFFSET_Y = -98;
+
+/**
  * 寝室地图视图（2026-10-25 新地图）：整张 1600×1728 房间图按 720 宽显示，
  * 四张床/书桌/窗/门都在图里，不再单独摆椅子或课程表。
  */
@@ -108,10 +119,12 @@ export class Ch01DormRoomView {
       graphics.strokeCircle(at.x + 18, at.y - 14, 8);
     }
 
-    // Zzz 钉在郑卿床上方，而不是交互 marker。
-    const anchor = tileCenter(this.room, 25, 6);
+    // Zzz 贴着睡着郑卿的头顶右上方，而不是交互 marker、也不再钉在床中央
+    // （旧位置是 tileCenter(25,6)+(22,-12)，比头顶高出 100 多设计 px，像浮在墙上的装饰）。
+    const zheng = this.room.interactables.find((item) => item.id === 'zheng');
+    const anchor = zheng ? interactableCenter(this.room, zheng) : tileCenter(this.room, 25, 6);
     const zzz = this.track(
-      makeSceneText(this.scene, anchor.x + 22, anchor.y - 12, 'Zzz', {
+      makeSceneText(this.scene, anchor.x + ZZZ_OFFSET_X, anchor.y + ZZZ_OFFSET_Y, 'Zzz', {
         size: 18,
         color: GOLD,
         alpha: 0.65,

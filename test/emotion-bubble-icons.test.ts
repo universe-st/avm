@@ -2,7 +2,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { EmotionKind } from '../src/story/dialogue';
+import type { IconShape } from '../src/ui/emotion-bubble-model';
 import {
+  BANG_SHAFT,
   BUBBLE_ACCENT_LINE_Y,
   BUBBLE_FRAME,
   BUBBLE_LINE_WIDTH,
@@ -151,6 +153,59 @@ describe('表情气泡图标', () => {
     const right = pointOnArc(2, 3, 4, 0);
     expect(right.x).toBeCloseTo(6, 5);
     expect(right.y).toBeCloseTo(3, 5);
+  });
+});
+
+describe('吃惊的感叹号是实心粗形状（2026-11-17 加粗）', () => {
+  it('竖杠是填充多边形，不是描边线段', () => {
+    // 标注成 IconShape[]：`satisfies` 会把每个情绪的 shapes 窄成字面量类型，
+    // 不拓宽就写不出「polyline 不许回来」这条断言（TS 会报「没有交集」）。
+    const shapes: readonly IconShape[] = EMOTION_ICONS.surprised.shapes;
+    expect(shapes.some((shape) => shape.kind === 'fillPolygon'), '竖杠要 fillPolygon').toBe(true);
+    // 旧版那根 polyline 竖杠不许回来：线宽只有 2.2px，手机缩到 26px 就细成一根头发。
+    expect(shapes.some((shape) => shape.kind === 'polyline'), '别再退回描边线段').toBe(false);
+  });
+
+  it('竖杠最窄处宽度 ≥ 2.2px，且上宽下窄', () => {
+    const shaft = EMOTION_ICONS.surprised.shapes.find((shape) => shape.kind === 'fillPolygon');
+    if (shaft === undefined || shaft.kind !== 'fillPolygon') throw new Error('感叹号竖杠不是填充多边形');
+
+    // 按 y 分组求横向跨度：锥形竖条上下各一条边，最窄处在底端。
+    const spans = new Map<number, number[]>();
+    for (const point of shaft.points) {
+      const xs = spans.get(point.y) ?? [];
+      xs.push(point.x);
+      spans.set(point.y, xs);
+    }
+    const widths = [...spans.values()].map(
+      (xs) => Math.max(...xs) - Math.min(...xs),
+    );
+    expect(widths.length, '竖杠要有上下两条边').toBeGreaterThanOrEqual(2);
+
+    const narrowest = widths.reduce((min, width) => Math.min(min, width), Number.POSITIVE_INFINITY);
+    const widest = widths.reduce((max, width) => Math.max(max, width), 0);
+    // 这条就是「不许再变细」的守门断言。
+    expect(narrowest, '竖杠最窄处至少要 2.2px 宽').toBeGreaterThanOrEqual(2.2);
+    expect(widest, '锥形：顶端比底端宽').toBeGreaterThan(narrowest);
+  });
+
+  it('竖杠高度与圆点位置沿用旧版，气泡尺寸不会跳', () => {
+    expect(BANG_SHAFT.topY).toBeCloseTo(-15.6, 5);
+    expect(BANG_SHAFT.bottomY).toBeCloseTo(-2.6, 5);
+
+    const dot = EMOTION_ICONS.surprised.shapes.find((shape) => shape.kind === 'fillCircle');
+    if (dot === undefined || dot.kind !== 'fillCircle') throw new Error('感叹号缺少圆点');
+    expect(dot.cx).toBeCloseTo(0, 5);
+    expect(dot.cy).toBeCloseTo(1.9, 5);
+    // 点和竖杠之间要留缝，不能连成一根「i」。
+    expect(dot.cy - dot.radius).toBeGreaterThan(BANG_SHAFT.bottomY);
+
+    // 整个感叹号的外接框仍落在旧版范围内：气泡框（62×52）不用跟着改。
+    const box = iconBox(iconPoints(EMOTION_ICONS.surprised));
+    expect(box.minY).toBeCloseTo(BANG_SHAFT.topY, 5);
+    expect(box.minX).toBeGreaterThanOrEqual(ICON_BOX.minX);
+    expect(box.maxX).toBeLessThanOrEqual(ICON_BOX.maxX);
+    expect(box.maxY).toBeLessThanOrEqual(ICON_BOX.maxY);
   });
 });
 

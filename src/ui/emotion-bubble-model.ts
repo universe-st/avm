@@ -158,6 +158,28 @@ const QUESTION_HOOK = { cx: 0, cy: -11.4, radius: 4.8 } as const;
 /** 感叹号竖杠（点另画）。 */
 const BANG_SHAFT_TOP = -15.6;
 const BANG_SHAFT_BOTTOM = -2.6;
+/**
+ * 竖杠上下端的半宽：上宽下窄的锥形填充块。
+ *
+ * 2026-11-17 用户反馈「感叹号太细」：旧版是一根 2.2px 的描边线，26px 图标下
+ * 只剩一两列像素，看着像根头发。改成实心多边形后，最窄处仍有 3.6px 宽，
+ * 与点的比例也更像真正的「!」。
+ */
+const BANG_SHAFT_TOP_HALF = 2.6;
+const BANG_SHAFT_BOTTOM_HALF = 1.8;
+/** 感叹号圆点：位置沿用旧版（0, 1.9），只把半径从 1.75 抬到 1.9 跟上竖杠。 */
+const BANG_DOT = { cx: 0, cy: 1.9, radius: 1.9 } as const;
+
+/**
+ * 感叹号竖杠的几何尺寸（设计 px），单测按它守「最窄处 ≥ 2.2px」。
+ * 改形状时同步这里，别让断言和画面各说一套。
+ */
+export const BANG_SHAFT = {
+  topY: BANG_SHAFT_TOP,
+  bottomY: BANG_SHAFT_BOTTOM,
+  topWidth: BANG_SHAFT_TOP_HALF * 2,
+  bottomWidth: BANG_SHAFT_BOTTOM_HALF * 2,
+} as const;
 /** 头顶三道放射线：同一个虚点向外发，中间那道最长。 */
 const BURST = { cx: 0, cy: -13.6, inner: 2.2, outer: 5.8 } as const;
 
@@ -234,18 +256,25 @@ export const EMOTION_ICONS = {
     ],
   },
 
-  /** 吃惊：一个加粗感叹号（竖杠 + 点）。 */
+  /**
+   * 吃惊：一个实心锥形感叹号（填充竖条 + 圆点）。
+   *
+   * 2026-11-17 前是「2.2px 描边线段 + 点」，在手机上缩到 26px 就细得看不见；
+   * 现在竖杠是 fillPolygon，渲染层不做线宽插值，任何倍率都是同一块实心形状。
+   */
   surprised: {
     color: '#d35400',
     shapes: [
       {
-        kind: 'polyline',
+        kind: 'fillPolygon',
         points: [
-          { x: 0, y: BANG_SHAFT_TOP },
-          { x: 0, y: BANG_SHAFT_BOTTOM },
+          { x: -BANG_SHAFT_TOP_HALF, y: BANG_SHAFT_TOP },
+          { x: BANG_SHAFT_TOP_HALF, y: BANG_SHAFT_TOP },
+          { x: BANG_SHAFT_BOTTOM_HALF, y: BANG_SHAFT_BOTTOM },
+          { x: -BANG_SHAFT_BOTTOM_HALF, y: BANG_SHAFT_BOTTOM },
         ],
       },
-      { kind: 'fillCircle', cx: 0, cy: 1.9, radius: 1.75 },
+      { kind: 'fillCircle', cx: BANG_DOT.cx, cy: BANG_DOT.cy, radius: BANG_DOT.radius },
     ],
   },
 
