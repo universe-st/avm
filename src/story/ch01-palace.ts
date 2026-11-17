@@ -30,7 +30,19 @@ export const PALACE_TEXTURES = {
   miner: PALACE_ASSET_KEYS.characters.miner,
   portraitZheng: PALACE_ASSET_KEYS.characters.portraitZheng,
   portraitChu: PALACE_ASSET_KEYS.characters.portraitChu,
+  portraitXiaobai: PALACE_ASSET_KEYS.characters.portraitXiaobai,
+  portraitZhouPanic: PALACE_ASSET_KEYS.characters.portraitZhouPanic,
 } as const;
+
+/**
+ * 金殿这段里小白的显示名。
+ *
+ * 时间点在「寝室里揭开名字」之前，所以不能写「小白」（会剧透），也不能再写「？？？」——
+ * 名字一旦在别处揭示过，后面还冒「？？？」就前后不一致。这里用一句完整的描述当名号。
+ * 语义色／逐字音只认 `role: 'xiaobai'`（见 `speakerTone()` / `typeVoiceForSpeaker()`），
+ * 所以**改名不用动声线与配色**。
+ */
+export const XIAOBAI_SPEAKER = '莫名其妙出现的白色小精灵';
 
 /**
  * 行走 sheet（八方向，每个方向一张横条）。
@@ -205,6 +217,10 @@ export const PALACE_BEATS: readonly PalaceBeat[] = [
   {
     kind: 'act',
     actions: [
+      // 走位结束会回落到「朝下」的静态图（`down` 是朝镜头），所以这里显式换成**朝左**的贴图，
+      // 让郑卿转过身去看向跪在殿下的周全。**不要用 `faceLeft`**：那只是 `flipX`，
+      // 把一张正面图翻过来仍然是正面，看不出朝向。
+      { kind: 'texture', actor: 'zheng', texture: PALACE_TEXTURES.zhengLeft },
       { kind: 'portrait', key: PALACE_TEXTURES.portraitZheng, side: 'right' },
       { kind: 'camera', zoom: 1.12, ms: 420 },
     ],
@@ -255,19 +271,23 @@ export const PALACE_BEATS: readonly PalaceBeat[] = [
     text: '陛下饶命！陛下饶命啊！臣罪该万死！求陛下开恩，饶了奴才这条贱命吧！',
   },
   {
-    kind: 'say',
-    speaker: '旁白',
-    text: '罪该万死又要求饶命？你差点笑出声，可头顶泰山压顶一样的重量让你憋了回去。',
+    // 周全被两个太监按在地板上、抬不起头，只能嘴硬：收掉楚公公的立绘，
+    // 换成周全被按跪、脸被压得微微上仰的慌张特写（另一侧入画，动静才分得开）。
+    kind: 'act',
+    actions: [
+      { kind: 'portraitHide' },
+      { kind: 'portrait', key: PALACE_TEXTURES.portraitZhouPanic, side: 'left' },
+    ],
+    ms: 240,
   },
-  { kind: 'act', actions: [{ kind: 'portraitHide' }], ms: 220 },
-  {
-    kind: 'say',
-    speaker: '周全',
-    text: '郑！卿！快！醒！醒！你！爸！来！学！校！查！寝！了——！！！',
-  },
+  { kind: 'say', speaker: '周全', text: '你不是罪该万死吗，饶什么命啊？' },
+  // 同一个人接着喊，立绘**不换**：换手会打断「一口气骂完」的节奏。
+  { kind: 'say', speaker: '周全', text: '你爸知道你这么牛x吗？！' },
   {
     kind: 'act',
     actions: [
+      // 大殿晃起来之前先把脸收掉：震屏时屏幕上不该还贴着一张立绘。
+      { kind: 'portraitHide' },
       { kind: 'fx', fx: 'rumble' },
       { kind: 'sfx', key: PALACE_ASSET_KEYS.sfx.rumble, volume: 0.9 },
     ],
@@ -279,11 +299,18 @@ export const PALACE_BEATS: readonly PalaceBeat[] = [
     text: '轰隆——整座大殿像地震一样剧烈一晃，龙椅上的皇帝瞬间石化，脸上那丝满足的笑僵住了。',
   },
   {
+    // 小白这句是「画外」插话：立绘在台词前出现、说完就收，别让它一直挂在屏幕上。
+    kind: 'act',
+    actions: [{ kind: 'portrait', key: PALACE_TEXTURES.portraitXiaobai, side: 'right' }],
+    ms: 220,
+  },
+  {
     kind: 'say',
-    speaker: '？？？',
+    speaker: XIAOBAI_SPEAKER,
     role: 'xiaobai',
     text: '心防出现剧烈震荡，目标精神屏障异常薄弱。',
   },
+  { kind: 'act', actions: [{ kind: 'portraitHide' }], ms: 200 },
   {
     kind: 'say',
     speaker: '旁白',
@@ -345,14 +372,22 @@ export const PALACE_BEATS: readonly PalaceBeat[] = [
   },
   // 原寝室 `dream` 节点的收尾台词，金殿接管后挪到这里，避免丢掉小白这句吐槽。
   {
+    // 同一张小白立绘再用一次：全段只有它两次开口，贴图保持一致玩家才认得出是同一个人。
+    kind: 'act',
+    actions: [{ kind: 'portrait', key: PALACE_TEXTURES.portraitXiaobai, side: 'right' }],
+    ms: 180,
+  },
+  {
     kind: 'say',
-    speaker: '？？？',
+    speaker: XIAOBAI_SPEAKER,
     role: 'xiaobai',
     text: '建议：先活下来。',
   },
   {
     kind: 'act',
     actions: [
+      // 进战斗前收掉立绘，免得切场时还残留一张。
+      { kind: 'portraitHide' },
       { kind: 'fx', fx: 'shake' },
       { kind: 'camera', zoom: 1.05, ms: 900 },
       { kind: 'sfx', key: PALACE_ASSET_KEYS.sfx.blade, volume: 0.6 },

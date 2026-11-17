@@ -13,6 +13,9 @@ import { LAYERS, characterDepth } from '../render/layers';
 import { buildPalaceHud } from '../ui/palace-hud';
 import { openCh01ExitConfirm } from '../ui/ch01-modals';
 import { openDialogueHistory } from '../ui/history-modal';
+import { openGameMenu } from '../ui/game-menu';
+import { evaluateSaveAvailability } from '../app/save/save-availability';
+import { restoreSaveFromScene } from '../app/save/load';
 import { CinematicDirector } from '../ui/cinematic-director';
 import { PortraitLayer } from '../ui/portrait-layer';
 import {
@@ -71,6 +74,19 @@ const PALACE_ROOM = {
 const ACTOR_SCALE = PALACE_ACTOR_SCALE;
 const ACTOR_FOOT_RATIO = 400 / 420;
 
+/**
+ * 「换形态」的贴图：换过去的那一帧要做一下 0.5 → 0.54 → 0.5 的缩放弹跳。
+ *
+ * 只给这三张贴图——跪地、裂皮、现出矿工骨架，是「形体变了」；
+ * 换朝向（郑卿走完台阶转身看周全）走的是同一个 `texture` action，
+ * 但**不该**让整个人鼓一下，所以按 key 白名单决定，别退化成「所有换图都弹」。
+ */
+const FORM_TEXTURES: ReadonlySet<string> = new Set([
+  PALACE_TEXTURES.chuKneel,
+  PALACE_TEXTURES.eunuchCrack,
+  PALACE_TEXTURES.miner,
+]);
+
 export class Ch01PalaceScene extends UIScene {
   private player!: PalacePlayer;
   private readonly actors = new Map<PalaceActorId, Phaser.GameObjects.Image>();
@@ -96,6 +112,8 @@ export class Ch01PalaceScene extends UIScene {
   private seed = 1;
   private encounterId = 'ch01.miner.vanguard';
   private historyModal: ModalHandle | null = null;
+  /** 右上角图标菜单。金殿是纯演出：菜单只提供音量/返回标题/读档，保存项禁用。 */
+  private menuModal: ModalHandle | null = null;
   private autoTimer: Phaser.Time.TimerEvent | null = null;
   private shuttingDown = false;
   private readonly history = new DialogueHistory();
@@ -180,6 +198,8 @@ export class Ch01PalaceScene extends UIScene {
   override update(_time: number, delta: number): void {
     if (!this.player) return;
     this.director?.syncOverlays();
+    // 菜单打开 = 演出暂停：时间线与逐字都停在当前帧。
+    if (this.menuModal?.open === true) return;
     if (this.transitioning) return;
     const dt = Math.min(80, Math.max(0, delta));
     this.handleEvents(this.player.tick(dt));
@@ -193,6 +213,8 @@ export class Ch01PalaceScene extends UIScene {
     this.lastTyped = 0;
     this.historyModal?.close();
     this.historyModal = null;
+    this.menuModal?.close('scene');
+    this.menuModal = null;
     this.input.off('pointerdown', this.onPointerDown, this);
     for (const id of [...this.walking.keys()]) this.stopWalk(id);
     // 循环音效（大殿环境音、心跳）不能跟着进战斗
@@ -522,6 +544,7 @@ export class Ch01PalaceScene extends UIScene {
 
   private advance(): void {
     if (!this.player || this.transitioning) return;
+    if (this.menuModal?.open === true) return;
     if (!this.player.state.waiting) return;
     // 打字中点击 = 先补全本句：不进下一句，也不播点击音。
     if (this.typewriter.typing) {
@@ -537,6 +560,7 @@ export class Ch01PalaceScene extends UIScene {
 
   private skip(): void {
     if (!this.player || this.transitioning) return;
+    if (this.menuModal?.open === true) return;
     this.cancelAutoAdvance();
     this.typewriter.reset();
     this.lastTyped = 0;
@@ -693,8 +717,8 @@ export class Ch01PalaceScene extends UIScene {
             );
           }
         }
-        // 换形态的一瞬间给一点「胀」：0.5 → 0.54 → 0.5
-        if (!this.reduced) {
+        // 换形态的一瞬间给一点「胀」：0.5 → 0.54 → 0.5（只有 `FORM_TEXTURES` 那几张，见常量注释）
+        if (!this.reduced && FORM_TEXTURES.has(action.texture)) {
           const base = actor.scaleX;
           this.tweens.add({
             targets: actor,
@@ -784,7 +808,39 @@ export class Ch01PalaceScene extends UIScene {
       },
       onMenu: () => {
         audioDirector.playClick();
-        this.openExitConfirm();
+        this.openMenu();
+      },
+    });
+  }
+
+  /**
+   * 右上角菜单（金殿是纯演出：保存项禁用并显示原因，读档/音量/返回标题可用）。
+   *
+   * 打开期间暂停过场推进：`update()` 早退（时间线 + 逐字都停在当前帧），
+   * SPACE/ENTER 与点屏推进也被 `menuModal` 挡住；关闭后从原状态继续。
+   */
+  private openMenu(): void {
+    if (this.menuModal?.open === true) return;
+    this.cancelAutoAdvance();
+    this.menuModal = openGameMenu(this.mvvm, {
+      availability: evaluateSaveAvailability({
+        preview: this.preview,
+        module: 'ch01Palace',
+        phase: 'performance',
+        dialogue: this.sayVisible.value,
+        transition: this.transitioning,
+        ended: this.player?.state.done === true,
+      }),
+      sceneLabel: '梦域 · 金殿',
+      // 保存按钮在这里恒为禁用（见上面的 module），这个回调只是兜底。
+      onSave: (slot) => ({ ok: false, slot, reason: 'io' }),
+      onLoad: (save) => {
+        void restoreSaveFromScene(this, save);
+      },
+      onRequestTitle: () => this.openExitConfirm(),
+      onClose: () => {
+        this.menuModal = null;
+        if (this.player?.state.waiting && !this.typewriter.typing) this.scheduleAutoAdvance();
       },
     });
   }

@@ -13,7 +13,15 @@ describe('说话人语义色', () => {
   it('小白靠稳定 role 保持同色，名字变化不影响', () => {
     expect(speakerTone('？？？', 'xiaobai')).toBe('xiaobai');
     expect(speakerTone('莫名其妙出现的白色小娃娃', 'xiaobai')).toBe('xiaobai');
+    expect(speakerTone('莫名其妙出现的白色小精灵', 'xiaobai')).toBe('xiaobai');
     expect(speakerTone('小白')).toBe('xiaobai');
+  });
+
+  it('小白的每个显示名（含名字表兜底）都归到 xiaobai 一档', () => {
+    // 金殿过场把「？？？」换成完整描述名；没传 role 的老台词也要认得出来
+    expect(speakerTone('莫名其妙出现的白色小精灵')).toBe('xiaobai');
+    expect(speakerTone('白色小精灵')).toBe('xiaobai');
+    expect(speakerTone('莫名其妙出现的白色小娃娃')).toBe('xiaobai');
   });
 
   it('主角、梦中郑卿、矿工各有独立色档', () => {

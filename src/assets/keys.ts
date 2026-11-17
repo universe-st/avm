@@ -47,6 +47,21 @@ export const PALACE_ASSET_KEYS = {
     chuKneel: 'img.char.palace.chu_gonggong_kneel',
     portraitZheng: 'img.char.palace.portrait_zheng',
     portraitChu: 'img.char.palace.portrait_chu',
+    /**
+     * 小白：白色小精灵（娃娃脸光团 + 兜帽 + 羽翼 + 胸口蓝核）半身立绘。
+     *
+     * 720×900 RGBA、透明底，和 `portrait_zheng` / `portrait_chu` 同一套画风与构图
+     * （`portraitMetrics()` 按 720:900 定显示尺寸，换图不用改代码）。
+     * 用在金殿「心防出现剧烈震荡」与收尾「建议：先活下来。」两句。
+     */
+    portraitXiaobai: 'img.char.palace.portrait_xiaobai',
+    /**
+     * 周全被太监按跪在地上、脸被迫上仰时的慌张头部特写（720×900 RGBA、透明底）。
+     *
+     * 台词「你不是罪该万死吗，饶什么命啊？」与「你爸知道你这么牛x吗？！」共用这张，
+     * 震屏前 `portraitHide`。**不要**拿 200×420 的角色贴图放大充数（会糊）。
+     */
+    portraitZhouPanic: 'img.char.palace.portrait_zhou_panic',
   },
   sfx: {
     ambience: 'audio.sfx.palace.ambience',

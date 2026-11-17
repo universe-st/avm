@@ -20,6 +20,11 @@ describe('typeVoiceForSpeaker', () => {
     expect(typeVoiceForSpeaker('？？？')).toBe('generic');
   });
 
+  it('金殿的完整描述名（莫名其妙出现的白色小精灵）也走小白的声线', () => {
+    // 金殿剧本两处小白台词都带 role:'xiaobai'；声线只认 role，改显示名不用动声线。
+    expect(typeVoiceForSpeaker('莫名其妙出现的白色小精灵', 'xiaobai')).toBe('xiaobai');
+  });
+
   it('falls back to the two generic blips for everyone else', () => {
     for (const speaker of ['男主持', '女主持', '楚公公', '矿工']) {
       expect(typeVoiceForSpeaker(speaker)).toBe('generic');

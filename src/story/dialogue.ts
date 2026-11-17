@@ -162,7 +162,21 @@ export function dialogueLineText(line: DialogueLine): string {
  */
 export type SpeakerTone = 'narration' | 'zhou' | 'zheng' | 'xiaobai' | 'miner' | 'default';
 
-const XIAOBAI_NAMES = ['小白', '？？？', '莫名其妙出现的白色小娃娃', 'TEAR-27', 'TEAR'];
+/**
+ * 小白的显示名（会随剧情变）：刚出场是「？？？」，寝室那轮叫「莫名其妙出现的白色小娃娃」，
+ * 金殿过场换成「莫名其妙出现的白色小精灵」，揭示后才是「小白」。
+ * 这里的名字只影响**没传 `role` 的老台词**兜底推断；带 `role: 'xiaobai'` 的行不看名字。
+ * 加新名字记得同步 `test/speaker-tone.test.ts` 与 `test/type-voice.test.ts`。
+ */
+const XIAOBAI_NAMES = [
+  '小白',
+  '？？？',
+  '莫名其妙出现的白色小娃娃',
+  '莫名其妙出现的白色小精灵',
+  '白色小精灵',
+  'TEAR-27',
+  'TEAR',
+];
 const MINER_NAMES = ['矿工', '因泰里', '清除单元'];
 
 function includesAny(value: string, needles: readonly string[]): boolean {

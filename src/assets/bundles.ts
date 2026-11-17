@@ -417,7 +417,9 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
   },
   'cutscene.ch01palace': {
     id: 'cutscene.ch01palace',
-    budgetKB: 6144,
+    // 2026-11-17：加了两张 720×900 半身立绘（小白 / 周全慌张），实测约 7.1 MB，按实际登记。
+    // 立绘是唯一值得的大图（贴屏幕右侧放大到 155 设计 px，缩到 1024 宽会糊）。
+    budgetKB: 8192,
     dependsOn: ['core'],
     assets: [
       {
@@ -467,6 +469,22 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         kind: 'image',
         url: 'assets/img/character/palace/portrait_chu.png',
         label: '楚公公 · 半身立绘',
+        tags: ['character', 'portrait'],
+      },
+      {
+        // 720×900 RGBA 透明底，与 portrait_zheng / portrait_chu 同一套画风。
+        key: 'img.char.palace.portrait_xiaobai',
+        kind: 'image',
+        url: 'assets/img/character/palace/portrait_xiaobai.png',
+        label: '小白 · 半身立绘',
+        tags: ['character', 'portrait'],
+      },
+      {
+        // 周全被按跪、慌张的头部特写：两句嘴硬台词共用，震屏前隐藏。
+        key: 'img.char.palace.portrait_zhou_panic',
+        kind: 'image',
+        url: 'assets/img/character/palace/portrait_zhou_panic.png',
+        label: '周全 · 被按跪慌张 · 半身立绘',
         tags: ['character', 'portrait'],
       },
       {
