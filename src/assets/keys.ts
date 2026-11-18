@@ -58,10 +58,18 @@ export const PALACE_ASSET_KEYS = {
     /**
      * 周全被太监按跪在地上、脸被迫上仰时的慌张头部特写（720×900 RGBA、透明底）。
      *
-     * 台词「你不是罪该万死吗，饶什么命啊？」与「你爸知道你这么牛x吗？！」共用这张，
+     * 台词「（……你不是罪该万死吗，饶什么命啊？）」到「疯了吧你？！……」共用这张，
      * 震屏前 `portraitHide`。**不要**拿 200×420 的角色贴图放大充数（会糊）。
      */
     portraitZhouPanic: 'img.char.palace.portrait_zhou_panic',
+    /**
+     * 殿前侍卫应命「是！」的半身立绘（720×900 RGBA、透明底）。
+     *
+     * 就是画面上那两个蓝袍壮汉（`eunuch_down` 那张 200×420 精灵，后文裂皮的「太监」同一对），
+     * 以精灵图为身份基准生成，画风照 `portrait_zheng` / `portrait_chu`。
+     * 只在「郑卿喝令拖出午门 → 侍卫：是！」这一拍出场，说完立刻 `portraitHide`。
+     */
+    portraitShiwei: 'img.char.palace.portrait_shiwei',
   },
   sfx: {
     ambience: 'audio.sfx.palace.ambience',

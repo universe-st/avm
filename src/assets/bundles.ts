@@ -418,8 +418,9 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
   'cutscene.ch01palace': {
     id: 'cutscene.ch01palace',
     // 2026-11-17：加了两张 720×900 半身立绘（小白 / 周全慌张），实测约 7.1 MB，按实际登记。
+    // 2026-11-18：再加一张侍卫立绘（820 KB），实测约 7.9 MB → 9216。
     // 立绘是唯一值得的大图（贴屏幕右侧放大到 155 设计 px，缩到 1024 宽会糊）。
-    budgetKB: 8192,
+    budgetKB: 9216,
     dependsOn: ['core'],
     assets: [
       {
@@ -480,11 +481,19 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         tags: ['character', 'portrait'],
       },
       {
-        // 周全被按跪、慌张的头部特写：两句嘴硬台词共用，震屏前隐藏。
+        // 周全被按跪、慌张的头部特写：震屏前隐藏。
         key: 'img.char.palace.portrait_zhou_panic',
         kind: 'image',
         url: 'assets/img/character/palace/portrait_zhou_panic.png',
         label: '周全 · 被按跪慌张 · 半身立绘',
+        tags: ['character', 'portrait'],
+      },
+      {
+        // 殿前侍卫应命「是！」的半身立绘：720×900 RGBA 透明底，与 zheng/chu 同一套画风。
+        key: 'img.char.palace.portrait_shiwei',
+        kind: 'image',
+        url: 'assets/img/character/palace/portrait_shiwei.png',
+        label: '侍卫 · 半身立绘',
         tags: ['character', 'portrait'],
       },
       {

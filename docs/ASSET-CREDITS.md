@@ -496,6 +496,25 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
 - 验收：`test/palace-five-items.test.ts` 现场解码 PNG 断言 720×900 / RGBA / 四角透明 / 左右不贴边；实机截图（390×844）在 `.evidence/docs/screenshots/2026-11-17-five-items/palace/`。
 - 复核：上架前按火山方舟商用条款复核，商店页注明「AI 生成美术」。
 
+### 11.16 金殿补一张「侍卫」半身立绘（2026-11-18，t54）
+
+用户要求：金殿剧本重排后多了一句「侍卫：是！」，目前没有对话贴图，「生成一下对话贴图」。风格与现有角色贴图一致。
+
+- 文件：`public/assets/img/character/palace/portrait_shiwei.png`（720×900 RGBA、透明底、820 KB），内容包围盒 696×812（左右各留 12px 透明边，头顶贴画布上沿）。
+- 来源：游戏素材大师 · 图片生成（火山方舟 `doubao-seedream-5-0-flash-260915`，1024×1280，`watermark: false`，2 张/次）
+  - 任务：`imwlyniwed46f14`（`palace-侍卫-殿前应答-半身立绘-t54`），2 张均出图，**采用第 1 张**（`out/img-00.png` → `keyed/img-00.png`）
+- 参考图（`uploadImageRef` 等价：本地脚本 `node .evidence/scripts/add-image-refs.mjs <jobDir> <png…>` 拷进 `refs/` 并登记 job.json，大图不进工具面）：
+  - `palace/eunuch_down.png`（身份基准：就是画面上那两个光头、方脸、深蓝圆领袍的殿前壮汉）
+  - `palace/portrait_chu.png`、`palace/portrait_zheng.png`（画风/构图基准）
+- 提示词要点：以 eunuch 精灵图为身份基准 → 纯绿 `#00FF00` 一整片、无阴影/地面/渐变 → 国风 HD-2D 手绘赛璐璐、粗深色描边 → 从胸口以上入画、头占画面 ~50%、正面略偏 3/4 → 浓眉压低、瞪眼、张嘴应声（对应「是！」）→ 深蓝圆领袍素面、领口一线白中衣 → 只画一个人、不画手与佩刀、禁止文字/水印/第二个人。
+- 后期：
+  - 抠像：`keyImageJob`，`keyColor #00FF00 / keyLow 14 / keyHigh 80 / despill 0.65 / edgeShrink 0`，**`bgTolerance 0`**。
+    ⚠️ 第一次用默认 `bgTolerance 90`（背景空间分割）时，深蓝袍子被当成「背景色系」吃掉了大半，抠完只剩一层蓝色噪点；关掉（0）后蓝袍完整。**深色大面积服饰的角色必须关掉空间分割**——这和 11.15 小白白袍被吃掉是同一个参数、相反的表现。
+  - 裁切：`tools/make-palace-portrait.py --margin-x 12`（alpha 包围盒 → 等比缩放到 720×900 → 居中 → 顶部对齐），只做裁/缩放/居中，不改颜色。
+- 代码注册：`src/assets/keys.ts` 的 `PALACE_ASSET_KEYS.characters.portraitShiwei`、`src/assets/bundles.ts` 的 `cutscene.ch01palace`（budgetKB 由 8192 调到 9216）；剧本在 `src/story/ch01-palace.ts` 的「侍卫：是！」前面 `portrait`、后面 `portraitHide`。
+- 验收：`test/palace-five-items.test.ts` 的「金殿半身立绘：通用规格」现场解码每张立绘（720×900 / RGBA / 四角透明 / 左右不贴边 / 纵向 ≥700），`test/palace-script-order.test.ts` 锁「侍卫立绘在开口前弹出、说完收起、左侧入画」。
+- 复核：上架前按火山方舟商用条款复核，商店页注明「AI 生成美术」。
+
 ## 12. 御膳房 P2 B1 地图风格样张（2026-10-31）
 
 - 生成：游戏素材大师 · 图片生成，`doubao-seedream-5-0-flash-260915`，自动审核；仅作 B2 拼合风格基准，未直接进游戏。
