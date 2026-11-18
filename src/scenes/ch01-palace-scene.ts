@@ -49,6 +49,7 @@ import {
   PALACE_TEXTURES,
   PALACE_WALK,
   palaceDirOf,
+  reducePortraitForSay,
   type PalaceDir,
 } from '../story/ch01-palace';
 import {
@@ -438,6 +439,8 @@ export class Ch01PalaceScene extends UIScene {
     for (const event of events) {
       if (event.type === 'action') this.runAction(event.action);
       else if (event.type === 'say') {
+        // 开口前先把立绘对齐到说话人：数据里漏写换立绘也不会再出现「周全的名字配郑卿的脸」。
+        this.alignPortraitForLine(event.speaker);
         const tone = speakerTone(event.speaker, event.role);
         this.sayTone.value = tone;
         this.saySpeaker.value = speakerLabel(event.speaker);
@@ -621,6 +624,21 @@ export class Ch01PalaceScene extends UIScene {
         if (this.player?.state.waiting && !this.typewriter.typing) this.scheduleAutoAdvance();
       },
     });
+  }
+
+  /**
+   * 立绘对位：每句台词开口前跑一次 `reducePortraitForSay()`。
+   *
+   * 这是**结构性防线**，不是演出细节：谁开口，屏幕上就只能挂谁的立绘。
+   * 数据里显式写的 `portrait` / `portraitHide` act 仍然优先（提前入画、换站位、收脸），
+   * 这里只负责「换人时必须换脸、没立绘的人不许顶别人的脸」。
+   * 契约见 `src/story/ch01-palace.ts` 的 `PALACE_SPEAKER_PORTRAIT`。
+   */
+  private alignPortraitForLine(speaker: string | undefined): void {
+    const currentKey = this.portrait?.currentKey ?? null;
+    const step = reducePortraitForSay(speaker, currentKey ? { key: currentKey } : null);
+    if (step.action === 'show') this.portrait?.show(step.key, step.side);
+    else if (step.action === 'hide') this.portrait?.hide();
   }
 
   private runAction(action: PalaceAction): void {

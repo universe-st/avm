@@ -46,6 +46,70 @@ export const PALACE_TEXTURES = {
 export const XIAOBAI_SPEAKER = '莫名其妙出现的白色小精灵';
 
 /**
+ * 金殿立绘与说话人的对位表（唯一真值）。
+ *
+ * 2026-11-18 用户反馈「这里说话人和贴图没对应」之后的契约：
+ *
+ * - **谁开口，屏幕上就只能是那个人的立绘**；`side` 只是默认站位（贴左 / 贴右），
+ *   场景里显式的 `portrait` act 只用来提前入画、改站位或收脸。
+ * - **旁白不在这张表里**：旁白不换脸，立绘停在上一位说话人身上（否则每句旁白都闪一下）。
+ * - `null` = 这个角色没有半身立绘（矿工只有铁皮骨架的 200×420 贴图），
+ *   开口时把上一张收掉，**不许让上一张脸冒充他**。
+ *
+ * 场景在每句台词开口前调用 `reducePortraitForSay()` 归约，所以就算数据里漏写换立绘，
+ * 也不会再串脸；护栏见 `test/palace-portrait-speaker.test.ts`。
+ */
+export interface PalaceSpeakerPortrait {
+  readonly key: string;
+  readonly side: 'left' | 'right';
+}
+
+export const PALACE_SPEAKER_PORTRAIT: Readonly<Record<string, PalaceSpeakerPortrait | null>> = {
+  周全: { key: PALACE_TEXTURES.portraitZhouPanic, side: 'left' },
+  郑卿: { key: PALACE_TEXTURES.portraitZheng, side: 'right' },
+  楚公公: { key: PALACE_TEXTURES.portraitChu, side: 'left' },
+  侍卫: { key: PALACE_TEXTURES.portraitShiwei, side: 'left' },
+  // 殿前那两个蓝袍壮汉＝后文裂皮的「太监」，共用一张立绘（见 keys.ts 的注释）。
+  太监: { key: PALACE_TEXTURES.portraitShiwei, side: 'left' },
+  [XIAOBAI_SPEAKER]: { key: PALACE_TEXTURES.portraitXiaobai, side: 'right' },
+  // 裂皮之后是铁皮骨架，没有半身立绘：开口时收起上一张，靠世界层贴图演。
+  矿工: null,
+};
+
+/** 一句台词对应立绘该怎么处理；场景与单测共用这一个归约，不存在第二套判定。 */
+export type PalacePortraitStep =
+  | { readonly action: 'keep' }
+  | { readonly action: 'show'; readonly key: string; readonly side: 'left' | 'right' }
+  | { readonly action: 'hide' };
+
+/** 查表：`undefined` = 旁白 / 未登记（保持现状），`null` = 明确无立绘。 */
+export function palacePortraitForSpeaker(
+  speaker: string | undefined,
+): PalaceSpeakerPortrait | null | undefined {
+  if (!speaker) return undefined;
+  if (!Object.prototype.hasOwnProperty.call(PALACE_SPEAKER_PORTRAIT, speaker)) return undefined;
+  return PALACE_SPEAKER_PORTRAIT[speaker];
+}
+
+/**
+ * 台词开口前，把当前立绘对齐到说话人。
+ *
+ * - 同一个人已经在场 → `keep`：保留显式 act 定好的站位，不要每句都从画面边上滑回来；
+ * - 换人 → `show` 该角色的立绘与默认站位；
+ * - 说话人明确没有立绘 → `hide`，宁可空着也不挂别人的脸。
+ */
+export function reducePortraitForSay(
+  speaker: string | undefined,
+  current: { readonly key: string } | null,
+): PalacePortraitStep {
+  const entry = palacePortraitForSpeaker(speaker);
+  if (entry === undefined) return { action: 'keep' };
+  if (entry === null) return current ? { action: 'hide' } : { action: 'keep' };
+  if (current?.key === entry.key) return { action: 'keep' };
+  return { action: 'show', key: entry.key, side: entry.side };
+}
+
+/**
  * 行走 sheet（八方向，每个方向一张横条）。
  *
  * 帧数 16、单帧 200×420，和静态图同一基准（人物高 371、底边 400、中心 100）。
@@ -201,11 +265,9 @@ export const PALACE_BEATS: readonly PalaceBeat[] = [
     speaker: '旁白',
     text: '脸贴着冰凉的地板，你拼命抬头——龙椅旁站着一个瘦高的身影，顶着标志性的黑眼圈。',
   },
-  {
-    kind: 'act',
-    actions: [{ kind: 'portrait', key: PALACE_TEXTURES.portraitChu, side: 'left' }],
-    ms: 220,
-  },
+  // 楚公公的立绘在「有刺客！护驾！！」那句就挂上了（见 `PALACE_SPEAKER_PORTRAIT`），
+  // 这里不再补一拍 `portrait`：上一版就是在这里挂楚公公、紧接着周全开口，
+  // 于是「周全」的名字配着楚老师的脸。立绘对位统一走 `reducePortraitForSay()`。
   { kind: 'say', speaker: '周全', text: '楚……楚老师？！' },
   {
     kind: 'act',
@@ -299,6 +361,13 @@ export const PALACE_BEATS: readonly PalaceBeat[] = [
   },
   { kind: 'say', speaker: '郑卿', text: '你这刺客，好大的胆子！竟敢跟朕称兄道弟起来了？' },
   { kind: 'say', speaker: '周全', text: '谁和你称兄道弟了？你想当我儿子我还不乐意呢！' },
+  {
+    // 周全顶完嘴把镜头交回郑卿：下一句旁白要「看到青筋」、气泡也挂在他头上，
+    // 所以先换回他的脸，别让周全的慌张特写一直挂到郑卿开口（上一版就是这样串的脸）。
+    kind: 'act',
+    actions: [{ kind: 'portrait', key: PALACE_TEXTURES.portraitZheng, side: 'right' }],
+    ms: 240,
+  },
   { kind: 'say', speaker: '旁白', text: '你看到郑卿脸上青筋暴起。' },
   {
     // 旁白说完才冒气泡：先看见青筋、再听见他发火，因果顺序不能倒。
@@ -372,6 +441,9 @@ export const PALACE_BEATS: readonly PalaceBeat[] = [
   {
     kind: 'act',
     actions: [
+      // 太监的立绘由台词对位表自动挂上（`PALACE_SPEAKER_PORTRAIT`）；摔人这一拍把它收掉，
+      // 后面「抬头看去，瞳孔骤然收缩」是全景，不该还贴着一张脸。
+      { kind: 'portraitHide' },
       { kind: 'fx', fx: 'shake' },
       { kind: 'sfx', key: PALACE_ASSET_KEYS.sfx.whoosh, volume: 0.9 },
       { kind: 'move', actor: 'zhou', x: 8.2, y: 35.2, ms: 260 },
