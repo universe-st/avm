@@ -17,7 +17,8 @@
     "check": "pnpm typecheck && pnpm test && pnpm assets:check && pnpm assets:pass",
     "android:sync": "node tools/sync-cordova.mjs",
     "android:debug": "node tools/build-android.mjs --debug",
-    "android:release": "node tools/build-android.mjs --release"
+    "android:release": "node tools/build-android.mjs --release",
+    "smoke:lifecycle": "node tools/lifecycle-smoke.mjs"
   },
   "dependencies": {
     "@phaser-mvvm/core": "workspace:*",

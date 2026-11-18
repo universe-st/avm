@@ -65,6 +65,11 @@ pnpm android:release
 - 改资源：`pnpm assets:check`；确认 `public/assets` 下没有未引用文件。
 - 改 Android：`pnpm android:debug` 出调试包即可；只有用户主动要求时才装模拟器/真机，验「启动到标题、点击开始、返回键」。
 - 改 vendor：`pnpm --filter @phaser-mvvm/phaser test`（在 vendor 包内）或至少 `pnpm typecheck`。
+- 改场景生命周期 / 读档 / 过场回调：`pnpm smoke:lifecycle`（自起临时 vite + 真 Chromium）。
+  A 段验「读档 `restart` 后手机 CG 必须接小白台词」，B 段验「金殿切场清理真的执行、重进复位」，
+  C 段验控制台 0 error。**静态护栏 `test/scene-lifecycle.test.ts` 只能证明接线，不能证明回调真的跑**
+  （金殿的 `shutdown()` 死代码就是这么骗过静态测试的），两者都要跑；需要本机 playwright-core/Chromium，
+  缺依赖时脚本会明确报错而不是静默跳过。
 
 ## 5. 已知坑
 
