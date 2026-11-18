@@ -30,6 +30,7 @@ import { audioDirector, type LoopHandle } from '../audio/audio-director';
 import { typeVoiceForSpeaker } from '../audio/type-voice';
 import { autoAdvanceDelay, resolveReducedMotion, settings, textSpeedFactor } from '../app/settings';
 import { saveProgress } from '../app/progress';
+import { SceneLifecycle } from '../app/scene-lifecycle';
 import { bgmManager } from '../audio/bgm-manager';
 import { SCENE_SILENT } from '../audio/bgm-tracks';
 import {
@@ -240,9 +241,22 @@ export class Ch01DormScene extends UIScene {
   private stateCueCursor = 0;
   /** 手机 CG 的全屏播放句柄；非空时屏蔽场景输入。 */
   private cutscene: CutsceneVideoHandle | null = null;
-  /** 手机 CG 只在第一次「查看手机」时播；重进本节不再打扰。 */
+  /**
+   * 手机 CG 本轮流程只播一次（同一节点被重入时不重复播）。
+   *
+   * 每轮 `create()` 归零：读档/重看本节会重新走过手机节点，那时 CG 必须重新播，
+   * 否则会从「CG 之后」的半截台词开始。
+   */
   private phoneCutsceneSeen = false;
-  private shuttingDown = false;
+  /**
+   * 场景实例的生命周期闩。
+   *
+   * **不能在 SHUTDOWN 里裸存一个布尔**：`scene.restart()`（读档）复用同一个场景实例，
+   * 字段不会重置，`shuttingDown` 一旦为真就永久吞掉之后所有异步回调
+   * （2026-11-18 手机 CG 播完不接小白台词）。这里每轮 `create()` 用 `beginRun()` 换 runId，
+   * 异步回调先 `isLive(runId)`。见 `src/app/scene-lifecycle.ts`。
+   */
+  private readonly lifecycle = new SceneLifecycle();
   private deferred: Ch01Event[] = [];
   private near: InteractableDef | null = null;
   private lastTyped = 0;
@@ -440,11 +454,20 @@ export class Ch01DormScene extends UIScene {
   }
 
   private resetState(): void {
+    /**
+     * 每轮 `create()` 第一次调这里：先开一轮新的运行。
+     *
+     * 必须放在最前面——`scene.restart()`（读档/重看本节）复用的是同一个场景实例，
+     * 上一轮 SHUTDOWN 的收尾标记不清掉，这一轮的所有异步回调都会被误判成「已关闭」。
+     */
+    this.lifecycle.beginRun();
     this.flow = null as unknown as Ch01Flow;
     this.room = BASE_ROOM;
     this.dialogue = null;
     this.dialogueLines = [];
     this.stateCueCursor = 0;
+    // 本轮还没看过手机 CG：读档/重看本节重走手机节点时要重新播（见字段注释）。
+    this.phoneCutsceneSeen = false;
     this.deferred = [];
     this.near = null;
     this.lastTyped = 0;
@@ -967,12 +990,20 @@ export class Ch01DormScene extends UIScene {
    * 只留右上角的「跳过」。素材缺失时直接进对话，不卡流程。
    */
   private startPhoneCutscene(lines: readonly DialogueLine[]): void {
+    /**
+     * 记下本轮运行 id：CG 播完时可能已经换了一局（读档 = `scene.restart()`）。
+     *
+     * 只判 `shuttingDown` 不够——新一轮 `create()` 已经把它复位了，上一局迟到的
+     * `ended`/`skipped` 回调会带着旧台词打进新一局。`isLive(run)` 同时挡「收尾中」
+     * 和「旧一轮」。
+     */
+    const run = this.lifecycle.runId;
     this.joystick?.setEnabled(false);
     this.promptText?.setVisible(false);
     this.interactAvailable.value = false;
     this.cutscene = playCutsceneVideo(this, CH01_ASSET_KEYS.video.phone, (reason) => {
       this.cutscene = null;
-      if (this.shuttingDown) return;
+      if (!this.lifecycle.isLive(run)) return;
       if (reason === 'error') console.warn('[ch01-dorm] 手机 CG 不可用，直接进入对话');
       /**
        * t29 关键点：**CG 结束那一帧**画面就已经是「主角坐在房间中心、小白在右侧」。
@@ -1390,7 +1421,7 @@ export class Ch01DormScene extends UIScene {
    * 不设 `performing`——调用方紧接着就开始对白（对白期间由坐姿独占保证姿态）。
    */
   private applyCompositionNow(timeline: PerformanceTimeline): void {
-    if (this.shuttingDown) return;
+    if (this.lifecycle.shuttingDown) return;
     for (const step of timeline.steps) {
       if (stepDurationMs(step, this.reduced) !== 0) {
         console.warn('[ch01-dorm] 同步构图步骤必须是 0 时长，已跳过', step.kind);
@@ -1413,7 +1444,7 @@ export class Ch01DormScene extends UIScene {
    * 期间 `performing` 为真：不推进对话、不吃输入、不 sync 角色（起身/坐下会直接改 sprite）。
    */
   private startPerformance(timeline: PerformanceTimeline, onDone: () => void): void {
-    if (this.performing || this.shuttingDown) return;
+    if (this.performing || this.lifecycle.shuttingDown) return;
     this.performing = true;
     this.performanceActive.value = true;
     this.cancelAutoAdvance();
@@ -1428,7 +1459,7 @@ export class Ch01DormScene extends UIScene {
       const startAt = at;
       this.performanceTimers.push(
         this.time.delayedCall(startAt, () => {
-          if (this.shuttingDown) return;
+          if (this.lifecycle.shuttingDown) return;
           this.runPerformanceStep(step, duration);
         }),
       );
@@ -1437,7 +1468,7 @@ export class Ch01DormScene extends UIScene {
 
     this.performanceTimers.push(
       this.time.delayedCall(timelineDurationMs(timeline, this.reduced), () => {
-        if (this.shuttingDown) return;
+        if (this.lifecycle.shuttingDown) return;
         this.finishPerformance();
         onDone();
       }),
@@ -2037,7 +2068,7 @@ export class Ch01DormScene extends UIScene {
   }
 
   private onShutdown(): void {
-    this.shuttingDown = true;
+    this.lifecycle.close();
     this.cancelAutoAdvance();
     // 表演：停掉所有延时步骤，白光层必须现在摘掉（DOM 层不会跟着 Phaser 场景消失）。
     this.performing = false;

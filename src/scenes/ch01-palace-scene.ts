@@ -7,6 +7,7 @@ import { applyCamera } from '../app/viewport';
 import { autoAdvanceDelay, resolveReducedMotion, settings } from '../app/settings';
 import { audioDirector } from '../audio/audio-director';
 import { bgmManager } from '../audio/bgm-manager';
+import { SceneLifecycle } from '../app/scene-lifecycle';
 import { PALACE_ASSET_KEYS } from '../assets/keys';
 import { isStageLaunchContext, stageParam } from '../dev/stage-types';
 import { LAYERS, characterDepth } from '../render/layers';
@@ -115,7 +116,8 @@ export class Ch01PalaceScene extends UIScene {
   /** 右上角图标菜单。金殿是纯演出：菜单只提供音量/返回标题/读档，保存项禁用。 */
   private menuModal: ModalHandle | null = null;
   private autoTimer: Phaser.Time.TimerEvent | null = null;
-  private shuttingDown = false;
+  /** 见 `src/app/scene-lifecycle.ts`：每轮 `create()` 复位，回调先验 runId。 */
+  private readonly lifecycle = new SceneLifecycle();
   private readonly history = new DialogueHistory();
   /** 当前这句的逐字状态；say 事件进入时 start，点击补全/打完/跳过时清干净。 */
   private readonly typewriter = new Typewriter();
@@ -167,7 +169,8 @@ export class Ch01PalaceScene extends UIScene {
     this.shadows.clear();
     this.shadowOffsets.clear();
     this.transitioning = false;
-    this.shuttingDown = false;
+    // 金殿也会被 `scene.restart()` / 重进复用同一个实例：先开一轮新运行。
+    this.lifecycle.beginRun();
 
     applyCamera(this);
     this.cameras.main.setBackgroundColor('#08060a');
@@ -207,7 +210,7 @@ export class Ch01PalaceScene extends UIScene {
   }
 
   shutdown(): void {
-    this.shuttingDown = true;
+    this.lifecycle.close();
     this.cancelAutoAdvance();
     this.typewriter.reset();
     this.lastTyped = 0;
@@ -516,7 +519,7 @@ export class Ch01PalaceScene extends UIScene {
    * 每帧推进逐字。历史弹窗/切场/收尾期间不喂 delta，等于就地暂停。
    */
   private advanceTypewriter(deltaMs: number): void {
-    if (this.shuttingDown || this.transitioning) return;
+    if (this.lifecycle.shuttingDown || this.transitioning) return;
     if (this.historyModal?.open === true) return;
     const step = this.typewriter.tick(deltaMs);
     if (step === null) return;
@@ -576,7 +579,7 @@ export class Ch01PalaceScene extends UIScene {
   /** 金殿的台词逐字打完后再停留；停留时长按字数估算，从打完那一刻开始计时。 */
   private scheduleAutoAdvance(): void {
     this.cancelAutoAdvance();
-    if (this.shuttingDown) return;
+    if (this.lifecycle.shuttingDown) return;
     if (!settings.autoAdvance || !this.player || this.transitioning) return;
     // 打字中不计时：打完那一帧会再次调到这里。
     if (this.typewriter.typing) return;

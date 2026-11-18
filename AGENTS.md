@@ -68,6 +68,13 @@ pnpm android:release
 
 ## 5. 已知坑
 
+- **场景实例在 `scene.restart()`（菜单读档）与「离开后再次进入」时是同一个对象，类字段不会重置。**
+  `SHUTDOWN` 里置位的生命周期闩（旧写法 `private shuttingDown`）必须在新一轮 `create()` 复位；否则这个实例
+  之后的所有异步回调都会被永久判成「场景已关闭」。2026-11-18 的「寝室读档后手机 CG 播完不接小白台词、
+  直接变自由行动」就是它，同一个闩还吞掉了战后「坐 → 站」起身表演（去金殿时寝室已 SHUTDOWN）。
+  现在统一用 `src/app/scene-lifecycle.ts` 的 `SceneLifecycle`：`create()`（寝室是 `resetState()`）里
+  `beginRun()`、SHUTDOWN 里 `close()`、异步回调先 `isLive(runId)`；`test/scene-lifecycle.test.ts`
+  会拦住返祖成裸 `shuttingDown` 布尔，以及忘记接线。
 - `cordova/config.xml` 的 `BackgroundColor` 必须 `#RRGGBB`，写 `0xff...` 会让 AAPT 报 `raw string`。
 - Android 首次启动 WebView 可能超过默认 20s 加载超时；已把 `LoadUrlTimeoutValue` 设 120000。
 - 系统「Viewing full screen」提示会盖住应用，点 Got it 后才是游戏。

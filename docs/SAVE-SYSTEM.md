@@ -184,10 +184,11 @@ this.applyRestoredBgm();       // 2. 存档里的 BGM 显式补播
 | canSave 判定表（每个 phase × 对话/表演/过场/切场/章节卡/结束/弹窗/预览）与规则顺序 | `test/save-availability.test.ts`（9） |
 | flow 快照往返 / 快照优先 resume / 非法快照回退 / 旧调用兼容 | `test/ch01-flow-snapshot.test.ts`（7） |
 | 落点精确/越界/压墙回退、两种脚盒、BGM 恢复决策、寝室快照、标题读档路由 | `test/save-restore-plan.test.ts`（16） |
+| 场景生命周期闩（读档 `restart` 后回调不许失效、旧轮回调不许串进新局） | `test/scene-lifecycle.test.ts`（8） |
 
 ```bash
 pnpm vitest run test/save-schema.test.ts test/save-store.test.ts test/save-availability.test.ts \
-  test/ch01-flow-snapshot.test.ts test/save-restore-plan.test.ts
+  test/ch01-flow-snapshot.test.ts test/save-restore-plan.test.ts test/scene-lifecycle.test.ts
 pnpm typecheck
 ```
 
@@ -217,5 +218,6 @@ pnpm typecheck
 | --- | --- | --- |
 | 御膳房点菜单"没反应"（其实弹窗已打开，只是画在屏幕外） | 御膳房的相机跟随玩家滚动，而 `mvvm.modal` 生成的模态层默认走 world 空间；`appliedRect` 是层内坐标，点到的是屏幕上的空处 | `openGameMenu()` / `openLoadSlotsModal()` 打开后 `modal.widget.setScrollFactor(0)`（与 `kitchen-modals.ts` 既有做法一致） |
 | 寝室读档后目标/叫醒状态/BGM 全是默认值 | `init()` 读到 `restore`，但 `create()` 开头 `resetState()` 把 `this.restore = null` 清掉了 | `resetState()` 不再清 `restore`（`init()` 每轮都会重新赋值）；仓里注释写明原因，防回归 |
+| 读档后「查看手机」：CG 播完不接小白台词，一直自由行动（小白也不出现） | `scene.restart()`（菜单读档走的就是它）复用同一个场景实例；`SHUTDOWN` 里置位的 `shuttingDown = true` 从未在下一轮 `create()` 复位 → 手机 CG 的 `onDone` 被 `if (this.shuttingDown) return` 永久吞掉。同一个闩还吞掉了战后「坐 → 站」起身表演（离开寝室去金殿时寝室已经 SHUTDOWN） | 生命周期闩改由 `src/app/scene-lifecycle.ts` 的 `SceneLifecycle` 管理：`create()`（寝室是 `resetState()`）里 `beginRun()` 换 runId、SHUTDOWN 里 `close()`、异步回调先 `isLive(runId)`；`phoneCutsceneSeen` 一并按轮清零（读档后重走手机节点要重新播 CG）。护栏 `test/scene-lifecycle.test.ts` |
 
-后续加"任意场景菜单"时，这两条都会原样复现——尤其第二条：**`init()` 读到的启动数据不要在 `create()` 里清**。
+后续加"任意场景菜单"或新的跨帧回调（视频/CG/延时表演）时，这三条都会原样复现——尤其第二条：**`init()` 读到的启动数据不要在 `create()` 里清**；第三条：**重新 `create()` 之后，上一轮排的回调还该生效吗？**
