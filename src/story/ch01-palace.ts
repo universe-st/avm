@@ -33,6 +33,7 @@ export const PALACE_TEXTURES = {
   portraitXiaobai: PALACE_ASSET_KEYS.characters.portraitXiaobai,
   portraitZhouPanic: PALACE_ASSET_KEYS.characters.portraitZhouPanic,
   portraitShiwei: PALACE_ASSET_KEYS.characters.portraitShiwei,
+  portraitMiner: PALACE_ASSET_KEYS.characters.portraitMiner,
 } as const;
 
 /**
@@ -53,8 +54,8 @@ export const XIAOBAI_SPEAKER = '莫名其妙出现的白色小精灵';
  * - **谁开口，屏幕上就只能是那个人的立绘**；`side` 只是默认站位（贴左 / 贴右），
  *   场景里显式的 `portrait` act 只用来提前入画、改站位或收脸。
  * - **旁白不在这张表里**：旁白不换脸，立绘停在上一位说话人身上（否则每句旁白都闪一下）。
- * - `null` = 这个角色没有半身立绘（矿工只有铁皮骨架的 200×420 贴图），
- *   开口时把上一张收掉，**不许让上一张脸冒充他**。
+ * - `null` = 这个角色没有半身立绘，开口时把上一张收掉，**不许让上一张脸冒充他**
+ *   （矿工 2026-11-18 起有 `portrait_miner` 了；这张表的 null 语义保留给以后的新角色）。
  *
  * 场景在每句台词开口前调用 `reducePortraitForSay()` 归约，所以就算数据里漏写换立绘，
  * 也不会再串脸；护栏见 `test/palace-portrait-speaker.test.ts`。
@@ -72,8 +73,8 @@ export const PALACE_SPEAKER_PORTRAIT: Readonly<Record<string, PalaceSpeakerPortr
   // 殿前那两个蓝袍壮汉＝后文裂皮的「太监」，共用一张立绘（见 keys.ts 的注释）。
   太监: { key: PALACE_TEXTURES.portraitShiwei, side: 'left' },
   [XIAOBAI_SPEAKER]: { key: PALACE_TEXTURES.portraitXiaobai, side: 'right' },
-  // 裂皮之后是铁皮骨架，没有半身立绘：开口时收起上一张，靠世界层贴图演。
-  矿工: null,
+  // 裂皮之后的矿工（铁皮骨架）：以 miner.png 为身份基准的半身立绘（2026-11-18 补图）。
+  矿工: { key: PALACE_TEXTURES.portraitMiner, side: 'left' },
 };
 
 /** 一句台词对应立绘该怎么处理；场景与单测共用这一个归约，不存在第二套判定。 */

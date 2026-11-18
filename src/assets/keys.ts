@@ -70,6 +70,14 @@ export const PALACE_ASSET_KEYS = {
      * 只在「郑卿喝令拖出午门 → 侍卫：是！」这一拍出场，说完立刻 `portraitHide`。
      */
     portraitShiwei: 'img.char.palace.portrait_shiwei',
+    /**
+     * 矿工（裂皮后的铁皮骨架）半身立绘（720×900 RGBA、透明底）。
+     *
+     * 以 `miner.png` 精灵图为身份基准生成：圆盔头、猩红怒目、蓝色关节环/核心、带锈深灰铁皮。
+     * 台词「入侵单元确认！执行矿场清除协议！」按 `PALACE_SPEAKER_PORTRAIT` 自动上脸（左侧）。
+     * 2026-11-18 前它没有立绘、开口留空；补图后与侍卫同一套对位管线。
+     */
+    portraitMiner: 'img.char.palace.portrait_miner',
   },
   sfx: {
     ambience: 'audio.sfx.palace.ambience',

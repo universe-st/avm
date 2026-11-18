@@ -515,6 +515,22 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
 - 验收：`test/palace-five-items.test.ts` 的「金殿半身立绘：通用规格」现场解码每张立绘（720×900 / RGBA / 四角透明 / 左右不贴边 / 纵向 ≥700），`test/palace-script-order.test.ts` 锁「侍卫立绘在开口前弹出、说完收起、左侧入画」。
 - 复核：上架前按火山方舟商用条款复核，商店页注明「AI 生成美术」。
 
+## 11.17 矿工半身立绘（2026-11-18，t55）
+
+用户要求：矿工台词「入侵单元确认！执行矿场清除协议！」按立绘对位表一直留空，补一张对话贴图。
+
+- 文件：`public/assets/img/character/palace/portrait_miner.png`（720×900 RGBA、透明底、936 KB），内容包围盒 696×826（左右各留 12px 透明边，头顶贴画布上沿）。
+- 来源：游戏素材大师 · 图片生成（火山方舟 `doubao-seedream-5-0-flash-260915`，1024×1280，`watermark: false`，1 张/次）
+  - 任务：`imwm6ih20c57547`（`palace-矿工-铁皮骨架-半身立绘-t55`），1 张出图，采用 `out/img-00.png` → `keyed/img-00.png`
+- 参考图（`node .evidence/scripts/add-image-refs.mjs` 拷进 `refs/`）：
+  - `palace/miner.png`（身份基准：圆盔头、猩红怒目、带锈深灰铁皮、蓝色关节环与核心）
+  - `palace/portrait_chu.png`、`palace/portrait_zheng.png`（画风/构图基准）
+- 提示词要点：以 miner 精灵图为唯一身份基准 → 纯绿 `#00FF00` 一整片、无阴影/渐变 → 国风 HD-2D 手绘赛璐璐、粗深色描边 → 胸口以上入画、头占 ~45-50%、正面略偏 3/4 微低头（压迫感）→ 猩红双眼点亮、无嘴、液压肩杆耸起 → 只画一个机器人、禁止文字/水印/第二个人。
+- 后期：`keyImageJob`（`keyColor #00FF00 / keyLow 14 / keyHigh 80 / despill 0.65 / edgeShrink 0 / bgTolerance 0`）→ `tools/make-palace-portrait.py --margin-x 12`。铁皮是深灰但大面积不是纯深蓝，`bgTolerance 0` 照旧安全。
+- 代码注册：`src/assets/keys.ts` 的 `PALACE_ASSET_KEYS.characters.portraitMiner`、`src/assets/bundles.ts` 的 `cutscene.ch01palace`（budgetKB 由 9216 调到 10240）；`src/story/ch01-palace.ts` 对位表 `矿工: { key: PALACE_TEXTURES.portraitMiner, side: 'left' }`。
+- 验收：`test/palace-five-items.test.ts`（`ALL_PORTRAITS` 加 `portrait_miner.png`，尺寸/透明底/登记自动覆盖）、`test/palace-portrait-speaker.test.ts`（矿工两句开口必须挂 `portraitMiner`）；实机脚本 `.evidence/scripts/verify-palace-portraits.mjs` 全段对位复核。
+- 复核：上架前按火山方舟商用条款复核，商店页注明「AI 生成美术」。
+
 ## 12. 御膳房 P2 B1 地图风格样张（2026-10-31）
 
 - 生成：游戏素材大师 · 图片生成，`doubao-seedream-5-0-flash-260915`，自动审核；仅作 B2 拼合风格基准，未直接进游戏。

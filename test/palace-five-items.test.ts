@@ -432,6 +432,7 @@ const ALL_PORTRAITS = [
   'portrait_xiaobai.png',
   'portrait_zhou_panic.png',
   'portrait_shiwei.png',
+  'portrait_miner.png',
 ] as const;
 
 const portraitKeyOf = (file: string): string => `img.char.palace.${file.replace(/\.png$/, '')}`;

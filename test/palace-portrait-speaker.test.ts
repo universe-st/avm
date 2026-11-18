@@ -16,10 +16,10 @@ import type { PalaceBeat, PalaceSay } from '../src/story/palace-player';
  * 2026-11-18 用户截图反馈：底部说话人写「周全」，屏幕上却挂着郑卿（黄龙袍小皇帝）的立绘。
  * 根因不是某一句写错，而是**立绘全靠 act 拍手动换**：郑卿说完、周全接话时没人换回来，
  * 于是上一句的脸一直挂着。同类隐患还有「楚……楚老师？！」（挂的是楚公公的脸）、
- * 太监开口时没有立绘。
+ * 太监开口时没有立绘、矿工（已补 `portrait_miner`）。
  *
  * 现在的契约（`src/story/ch01-palace.ts`）：
- *   1. 每个有立绘的说话人都在 `PALACE_SPEAKER_PORTRAIT` 里明确表态；
+ *   1. 每个说话人都在 `PALACE_SPEAKER_PORTRAIT` 里明确表态（有立绘给 key，没有给 null）；
  *   2. 每句台词开口前跑 `reducePortraitForSay()`——换人必须换脸，没立绘的人不许顶别人的脸；
  *   3. 场景把这条归约接在 say 分支上（静态断言），数据漏写也不会串脸。
  *
@@ -86,11 +86,23 @@ describe('金殿：每句台词开口时，立绘就是说话人本人', () => {
     expect(wrong).toEqual([]);
   });
 
-  it('明确没有立绘的说话人（矿工）：开口时不许挂着上一张脸', () => {
+  it('矿工（裂皮后的铁皮骨架）：有自己的立绘，开口时必须挂 portrait_miner', () => {
     const minerLines = lines.filter((line) => line.speaker === '矿工');
     expect(minerLines.length).toBeGreaterThan(0);
     for (const line of minerLines) {
-      expect(line.portrait, `矿工「${line.text}」开口时还挂着别人的立绘`).toBeNull();
+      expect(line.portrait?.key, `矿工「${line.text}」开口时立绘不对`).toBe(
+        PALACE_TEXTURES.portraitMiner,
+      );
+    }
+  });
+
+  it('对位表里 null 只会出现在「台词里没人开口」的角色身上（矿工已补图）', () => {
+    const nullSpeakers = Object.entries(PALACE_SPEAKER_PORTRAIT)
+      .filter(([, entry]) => entry === null)
+      .map(([speaker]) => speaker);
+    for (const speaker of nullSpeakers) {
+      const saysSomething = lines.some((line) => line.speaker === speaker);
+      expect(saysSomething, `${speaker} 在表里是 null 却有台词开口`).toBe(false);
     }
   });
 
@@ -137,6 +149,12 @@ describe('金殿：2026-11-18 实机串脸的那几句（回归）', () => {
     const lines = playPortraits().filter((line) => line.speaker === XIAOBAI_SPEAKER);
     expect(lines.length).toBe(2);
     for (const line of lines) expect(line.portrait?.key).toBe(PALACE_TEXTURES.portraitXiaobai);
+  });
+
+  it('矿工「入侵单元确认！」挂矿工立绘（左侧）', () => {
+    const line = byText('入侵单元确认');
+    expect(line.speaker).toBe('矿工');
+    expect(line.portrait?.key).toBe(PALACE_TEXTURES.portraitMiner);
   });
 
   it('周全顶完嘴之后镜头交回郑卿：「青筋暴起」这句时挂郑卿，气泡也才落在他头上', () => {

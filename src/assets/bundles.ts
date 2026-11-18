@@ -419,8 +419,9 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
     id: 'cutscene.ch01palace',
     // 2026-11-17：加了两张 720×900 半身立绘（小白 / 周全慌张），实测约 7.1 MB，按实际登记。
     // 2026-11-18：再加一张侍卫立绘（820 KB），实测约 7.9 MB → 9216。
+    // 2026-11-18：再加矿工立绘（936 KB），实测约 8.9 MB → 10240。
     // 立绘是唯一值得的大图（贴屏幕右侧放大到 155 设计 px，缩到 1024 宽会糊）。
-    budgetKB: 9216,
+    budgetKB: 10240,
     dependsOn: ['core'],
     assets: [
       {
@@ -494,6 +495,14 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         kind: 'image',
         url: 'assets/img/character/palace/portrait_shiwei.png',
         label: '侍卫 · 半身立绘',
+        tags: ['character', 'portrait'],
+      },
+      {
+        // 矿工（裂皮后的铁皮骨架）半身立绘：以 miner.png 为身份基准，720×900 RGBA 透明底。
+        key: 'img.char.palace.portrait_miner',
+        kind: 'image',
+        url: 'assets/img/character/palace/portrait_miner.png',
+        label: '矿工 · 半身立绘',
         tags: ['character', 'portrait'],
       },
       {
