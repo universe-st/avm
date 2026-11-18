@@ -172,3 +172,66 @@ export function palaceShadowFor(
 
   return { width, height, alpha: style.alpha, offsetX, offsetY, footprint };
 }
+
+// ---------------------------------------------------------------- 头顶（表情气泡）
+
+/**
+ * 表情气泡的「头顶」对位表。
+ *
+ * 气泡的尾巴要落在人物头上，但**头顶不等于落点上方一个固定值**：站姿的人顶到画布第 29 行，
+ * 跪着的周全只到第 150 行（差 60 设计 px）。以前按「落点上方 186」写死，跪姿的气泡会飘到
+ * 天花板上去。
+ *
+ * 数字的取法（与阴影同一套 alpha 口径）：不透明像素先按 `PALACE_ALPHA_CUTOFF` 过滤，
+ * 取最上一行 `topY`，再取最上面 12 行不透明像素的水平中心 `centerX`（侧身/跪姿的头会偏离中线）。
+ * `test/palace-shadow.test.ts` 会现场重算这两列并对表，换贴图重跑测量即可，不许手调。
+ */
+export interface PalaceHeadAnchor {
+  /** 贴图文件名，测试据此回读 PNG 像素。 */
+  readonly file: string;
+  /** 不透明像素最上一行（画布 y，0 起）。 */
+  readonly topY: number;
+  /** 最上面 12 行不透明像素的水平中心（画布 x）。 */
+  readonly centerX: number;
+}
+
+const HEAD_ROWS: ReadonlyArray<readonly [string, PalaceHeadAnchor]> = [
+  [key('zhou_kneel_up.png'), { file: 'zhou_kneel_up.png', topY: 150, centerX: 111.5 }],
+  [key('zhou_kneel_down.png'), { file: 'zhou_kneel_down.png', topY: 150, centerX: 104.9 }],
+  [key('zheng_emperor_down.png'), { file: 'zheng_emperor_down.png', topY: 29, centerX: 98.5 }],
+  [key('zheng_emperor_left.png'), { file: 'zheng_emperor_left.png', topY: 29, centerX: 82.8 }],
+  [key('zheng_emperor_right.png'), { file: 'zheng_emperor_right.png', topY: 29, centerX: 115.9 }],
+  [key('chu_gonggong_down.png'), { file: 'chu_gonggong_down.png', topY: 29, centerX: 89.5 }],
+  [key('eunuch_down.png'), { file: 'eunuch_down.png', topY: 29, centerX: 98.7 }],
+  [key('eunuch_crack.png'), { file: 'eunuch_crack.png', topY: 114, centerX: 96.8 }],
+  [key('miner.png'), { file: 'miner.png', topY: 152, centerX: 99.1 }],
+];
+
+export const PALACE_HEAD_ANCHORS: ReadonlyMap<string, PalaceHeadAnchor> = new Map(HEAD_ROWS);
+
+/** 兜底：行走 sheet / 未登记贴图按站姿（顶到第 29 行、水平居中）算。 */
+const FALLBACK_HEAD: PalaceHeadAnchor = { file: '', topY: 29, centerX: PALACE_FRAME.width / 2 };
+
+export interface PalaceHeadPoint {
+  /** 相对角色落点（`toPixel()` 给的 x/y）的偏移，设计 px；气泡锚点就取这里。 */
+  readonly offsetX: number;
+  readonly offsetY: number;
+  readonly head: PalaceHeadAnchor | null;
+}
+
+/** 按贴图算「头顶中心」相对落点的偏移；世界层缩放/平移由调用方再套一层。 */
+export function palaceHeadPointFor(
+  textureKey: string,
+  opts: { scale: number; flipX?: boolean },
+): PalaceHeadPoint {
+  const head = PALACE_HEAD_ANCHORS.get(textureKey) ?? null;
+  const shape = head ?? FALLBACK_HEAD;
+  const scale = Math.max(0.01, opts.scale);
+  return {
+    offsetX: round2(
+      ((shape.centerX - PALACE_FRAME.width / 2) * scale) * (opts.flipX === true ? -1 : 1),
+    ),
+    offsetY: round2((shape.topY - PALACE_FOOT_ANCHOR_Y) * scale),
+    head,
+  };
+}

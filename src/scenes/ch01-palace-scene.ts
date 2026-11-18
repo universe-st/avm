@@ -18,6 +18,7 @@ import { openGameMenu } from '../ui/game-menu';
 import { evaluateSaveAvailability } from '../app/save/save-availability';
 import { restoreSaveFromScene } from '../app/save/load';
 import { CinematicDirector } from '../ui/cinematic-director';
+import { EmotionBubble } from '../ui/emotion-bubble';
 import { PortraitLayer } from '../ui/portrait-layer';
 import {
   addDustMotes,
@@ -35,6 +36,7 @@ import {
   speakerLabel,
   speakerTone,
   type DialogueRole,
+  type EmotionKind,
   type SpeakerTone,
 } from '../story/dialogue';
 import { Typewriter, typewriterIntervalMs, type TypewriterStep } from '../story/typewriter';
@@ -53,9 +55,10 @@ import {
   PalacePlayer,
   type PalaceAction,
   type PalaceActorId,
+  type PalaceEmotionTarget,
   type PalaceEvent,
 } from '../story/palace-player';
-import { PALACE_ACTOR_SCALE, palaceShadowFor } from './ch01-palace-shadow';
+import { PALACE_ACTOR_SCALE, palaceHeadPointFor, palaceShadowFor } from './ch01-palace-shadow';
 
 /** 金殿房间：33×54 格，和寝室同一套坐标口径（设计宽 720）。 */
 const PALACE_ROOM = {
@@ -105,6 +108,8 @@ export class Ch01PalaceScene extends UIScene {
   private readonly walking = new Map<PalaceActorId, { timer: Phaser.Time.TimerEvent; base: string }>();
   private director: CinematicDirector | null = null;
   private portrait: PortraitLayer | null = null;
+  /** 郑卿愤怒 / 周全震惊的表情气泡（世界层，跟着镜头推拉）。 */
+  private emotionBubble: EmotionBubble | null = null;
   /** 世界层（地图 + 角色）：镜头推拉通过缩放它实现，不碰相机，所以 DOM/Compose 的对话框不会被带走。 */
   private worldRoot: Phaser.GameObjects.Container | null = null;
   private roomOriginY = 96;
@@ -186,6 +191,7 @@ export class Ch01PalaceScene extends UIScene {
     this.worldRoot = this.add.container(0, 0).setDepth(LAYERS.background);
     this.director = new CinematicDirector(this, this.reduced, this.worldRoot);
     this.portrait = new PortraitLayer(this, this.reduced);
+    this.emotionBubble = new EmotionBubble(this, this.reduced);
     this.createRoom();
     this.createActors();
     this.installInput();
@@ -236,6 +242,8 @@ export class Ch01PalaceScene extends UIScene {
     audioDirector.stopAllLoops();
     this.portrait?.destroy();
     this.portrait = null;
+    this.emotionBubble?.destroy();
+    this.emotionBubble = null;
     this.stageFrame?.destroy();
     this.stageFrame = null;
     for (const fx of this.ambientFx) fx.destroy();
@@ -644,6 +652,9 @@ export class Ch01PalaceScene extends UIScene {
       case 'portraitHide':
         this.portrait?.hide();
         return;
+      case 'emotion':
+        this.showEmotionBubble(action.by, action.emotion);
+        return;
       case 'sfx': {
         audioDirector.playSfxAt(action.key, {
           ...(action.volume === undefined ? {} : { volume: action.volume }),
@@ -773,6 +784,27 @@ export class Ch01PalaceScene extends UIScene {
       default:
         return;
     }
+  }
+
+  /**
+   * 在世界层角色的头顶冒一个表情气泡。
+   *
+   * 气泡自己挂在场景根节点（`EmotionBubble` 内部建 container），角色却在 `worldRoot` 里；
+   * 过场推拉只缩放/平移 `worldRoot`（`CinematicDirector.zoomWorld`，不动相机），
+   * 所以角色的世界层坐标要手动过一遍同一个变换，否则镜头一推气泡就离开头顶。
+   * 气泡本身**不跟缩放**：它是「信息」，不是「世界里的物体」。
+   */
+  private showEmotionBubble(by: PalaceEmotionTarget, emotion: EmotionKind): void {
+    const actor = this.actors.get(by);
+    const bubble = this.emotionBubble;
+    if (!actor || !bubble || !actor.visible) return;
+    const head = palaceHeadPointFor(actor.texture.key, { scale: ACTOR_SCALE, flipX: actor.flipX });
+    const root = this.worldRoot;
+    const scale = root?.scaleX ?? 1;
+    const x = (root?.x ?? 0) + (actor.x + head.offsetX) * scale;
+    const y = (root?.y ?? 0) + (actor.y + head.offsetY) * scale;
+    // 1100ms：够玩家看清，又不会拖到下一句台词还在头上挂着。
+    bubble.show(emotion, x, y, 1100);
   }
 
   private finish(): void {

@@ -225,7 +225,9 @@ export const CH01_NODES: Readonly<Record<Ch01NodeId, Ch01Node>> = {
     repeatable: true,
     lines: [
       { speaker: '旁白', text: '桌上摊着一本旧平装武侠小说，翻到折角那页。' },
-      { speaker: '周全', text: '主角正被反派按在地上……你突然不想看了。' },
+      // 2026-11-18 用户改稿：原来吐槽的是小说情节（「主角正被反派按在地上……」），
+      // 改成被老郑的呼噜打断读书，和「叫醒郑卿」这个目标咬上。
+      { speaker: '周全', text: '老郑呼噜打的震天响，搞得我一个字也看不进去。' },
     ],
   },
   window: {

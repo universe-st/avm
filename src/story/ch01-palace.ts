@@ -32,6 +32,7 @@ export const PALACE_TEXTURES = {
   portraitChu: PALACE_ASSET_KEYS.characters.portraitChu,
   portraitXiaobai: PALACE_ASSET_KEYS.characters.portraitXiaobai,
   portraitZhouPanic: PALACE_ASSET_KEYS.characters.portraitZhouPanic,
+  portraitShiwei: PALACE_ASSET_KEYS.characters.portraitShiwei,
 } as const;
 
 /**
@@ -271,8 +272,9 @@ export const PALACE_BEATS: readonly PalaceBeat[] = [
     text: '陛下饶命！陛下饶命啊！臣罪该万死！求陛下开恩，饶了奴才这条贱命吧！',
   },
   {
-    // 周全被两个太监按在地板上、抬不起头，只能嘴硬：收掉楚公公的立绘，
-    // 换成周全被按跪、脸被压得微微上仰的慌张特写（另一侧入画，动静才分得开）。
+    // 周全被两个蓝袍壮汉（殿前侍卫，后文裂皮的「太监」是同一对）按在地板上、抬不起头：
+    // 先给「被按跪、脸被压得微微上仰」的慌张特写，接他心里的那两句吐槽
+    // （括号＝心里话，和寝室开场独白同一套写法）。@see docs/STORY-BIBLE.md
     kind: 'act',
     actions: [
       { kind: 'portraitHide' },
@@ -280,9 +282,58 @@ export const PALACE_BEATS: readonly PalaceBeat[] = [
     ],
     ms: 240,
   },
-  { kind: 'say', speaker: '周全', text: '你不是罪该万死吗，饶什么命啊？' },
-  // 同一个人接着喊，立绘**不换**：换手会打断「一口气骂完」的节奏。
-  { kind: 'say', speaker: '周全', text: '你爸知道你这么牛x吗？！' },
+  { kind: 'say', speaker: '周全', text: '（……你不是罪该万死吗，饶什么命啊？）' },
+  { kind: 'say', speaker: '周全', text: '（……不对不对，是吐槽这个的时候吗？）' },
+  // 从「心里吐槽」转成「当面喊」：立绘不换，还是那张被按着抬头的脸。
+  { kind: 'say', speaker: '周全', text: '老郑！你到底什么情况？！' },
+  {
+    // 郑卿接话：他还没认出这是自己的死党，只觉得一个刺客在跟他攀交情。
+    // 换立绘（不是换贴图）：周全的脸收掉，换成右侧的郑卿，镜头再推近一点压住对话。
+    kind: 'act',
+    actions: [
+      { kind: 'portraitHide' },
+      { kind: 'portrait', key: PALACE_TEXTURES.portraitZheng, side: 'right' },
+      { kind: 'camera', zoom: 1.14, ms: 420 },
+    ],
+    ms: 260,
+  },
+  { kind: 'say', speaker: '郑卿', text: '你这刺客，好大的胆子！竟敢跟朕称兄道弟起来了？' },
+  { kind: 'say', speaker: '周全', text: '谁和你称兄道弟了？你想当我儿子我还不乐意呢！' },
+  { kind: 'say', speaker: '旁白', text: '你看到郑卿脸上青筋暴起。' },
+  {
+    // 旁白说完才冒气泡：先看见青筋、再听见他发火，因果顺序不能倒。
+    // 气泡挂在**世界层里的郑卿头上**（见 `ch01-palace-scene.ts` 的 `showEmotionBubble`）。
+    kind: 'act',
+    actions: [{ kind: 'emotion', by: 'zheng', emotion: 'angry' }],
+    ms: 420,
+  },
+  { kind: 'say', speaker: '郑卿', text: '……哼，真是不知天高地厚！拖出午门，砍了吧！' },
+  {
+    // 侍卫应命：殿前那两个蓝袍壮汉（后文裂皮时说的「太监」是同一对）有自己的立绘。
+    kind: 'act',
+    actions: [
+      { kind: 'portraitHide' },
+      { kind: 'portrait', key: PALACE_TEXTURES.portraitShiwei, side: 'left' },
+    ],
+    ms: 240,
+  },
+  { kind: 'say', speaker: '侍卫', text: '是！' },
+  // 「是！」说完立刻收脸：下一句旁白要回到「被两边架住往外拖」的画面。
+  { kind: 'act', actions: [{ kind: 'portraitHide' }], ms: 200 },
+  { kind: 'say', speaker: '旁白', text: '你只感觉边上两个侍卫狠狠拉扯你的双臂，就要把你拽出去。' },
+  {
+    // 周全的震惊气泡在旁白之后、他爆发之前。同上，挂在世界层的角色头上。
+    kind: 'act',
+    actions: [{ kind: 'emotion', by: 'zhou', emotion: 'surprised' }],
+    ms: 420,
+  },
+  {
+    // 换回开头那张「被按跪的慌张特写」，接他最后的爆发（和第一张同一张图，不另做一张）。
+    kind: 'act',
+    actions: [{ kind: 'portrait', key: PALACE_TEXTURES.portraitZhouPanic, side: 'left' }],
+    ms: 240,
+  },
+  { kind: 'say', speaker: '周全', text: '疯了吧你？！你在这儿玩什么cosplay！你爸知道你这么牛x吗？' },
   {
     kind: 'act',
     actions: [
@@ -294,6 +345,7 @@ export const PALACE_BEATS: readonly PalaceBeat[] = [
     ms: 900,
   },
   {
+    // 紧接上一句「你爸知道你这么牛x吗？」——中间不再插任何台词，震完就是这句旁白。
     kind: 'say',
     speaker: '旁白',
     text: '轰隆——整座大殿像地震一样剧烈一晃，龙椅上的皇帝瞬间石化，脸上那丝满足的笑僵住了。',

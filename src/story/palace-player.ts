@@ -12,9 +12,13 @@
  */
 
 import type { BgmId } from '../audio/bgm-tracks';
+import type { EmotionKind } from './dialogue';
 
 export type PalaceActorId = 'zhou' | 'zheng' | 'chu' | 'eunuchLeft' | 'eunuchRight' | 'miner';
 export type PalaceFx = 'flash' | 'flashRed' | 'shake' | 'rumble';
+
+/** 金殿里会冒表情气泡的人：只有跪着的周全和台阶下的郑卿（小白没有可见身体）。 */
+export type PalaceEmotionTarget = 'zhou' | 'zheng';
 
 export type PalaceAction =
   | { readonly kind: 'spawn'; readonly actor: PalaceActorId; readonly x: number; readonly y: number }
@@ -39,6 +43,18 @@ export type PalaceAction =
   | { readonly kind: 'hitstop'; readonly ms?: number }
   | { readonly kind: 'portrait'; readonly key: string; readonly side?: 'left' | 'right' }
   | { readonly kind: 'portraitHide' }
+  /**
+   * 角色头顶的表情气泡。
+   *
+   * 金殿的主干是舞台调度，气泡是「演出中按节拍冒一下」，不是台词行 cue（`DialogueLine.emotion`
+   * 那条链路只属于地图对话）。所以它是一条独立 action：可以插在两拍台词之间，
+   * 顺序就是剧本里写的顺序（先「你看到郑卿脸上青筋暴起」，再冒愤怒气泡，再开口）。
+   */
+  | {
+      readonly kind: 'emotion';
+      readonly by: PalaceEmotionTarget;
+      readonly emotion: EmotionKind;
+    }
   | {
       readonly kind: 'sfx';
       readonly key: string;

@@ -9,8 +9,10 @@ import {
   PALACE_FOOTPRINTS,
   PALACE_FOOT_ANCHOR_Y,
   PALACE_FRAME,
+  PALACE_HEAD_ANCHORS,
   PALACE_SHADOW_STYLE,
   palaceFootprintOf,
+  palaceHeadPointFor,
   palaceShadowFor,
 } from '../src/scenes/ch01-palace-shadow';
 import { PALACE_TEXTURES } from '../src/story/ch01-palace';
@@ -265,6 +267,81 @@ describe('金殿脚底阴影：几何对位规则', () => {
     expect(fallback.width).toBe(118);
     expect(fallback.height).toBe(24);
     expect(fallback.offsetY).toBeCloseTo(3, 5);
+  });
+});
+
+// ---------------------------------------------------------------- 头顶（表情气泡）
+
+/** 与表的口径一致：不透明像素（alpha ≥ 40）最上一行 + 最上面 12 行水平中心。 */
+function measureHead(png: DecodedPng): { topY: number; centerX: number } {
+  let topY = -1;
+  for (let y = 0; y < png.height; y += 1) {
+    for (let x = 0; x < png.width; x += 1) {
+      if ((png.rgba[(y * png.width + x) * 4 + 3] ?? 0) >= PALACE_ALPHA_CUTOFF) {
+        topY = y;
+        break;
+      }
+    }
+    if (topY >= 0) break;
+  }
+  if (topY < 0) throw new Error('贴图全透明');
+  let sum = 0;
+  let count = 0;
+  for (let y = topY; y < Math.min(topY + 12, png.height); y += 1) {
+    for (let x = 0; x < png.width; x += 1) {
+      if ((png.rgba[(y * png.width + x) * 4 + 3] ?? 0) >= PALACE_ALPHA_CUTOFF) {
+        sum += x;
+        count += 1;
+      }
+    }
+  }
+  return { topY, centerX: Math.round((sum / Math.max(1, count)) * 10) / 10 };
+}
+
+describe('金殿表情气泡：头顶表 ↔ 实际像素', () => {
+  it('表里每一行的 topY / centerX 都与贴图像素一致（换图重测，不许手调）', () => {
+    expect(PALACE_HEAD_ANCHORS.size).toBeGreaterThanOrEqual(5);
+    const mismatches: string[] = [];
+    for (const [key, head] of PALACE_HEAD_ANCHORS) {
+      expect(keyOfFile(head.file), `${key} 的 file 字段对不上 key`).toBe(key);
+      const png = decodePng(readFileSync(join(PALACE_CHAR_DIR, head.file)));
+      const measured = measureHead(png);
+      if (measured.topY !== head.topY || Math.abs(measured.centerX - head.centerX) > 0.01) {
+        mismatches.push(`${key}: 表 ${JSON.stringify(head)} vs 实测 ${JSON.stringify(measured)}`);
+      }
+    }
+    expect(mismatches, '头顶表和贴图实际像素对不上').toEqual([]);
+  });
+
+  it('站姿头顶 ≈ 落点上方 185，跪姿只有 ≈ 125：所以不能给两者共用一个常量', () => {
+    const stand = palaceHeadPointFor(PALACE_TEXTURES.zhengLeft, { scale: PALACE_ACTOR_SCALE });
+    const kneel = palaceHeadPointFor(PALACE_TEXTURES.zhouKneelUp, { scale: PALACE_ACTOR_SCALE });
+    expect(-stand.offsetY).toBeCloseTo(185.5, 1);
+    expect(-kneel.offsetY).toBeCloseTo(125, 1);
+    // 差 60 设计 px = 屏幕上 30 css px（390 宽），写死一个值必有一边飘
+    expect(Math.abs(-stand.offsetY - -kneel.offsetY)).toBeGreaterThan(50);
+  });
+
+  it('侧身/翻面时头顶跟着头的实际位置走（不是永远居中）', () => {
+    const left = palaceHeadPointFor(PALACE_TEXTURES.zhengLeft, { scale: PALACE_ACTOR_SCALE });
+    const right = palaceHeadPointFor(PALACE_TEXTURES.zhengRight, { scale: PALACE_ACTOR_SCALE });
+    expect(left.offsetX).toBeLessThan(0);
+    expect(right.offsetX).toBeGreaterThan(0);
+    // flipX 把整个人镜像过去，头顶也要镜像
+    const flipped = palaceHeadPointFor(PALACE_TEXTURES.zhengLeft, {
+      scale: PALACE_ACTOR_SCALE,
+      flipX: true,
+    });
+    expect(flipped.offsetX).toBeCloseTo(-left.offsetX, 5);
+  });
+
+  it('没登记的贴图（行走 sheet）走站姿兜底，不会算出 0 或 NaN', () => {
+    const fallback = palaceHeadPointFor('img.char.palace.walk.zheng_down', {
+      scale: PALACE_ACTOR_SCALE,
+    });
+    expect(fallback.head).toBeNull();
+    expect(-fallback.offsetY).toBeCloseTo(185.5, 1);
+    expect(Number.isFinite(fallback.offsetX)).toBe(true);
   });
 });
 

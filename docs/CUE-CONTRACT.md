@@ -148,6 +148,22 @@ private finishDialogue(): void {
 `finishDialogue()` 里 `flushStateCues()` 出现在 `flow.nodeCompleted()` **之前**；`skipDialogue()` 只调 `finishDialogue()`。
 换场景/重构方法名时，这组护栏会第一时间失败——**别删护栏，改断言**。
 
+### 4.5 金殿舞台时间线（`PalacePlayer`）的跳过契约
+
+金殿不是「台词节点」，主干是 `src/story/ch01-palace.ts` 的 `PALACE_BEATS`（`act` 舞台调度 + `say` 台词）。
+它按同一套语义分类，但物理位置不同：
+
+| 动作 | 类别 | 跳过时 |
+| --- | --- | --- |
+| `portrait` / `portraitHide` / `emotion`（表情气泡）/ `texture` / `move` / `camera` / `fx` / `sfx` | 表现型 | 不补播、不补演 |
+| `bgm` | 状态型 | 在 **act 拍进入时**立即执行（不挂在某句台词上）；跳过 = `complete` → `finish()` → 进战斗 |
+
+跳过金殿时（`skip()` → `complete` → `finish()`）会 `audioDirector.stopAllLoops()` 再进战斗，
+战斗在 `create()` 里 `bgmManager.enterScene()` 重新绑定自己的曲目，所以「跳过」不会把 BGM 留在金殿那一首。
+
+**新增世界状态不要做成 act 里的一次性动作**——act 会被跳过。要么像 `bgm` 一样有归约入口，
+要么放在 `finish()` 里（`emotion` 是 2026-11-18 加的表现型动作，正因为它只是「看一眼」，才允许放在 act 里）。
+
 ---
 
 ## 5. 新 cue 接入检查清单

@@ -13,7 +13,8 @@ import type { PalaceAction, PalaceBeat } from '../src/story/palace-player';
  *
  * ① 说话人「？？？」→ 完整描述名（小白），语义色/声线仍走 `xiaobai`；
  * ② 旁白吐槽改成周全亲口吐槽，并换成「被按跪、慌张」的头部特写；
- * ③ 原「查寝」长句改成「你爸知道你这么牛x吗？！」；
+ *    （2026-11-18 起这两句改成括号里的心里话，本体顺序见 `palace-script-order.test.ts`）
+ * ③ 原「查寝」长句改成「你爸知道你这么牛x吗？」，2026-11-18 起并进「疯了吧你？！……」那句；
  * ④ 郑卿走完台阶**转身朝左**看向周全（`texture: zhengLeft`，不是 `faceLeft` 翻面）；
  * ⑤ 小白 / 周全两张立绘都是 720×900 RGBA、透明底、不贴边。
  *
@@ -206,31 +207,26 @@ describe('金殿剧本：小白不再自称「？？？」', () => {
 // ------------------------------------------------------------------ ②③ 周全吐槽
 
 describe('金殿剧本：周全的两句嘴硬', () => {
-  it('旁白吐槽改成周全亲口说，旧旁白整句已删', () => {
+  it('旁白吐槽改成周全亲口说（2026-11-18 起是括号里的心里话），旧旁白整句已删', () => {
     const index = sayIndexOf('饶什么命');
     const beat = beatAt(index);
     expect(beat.kind).toBe('say');
     if (beat.kind !== 'say') return;
     expect(beat.speaker).toBe('周全');
-    expect(beat.text).toBe('你不是罪该万死吗，饶什么命啊？');
+    expect(beat.text).toBe('（……你不是罪该万死吗，饶什么命啊？）');
     expect(sayBeats().some((line) => line.text.includes('泰山压顶'))).toBe(false);
   });
 
-  it('「查寝」长句换成「你爸知道你这么牛x吗？！」，说话人仍是周全', () => {
+  it('「查寝」长句不再出现，吐槽并进「疯了吧你？！……你爸知道你这么牛x吗？」', () => {
     const index = sayIndexOf('你爸');
     const beat = beatAt(index);
     expect(beat.kind).toBe('say');
     if (beat.kind !== 'say') return;
     expect(beat.speaker).toBe('周全');
-    expect(beat.text).toBe('你爸知道你这么牛x吗？！');
+    expect(beat.text).toBe('疯了吧你？！你在这儿玩什么cosplay！你爸知道你这么牛x吗？');
     expect(sayBeats().some((line) => line.text.includes('查！寝！'))).toBe(false);
-  });
-
-  it('两句紧挨着说完，中间不插旁白（一口气骂完）', () => {
-    const first = sayIndexOf('饶什么命');
-    const second = sayIndexOf('你爸');
-    expect(first).toBeGreaterThanOrEqual(0);
-    expect(second).toBe(first + 1);
+    // 全段只许出现一次，不许「旧句 + 新句」并存
+    expect(sayBeats().filter((line) => line.text.includes('你爸知道')).length).toBe(1);
   });
 });
 
@@ -327,7 +323,7 @@ describe('金殿剧本：立绘出现 / 收起的配对', () => {
     }
   });
 
-  it('周全吐槽：先换「被按跪慌张」特写，两句共用，震屏那一拍前收起', () => {
+  it('周全吐槽：先换「被按跪慌张」特写，震屏那一拍前收起', () => {
     const firstLine = sayIndexOf('饶什么命');
     const showIndex = firstLine - 1;
     const showBeat = beatAt(showIndex);
@@ -335,22 +331,12 @@ describe('金殿剧本：立绘出现 / 收起的配对', () => {
     if (showBeat.kind !== 'act') return;
     expect(showBeat.actions.some(isPortraitOf(portraitEntry('portraitZhouPanic').key))).toBe(true);
 
-    // 两句之间不换图、不隐藏（同一个人接着说）
-    const secondLine = sayIndexOf('你爸');
-    const between = PALACE_BEATS.slice(showIndex + 1, secondLine).filter(
-      (beat): beat is Extract<PalaceBeat, { kind: 'act' }> => beat.kind === 'act',
-    );
-    for (const beat of between) {
-      expect(beat.actions.some(isPortraitHide)).toBe(false);
-      expect(beat.actions.some((action) => action.kind === 'portrait')).toBe(false);
-    }
-
     // 震屏（rumble）那一拍必须把脸收掉
     const rumbleIndex = PALACE_BEATS.findIndex(
       (beat) =>
         beat.kind === 'act' && beat.actions.some((action) => action.kind === 'fx' && action.fx === 'rumble'),
     );
-    expect(rumbleIndex).toBeGreaterThan(secondLine);
+    expect(rumbleIndex).toBeGreaterThan(firstLine);
     const rumbleBeat = beatAt(rumbleIndex);
     expect(rumbleBeat.kind).toBe('act');
     if (rumbleBeat.kind !== 'act') return;
@@ -429,5 +415,63 @@ describe('金殿场景：换朝向不该顺手弹一下', () => {
     expect(formBlock).toContain('miner');
     // 郑卿朝左只是换朝向，不在白名单里
     expect(formBlock).not.toContain('zhengLeft');
+  });
+});
+
+// ------------------------------------------------------------------ 全部立绘通用规格
+
+/**
+ * 金殿的全部半身立绘。
+ *
+ * 以后再加人（侍卫、太监、老郑的另一套衣服……）**只往这张表里加文件名**，
+ * 尺寸/透明底/登记三项检查自动覆盖，不用再抄一份断言。
+ */
+const ALL_PORTRAITS = [
+  'portrait_zheng.png',
+  'portrait_chu.png',
+  'portrait_xiaobai.png',
+  'portrait_zhou_panic.png',
+  'portrait_shiwei.png',
+] as const;
+
+const portraitKeyOf = (file: string): string => `img.char.palace.${file.replace(/\.png$/, '')}`;
+
+describe('金殿半身立绘：通用规格', () => {
+  it('每张都登记在 cutscene.ch01palace 里，url 指向 public/assets/img/character/palace/', () => {
+    const bundle = BUNDLES['cutscene.ch01palace'];
+    for (const file of ALL_PORTRAITS) {
+      const key = portraitKeyOf(file);
+      const asset = bundle.assets.find((item) => item.key === key);
+      expect(asset, `${key} 没在 bundle 里登记`).toBeDefined();
+      expect(`public/${asset?.url ?? ''}`).toBe(`public/assets/img/character/palace/${file}`);
+    }
+  });
+
+  it('PNG 都是 720×900、8bit RGBA（立绘几何按 720:900 算显示尺寸）', () => {
+    for (const file of ALL_PORTRAITS) {
+      const image = png(`public/assets/img/character/palace/${file}`);
+      expect([image.width, image.height], file).toEqual([720, 900]);
+      expect([image.bitDepth, image.colorType], file).toEqual([8, 6]);
+    }
+  });
+
+  it('透明底干净：四角全透明、左右不贴边、纵向够满（半身构图）', () => {
+    for (const file of ALL_PORTRAITS) {
+      const path = `public/assets/img/character/palace/${file}`;
+      const image = png(path);
+      for (const [x, y] of [
+        [0, 0],
+        [image.width - 1, 0],
+        [0, image.height - 1],
+        [image.width - 1, image.height - 1],
+      ] as const) {
+        expect(alphaOf(image, x, y), `${file} 角点 (${x},${y}) 不是透明`).toBe(0);
+      }
+      const box = alphaBox(image);
+      expect(box.left, `${file} 左边贴边`).toBeGreaterThanOrEqual(8);
+      expect(image.width - box.right, `${file} 右边贴边`).toBeGreaterThanOrEqual(8);
+      expect(box.top, `${file} 头顶没贴到画布上沿（构图偏小）`).toBeLessThanOrEqual(2);
+      expect(box.bottom - box.top, `${file} 内容太矮`).toBeGreaterThan(700);
+    }
   });
 });
