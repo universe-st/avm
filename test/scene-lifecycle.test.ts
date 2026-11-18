@@ -98,10 +98,17 @@ describe('场景接线护栏（源码）', () => {
     expect(shutdown).toContain('this.lifecycle.close();');
   });
 
-  it('金殿：create 里开新一轮，shutdown 收尾 close', () => {
+  it('金殿：create 里开新一轮，SHUTDOWN 事件收尾 close', () => {
     const palace = source(PALACE);
-    expect(bodyOf(palace, 'override create(): void')).toContain('this.lifecycle.beginRun();');
-    expect(bodyOf(palace, 'shutdown(): void')).toContain('this.lifecycle.close();');
+    const create = bodyOf(palace, 'override create(): void');
+    expect(create).toContain('this.lifecycle.beginRun();');
+    // Phaser 不会调用子类的 shutdown()；收尾必须注册 SHUTDOWN 事件。
+    expect(create).toContain(
+      'this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown, this);',
+    );
+    expect(bodyOf(palace, 'private onShutdown(): void')).toContain('this.lifecycle.close();');
+    // 不许再出现「看起来像钩子、实际不会跑」的 shutdown() 方法。
+    expect(palace).not.toMatch(/^ {2}shutdown\(\): void/m);
   });
 
   it('手机 CG 回调先验「本轮仍有效」，不是只看 shuttingDown', () => {

@@ -75,6 +75,9 @@ pnpm android:release
   现在统一用 `src/app/scene-lifecycle.ts` 的 `SceneLifecycle`：`create()`（寝室是 `resetState()`）里
   `beginRun()`、SHUTDOWN 里 `close()`、异步回调先 `isLive(runId)`；`test/scene-lifecycle.test.ts`
   会拦住返祖成裸 `shuttingDown` 布尔，以及忘记接线。
+  另外 **Phaser 的 `Systems.shutdown()` 只派发 SHUTDOWN 事件，不会调用场景子类的 `shutdown()` 方法**——
+  金殿的清理以前写在那里等于没写（切进战斗时立绘/世界层不销毁）。收尾一律
+  `this.events.once(Phaser.Scenes.Events.SHUTDOWN, ...)` 注册。
 - `cordova/config.xml` 的 `BackgroundColor` 必须 `#RRGGBB`，写 `0xff...` 会让 AAPT 报 `raw string`。
 - Android 首次启动 WebView 可能超过默认 20s 加载超时；已把 `LoadUrlTimeoutValue` 设 120000。
 - 系统「Viewing full screen」提示会盖住应用，点 Got it 后才是游戏。

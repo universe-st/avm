@@ -160,6 +160,14 @@ export class Ch01PalaceScene extends UIScene {
 
   override create(): void {
     super.create();
+    /**
+     * 收尾必须挂在 SHUTDOWN 事件上。
+     *
+     * Phaser 的 `Systems.shutdown()` 只派发 SHUTDOWN，**不会调用场景子类的 `shutdown()` 方法**；
+     * 以前把清理写在同名方法里等于没写（2026-11-18 实测：切走后 portrait/worldRoot 仍在）。
+     * `once` 每轮 create 重新注册，restart / 离场都能收到。
+     */
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown, this);
     // 大殿的循环音（环境音/心跳）走 audioDirector 的循环表：注册宿主场景后，
     // SHUTDOWN 会由 AudioDirector 自动兜底 stopAllLoops，不依赖场景自己记得停。
     audioDirector.attach(this);
@@ -209,7 +217,11 @@ export class Ch01PalaceScene extends UIScene {
     this.advanceTypewriter(dt);
   }
 
-  shutdown(): void {
+  /**
+   * SHUTDOWN 收尾（`create()` 里注册）。不是 Phaser 的 `shutdown()` 钩子——
+   * 那个方法名不会被调用，见 `create()` 的注释。
+   */
+  private onShutdown(): void {
     this.lifecycle.close();
     this.cancelAutoAdvance();
     this.typewriter.reset();

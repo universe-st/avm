@@ -113,7 +113,7 @@ describe('金殿过场逐字接线', () => {
     for (const signature of [
       'private skip(): void {',
       'private finish(): void {',
-      'shutdown(): void {',
+      'private onShutdown(): void {',
       'override create(): void {',
     ]) {
       expect(methodBody(scene, signature), signature).toContain('this.typewriter.reset()');
