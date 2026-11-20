@@ -14,14 +14,17 @@ import {
   CH01_SIT_DISPLAY_HEIGHT,
   CH01_SIT_HEAD_OFFSET,
   CH01_SIT_TILE,
+  CH01_STAND_HEAD_CENTER_OFFSET,
   CH01_STAND_UP_SEQUENCE,
   CH01_WAKE_PERFORMANCE,
+  CH01_XIAOBAI_HEAD_OFFSET_PX,
   CH01_XIAOBAI_OFFSET,
   STANDUP_TO_IDLE_FADE_MAX_MS,
   STANDUP_TO_IDLE_FADE_MS,
   flashInMs,
   flashOutMs,
   planFlashHandoff,
+  planPerformance,
   resolveSittingKey,
   resolveStandingKey,
   sittingScaleFor,
@@ -220,6 +223,53 @@ describe('寝室战后起身表演（wakeUp）', () => {
     expect(timelineDurationMs(timeline, true)).toBeLessThan(timelineDurationMs(timeline));
   });
 
+  it('小白与起身同步升起：parallel 步骤与 frame-sequence 同起同收', () => {
+    const plan = planPerformance(timeline);
+    const standIndex = timeline.steps.findIndex((step) => step.kind === 'frame-sequence');
+    const floatIndex = timeline.steps.findIndex((step) => step.kind === 'float-actor');
+    expect(standIndex).toBeGreaterThan(0);
+    expect(floatIndex).toBe(standIndex + 1);
+
+    const stand = plan[standIndex];
+    const float = plan[floatIndex];
+    if (!stand || !float) throw new Error('missing planned steps');
+    // 同一刻开始、同一刻结束：「起身站直的那一帧，小白刚好停在头部水平线」。
+    expect(float.startAtMs).toBe(stand.startAtMs);
+    expect(float.startAtMs + float.durationMs).toBe(stand.startAtMs + stand.durationMs);
+    expect(float.durationMs).toBe(stand.durationMs);
+
+    // 并行不撑长时间线：总时长仍由 sit + stand + wait 决定。
+    expect(timelineDurationMs(timeline)).toBe(640 + 520 + 160);
+  });
+
+  it('小白漂浮的目标是「与主角头部齐平」，不是又一个脚底格数', () => {
+    const float = timeline.steps.find((step) => step.kind === 'float-actor');
+    if (float?.kind !== 'float-actor') throw new Error('expected float-actor');
+    expect(float.actor).toBe('xiaobai');
+    expect(float.anchor).toBe('head');
+    expect(float.offsetPx).toBe(CH01_XIAOBAI_HEAD_OFFSET_PX);
+    expect(float.parallel).toBe(true);
+    expect(stepDurationMs(float)).toBe(CH01_STAND_UP_SEQUENCE.durationMs);
+    expect(stepDurationMs(float, true)).toBe(CH01_STAND_UP_SEQUENCE.durationMs / 2);
+
+    // 头部中线高于坐姿构图里的小白落点（-2.5 格 ≈ 54px），且低于头顶气泡锚点 232：
+    // 落点确实「升起来了」，但没飘到头顶上方。
+    const startLift = -CH01_XIAOBAI_OFFSET[1] * CH01_DORM_ROOM.tileSize;
+    expect(CH01_STAND_HEAD_CENTER_OFFSET).toBeGreaterThan(startLift);
+    expect(CH01_STAND_HEAD_CENTER_OFFSET).toBeLessThan(232);
+    expect(CH01_STAND_HEAD_CENTER_OFFSET + CH01_XIAOBAI_HEAD_OFFSET_PX).toBeGreaterThan(startLift + 60);
+  });
+
+  it('reduced-motion 下漂浮仍播（位置变化不是装饰效果），时长随起身减半', () => {
+    const plan = planPerformance(timeline, true);
+    const stand = plan[timeline.steps.findIndex((step) => step.kind === 'frame-sequence')];
+    const float = plan[timeline.steps.findIndex((step) => step.kind === 'float-actor')];
+    if (!stand || !float) throw new Error('missing planned steps');
+    expect(float.durationMs).toBeGreaterThan(0);
+    expect(float.startAtMs).toBe(stand.startAtMs);
+    expect(float.startAtMs + float.durationMs).toBe(stand.startAtMs + stand.durationMs);
+  });
+
   it('起身末帧 → 侧面 idle：硬切（0ms），reduced-motion 与正常一致', () => {
     /**
      * #t41：起身末帧与 `zhou_idle_right` 都是正侧面朝右、同一套画布基准，所以不再需要
@@ -345,5 +395,31 @@ describe('时间线纯数据约定', () => {
     const wakeSit = CH01_WAKE_PERFORMANCE.steps.find((step) => step.kind === 'sit');
     expect(entrySit?.kind === 'sit' && entrySit.to).toEqual(CH01_SIT_TILE);
     expect(wakeSit?.kind === 'sit' && wakeSit.to).toEqual(CH01_SIT_TILE);
+  });
+
+  it('planPerformance：普通步骤首尾相接，parallel 压到上一步起点且不撑长总时长', () => {
+    const timeline = {
+      id: 'wakeUp' as const,
+      steps: [
+        { kind: 'wait' as const, ms: 100 },
+        { kind: 'wait' as const, ms: 200 },
+        { kind: 'wait' as const, ms: 50, parallel: true },
+      ],
+    };
+    const plan = planPerformance(timeline);
+    expect(plan.map((item) => item.startAtMs)).toEqual([0, 100, 100]);
+    expect(plan.map((item) => item.durationMs)).toEqual([100, 200, 50]);
+    // 并行那一步结束得比上一步早，总时长取最大值 300 而不是 350。
+    expect(timelineDurationMs(timeline)).toBe(300);
+  });
+
+  it('planPerformance：第一步就标 parallel 时从 0 开始（不抛错、不跳过）', () => {
+    const timeline = {
+      id: 'wakeUp' as const,
+      steps: [{ kind: 'wait' as const, ms: 120, parallel: true }],
+    };
+    const plan = planPerformance(timeline);
+    expect(plan[0]?.startAtMs).toBe(0);
+    expect(timelineDurationMs(timeline)).toBe(120);
   });
 });

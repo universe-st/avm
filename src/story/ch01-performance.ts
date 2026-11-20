@@ -38,6 +38,14 @@ export const CH01_SIT_TILE = [16, 29] as const;
 export const CH01_XIAOBAI_OFFSET = [3, -2.5] as const;
 
 /**
+ * 小白飘到头部高度时，中心相对「头部中线」的额外偏移（设计 px，负 = 更高）。
+ *
+ * 0 = 正好压在头部中线上（用户要的就是「和周全的头部在同一水平线」）；
+ * 想让它再高一点/低一点只改这一个数，场景与测试都跟它走。
+ */
+export const CH01_XIAOBAI_HEAD_OFFSET_PX = 0;
+
+/**
  * 坐地之后角色应有的**显示**高度（设计 px）。
  *
  * 站立 Q 帧显示高 = 400 × 0.6138 ≈ 245；坐地约 2/3 高度、与现有 `zhou_sit`
@@ -47,6 +55,20 @@ export const CH01_SIT_DISPLAY_HEIGHT = 160;
 
 /** 坐姿头顶到脚底的距离（设计 px），让表情气泡落在坐着的脑袋上而不是站姿高度。 */
 export const CH01_SIT_HEAD_OFFSET = 132;
+
+/**
+ * 站立时「头部可见轮廓的中线」到脚底的设计距离（px）。
+ *
+ * 小白在起身时要飘到**与周全头部同一水平线**，所以对齐点必须按身体部位算，不能写死
+ * 某个「-N 格」。口径与实测（`tools/measure-actor-footprint.py` 同一套 alpha ≥ 40 的口径）：
+ * - `zhou_idle_right.png` / `q/zhou_q_*.png` 都是 160×400 画布、脚底 394、头区从第 23 行开始，
+ *   脖子（行宽局部最小）在 140（正侧面）/ 146–149（3/4 面），头部中线约 82–86 画布行；
+ * - 换算到显示 px：`(394 - 中线) × displayScale(0.6138)` ≈ 189–192；
+ * - 起身末帧（`zhou_stand_up` 第 8 帧，scale 1.0、脚底 394）量出 189。
+ * 三张图落在 189–192 之间，统一取 190，误差 ≤3px。贴图重生成后跑
+ * `test/ch01-xiaobai-head-level.test.ts`：它现场解码 PNG 重算，这里对不上就红。
+ */
+export const CH01_STAND_HEAD_CENTER_OFFSET = 190;
 
 /**
  * 坐姿贴图的显示缩放：**按贴图源图高度换算**，不在代码里拉伸凑大小。
@@ -145,6 +167,14 @@ interface StepTiming {
   readonly ms: number;
   /** reduced-motion 下的时长；省略时取 `ms` 的一半（最低 60ms）。 */
   readonly reducedMs?: number;
+  /**
+   * 与**上一步同时开始**，不额外占用时间线长度（目前只有 `float-actor` 用）。
+   *
+   * 用途：起身帧序列（`frame-sequence`）在播的同时，小白也要同步升起。时间线是顺序数组，
+   * 没有这个标记就只能「起身演完再飘起来」或者「先飘起来再起身」——都不是同步。
+   * `planPerformance()` 会把它压在**上一步的起点**上，总时长取所有步骤结束时间的最大值。
+   */
+  readonly parallel?: boolean;
 }
 
 export interface WalkStep extends StepTiming {
@@ -172,6 +202,22 @@ export interface MoveActorStep extends StepTiming {
   readonly actor: 'xiaobai';
   /** 相对 `actor` 脚底的偏移（tile 单位），y 为负 = 更高。 */
   readonly offset: readonly [number, number];
+}
+
+/**
+ * 小白「飘到与主角头部齐平」。
+ *
+ * 与 `move-actor` 的区别：目标高度**不按脚底+格数**给，而是按站立姿态的头部中线
+ * （`CH01_STAND_HEAD_CENTER_OFFSET`）给——头部高度改了、贴图换了，漂浮落点跟着对，
+ * 不会变成「浮在胸口」或「飘到头顶上方」。
+ */
+export interface FloatActorStep extends StepTiming {
+  readonly kind: 'float-actor';
+  readonly actor: 'xiaobai';
+  /** 目标高度锚点：`head` = 主角头部可见轮廓的中线（站立姿态，与脚底固定距离）。 */
+  readonly anchor: 'head';
+  /** 相对锚点的额外偏移（设计 px，负 = 更高）；0 = 正对头部中线。 */
+  readonly offsetPx: number;
 }
 
 export interface WaitStep extends StepTiming {
@@ -210,6 +256,7 @@ export type PerformanceStep =
   | WalkStep
   | SitStep
   | MoveActorStep
+  | FloatActorStep
   | WaitStep
   | FlashStep
   | FrameSequenceStep;
@@ -275,10 +322,13 @@ export const CH01_DREAM_FLASH_PERFORMANCE: PerformanceTimeline = {
 
 /**
  * 战后回来：第一拍是 `sit`（进场景时就坐着），随后起身（`zhou_stand_up` 帧序列，
- * 素材不可用时直接落回站立静态图，不做「缩小的站立图」）、再留一拍给画面收势。
+ * 素材不可用时直接落回站立静态图，不做「缩小的站立图」）、**同时**小白同步飘到与
+ * 头部齐平（`float-actor` / `parallel`），再留一拍给画面收势。
  * 顺序被单测锁住——绝不能变成先 `stand` 再补坐下。
  *
  * `ms` = 8 帧 × 65ms 的帧序列时长；`reducedMs` 等比例减半（260）。
+ * 小白的漂浮与起身**等长、同时开始、同时结束**：起身最后一帧站直的那一刻，
+ * 它也刚好停在头部水平线上（不是起身完了才慢慢补飘上来）。
  */
 export const CH01_WAKE_PERFORMANCE: PerformanceTimeline = {
   id: 'wakeUp',
@@ -302,6 +352,16 @@ export const CH01_WAKE_PERFORMANCE: PerformanceTimeline = {
       ease: CH01_STAND_UP_SEQUENCE.ease,
       ms: CH01_STAND_UP_SEQUENCE.durationMs,
       // 等比例缩短：动画的每一帧都还在，只是每帧更短。
+      reducedMs: Math.round(CH01_STAND_UP_SEQUENCE.durationMs / 2),
+    },
+    {
+      kind: 'float-actor',
+      actor: 'xiaobai',
+      anchor: 'head',
+      offsetPx: CH01_XIAOBAI_HEAD_OFFSET_PX,
+      // 与上一步（起身帧序列）同一刻起飘、同一刻停，不额外占用时间线。
+      parallel: true,
+      ms: CH01_STAND_UP_SEQUENCE.durationMs,
       reducedMs: Math.round(CH01_STAND_UP_SEQUENCE.durationMs / 2),
     },
     { kind: 'wait', ms: 160, reducedMs: 60 },
@@ -336,7 +396,47 @@ export function flashOutMs(step: FlashStep, reduced = false): number {
 
 /** 整段时间线总时长（到最后一个步骤结束、可以交给下一个流程为止）。 */
 export function timelineDurationMs(timeline: PerformanceTimeline, reduced = false): number {
-  return timeline.steps.reduce((total, step) => total + stepDurationMs(step, reduced), 0);
+  return planPerformance(timeline, reduced).reduce(
+    (end, planned) => Math.max(end, planned.startAtMs + planned.durationMs),
+    0,
+  );
+}
+
+/** 时间线上的一步：什么时候开始、占多久。场景只照这个表挂定时器，不再自己累加。 */
+export interface PerformanceStepPlan {
+  readonly step: PerformanceStep;
+  readonly startAtMs: number;
+  readonly durationMs: number;
+}
+
+/**
+ * 把顺序数组展开成「开始时间 + 时长」。
+ *
+ * - 普通步骤接在上一步结束点；
+ * - `parallel: true` 的步骤压到**上一步的起点**（不是上一步的结束点）：
+ *   起身帧序列与小白的同步漂浮就是这么对齐的；
+ * - 总时长取所有步骤 `startAtMs + durationMs` 的最大值，所以并行步骤不会把时间线撑长。
+ *
+ * 纯函数，不 import Phaser；场景和单测共用同一份计划。
+ */
+export function planPerformance(
+  timeline: PerformanceTimeline,
+  reduced = false,
+): readonly PerformanceStepPlan[] {
+  const plan: PerformanceStepPlan[] = [];
+  let cursor = 0;
+  for (const step of timeline.steps) {
+    const durationMs = stepDurationMs(step, reduced);
+    const previous = plan.at(-1);
+    /**
+     * 第一步就标 `parallel` 没有「上一步」可并行，退化成从 0 开始——
+     * 不抛错、不静默跳过（跳过会让这一步永远不播）。
+     */
+    const startAtMs = step.parallel === true && previous ? previous.startAtMs : cursor;
+    plan.push({ step, startAtMs, durationMs });
+    cursor = Math.max(cursor, startAtMs + durationMs);
+  }
+  return plan;
 }
 
 /**

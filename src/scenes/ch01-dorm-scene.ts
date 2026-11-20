@@ -82,11 +82,13 @@ import {
   CH01_DREAM_FLASH_PERFORMANCE,
   CH01_SIT_HEAD_OFFSET,
   CH01_SIT_TILE,
+  CH01_STAND_HEAD_CENTER_OFFSET,
   CH01_STAND_UP_SEQUENCE,
   CH01_WAKE_PERFORMANCE,
   CH01_XIAOBAI_OFFSET,
   flashInMs,
   flashOutMs,
+  planPerformance,
   resolveSittingKey,
   sittingScaleFor,
   standUpFrameAt,
@@ -95,6 +97,7 @@ import {
   stepDurationMs,
   timelineDurationMs,
   type FlashStep,
+  type FloatActorStep,
   type FrameSequenceStep,
   type MoveActorStep,
   type PerformanceStep,
@@ -174,6 +177,15 @@ const PLAYER_HEAD_OFFSET = 232;
  */
 const ZHOU_SIT_OFFSET_Y = 0;
 
+/**
+ * 小白漂浮步骤的锚点 → 目标 y（世界坐标）。
+ *
+ * 键就是 `FloatActorStep['anchor']`：以后加「贴着肩膀 / 心口」这类锚点，这里少写一个键
+ * 会直接 typecheck 失败，不会静默飘到脚底。
+ */
+const XIAOBAI_FLOAT_ANCHOR_Y: Record<FloatActorStep['anchor'], (feetY: number) => number> = {
+  head: (feetY) => feetY - CH01_STAND_HEAD_CENTER_OFFSET,
+};
 
 /**
  * 第一章第一节 · 寝室。
@@ -1606,6 +1618,8 @@ export class Ch01DormScene extends UIScene {
    * 按纯数据时间线执行表演。
    *
    * 每一步在自己的开始时间触发，最后一次性收尾（白场淡出 + 恢复输入 + onDone）。
+   * 开始时间由 `planPerformance()` 给出：`parallel: true` 的步骤（小白同步升起）与上一步
+   * **同一刻**开始，因此不能在这里自己累加时长。
    * 期间 `performing` 为真：不推进对话、不吃输入、不 sync 角色（起身/坐下会直接改 sprite）。
    */
   private startPerformance(timeline: PerformanceTimeline, onDone: () => void): void {
@@ -1618,17 +1632,13 @@ export class Ch01DormScene extends UIScene {
     this.highlightRing?.setVisible(false);
     this.interactAvailable.value = false;
 
-    let at = 0;
-    for (const step of timeline.steps) {
-      const duration = stepDurationMs(step, this.reduced);
-      const startAt = at;
+    for (const planned of planPerformance(timeline, this.reduced)) {
       this.performanceTimers.push(
-        this.time.delayedCall(startAt, () => {
+        this.time.delayedCall(planned.startAtMs, () => {
           if (this.lifecycle.shuttingDown) return;
-          this.runPerformanceStep(step, duration);
+          this.runPerformanceStep(planned.step, planned.durationMs);
         }),
       );
-      at += duration;
     }
 
     this.performanceTimers.push(
@@ -1650,6 +1660,9 @@ export class Ch01DormScene extends UIScene {
         break;
       case 'move-actor':
         this.performMoveActor(step, duration);
+        break;
+      case 'float-actor':
+        this.performFloatActor(step, duration);
         break;
       case 'wait':
         break;
@@ -1786,6 +1799,43 @@ export class Ch01DormScene extends UIScene {
       duration,
       ease: 'Sine.easeInOut',
       onComplete: () => this.startXiaobaiBob(),
+    });
+  }
+
+  /**
+   * 小白飘到「与主角头部齐平」。
+   *
+   * 目标高度 = 主角脚底 − `CH01_STAND_HEAD_CENTER_OFFSET`（站立头部可见轮廓的中线），
+   * 不按格数、也不读坐姿 `headPoint`：这条步骤只在起身的同时跑，角色正在从坐变站，
+   * 用站立头高才是「站起来之后头部所在的那条水平线」。
+   *
+   * 与起身帧序列 `parallel`：同一刻开始、同样 520ms（reduced 260ms），起身站直的同时
+   * 它正好停在头部高度。移动前必须停掉上下 bob，落位后从新高度继续 bob。
+   */
+  private performFloatActor(step: FloatActorStep, duration: number): void {
+    const xiaobai = this.xiaobai;
+    const player = this.player;
+    if (!xiaobai || !player) return;
+    const anchorY = XIAOBAI_FLOAT_ANCHOR_Y[step.anchor](player.position.y);
+    const targetY = anchorY + step.offsetPx;
+    this.stopXiaobaiBob();
+    // 跳过对话提前进表演时它可能还没淡入完：这一拍是「构图」，直接可见。
+    if (!xiaobai.visible) xiaobai.setVisible(true).setAlpha(1);
+    if (duration <= 0) {
+      xiaobai.setY(targetY);
+      this.startXiaobaiBob();
+      return;
+    }
+    this.tweens.add({
+      targets: xiaobai,
+      y: targetY,
+      duration,
+      // 漂浮用平滑曲线：起手轻、收尾稳，和起身帧序列的 Linear 不冲突（两者互不影响）。
+      ease: 'Sine.easeInOut',
+      onComplete: () => {
+        if (this.lifecycle.shuttingDown) return;
+        this.startXiaobaiBob();
+      },
     });
   }
 
