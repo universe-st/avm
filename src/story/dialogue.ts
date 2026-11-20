@@ -34,6 +34,21 @@ export interface DialogueLine {
   readonly emotion?: EmotionKind;
   /** 表情气泡挂在谁头上；省略时按说话人推断。 */
   readonly emotionBy?: EmotionTarget;
+  /**
+   * 这一行显示时附带的**一次性音效**（Phaser 音频 cache key）。
+   *
+   * 不做状态：跳过这一行就不该再响（「带鼾声配音」没被听见，就不需要事后补一声呼噜）。
+   * 循环音/环境音不要走这里，那些属于场景音频（`audioDirector.playLoop`）。
+   */
+  readonly sfx?: string;
+  /**
+   * 切全黑/恢复正常画面：`true` = 世界层压黑（只留角色与特效），`false` = 恢复。
+   *
+   * 属于**表现型**：只有这一行真的被看见才有意义，跳过时不补演；
+   * 但「已经黑掉的画面」必须在对话收尾时无条件恢复（`finishDialogue()`），
+   * 否则跳过会把结束卡/下一节压在黑屏上。
+   */
+  readonly blackout?: boolean;
 }
 
 /**
@@ -42,7 +57,7 @@ export interface DialogueLine {
  * **新增 cue 字段时先加到这里，再到 `DIALOGUE_CUE_KINDS` 里表态**：新 cue 到底属于
  * 「状态型」还是「表现型」。下面用 `satisfies` 兜住，漏分类直接编译失败。
  */
-export type DialogueCueKey = 'cg' | 'fx' | 'bgm' | 'emotion';
+export type DialogueCueKey = 'cg' | 'fx' | 'bgm' | 'emotion' | 'sfx' | 'blackout';
 
 /**
  * 行 cue 的两类语义（这是机制，不是补丁）。
@@ -59,6 +74,8 @@ export const DIALOGUE_CUE_KINDS = {
   cg: 'expressive',
   fx: 'expressive',
   emotion: 'expressive',
+  sfx: 'expressive',
+  blackout: 'expressive',
 } as const satisfies Readonly<Record<DialogueCueKey, 'stateful' | 'expressive'>>;
 
 export type DialogueCueKind = (typeof DIALOGUE_CUE_KINDS)[DialogueCueKey];

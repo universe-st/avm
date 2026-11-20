@@ -39,7 +39,8 @@ skipDialogue() → finishDialogue() → flow.nodeCompleted() → handleEvents()
 | 打开对话立刻「跳过」 | `ch01Crisis`（新起实例） |
 | 自然一句句过完 | `ch01Crisis`（与改动前一致） |
 | 危机曲已经起来后再「跳过」 | 同一实例续播，不重播 |
-| 「战后征召」跳过（该节点没有 `bgm`） | 不额外切曲 |
+| 「战后醒来」跳过 | 仍回到校园日常（该段首行有状态型 `bgm: 'ch01Dorm'`） |
+| 黑屏胁迫段跳过 | BGM 仍落在校园日常（归约取靠后的「闪开」那一行），黑屏被收尾清掉 |
 
 ---
 
@@ -53,6 +54,8 @@ export const DIALOGUE_CUE_KINDS = {
   cg: 'expressive',
   fx: 'expressive',
   emotion: 'expressive',
+  sfx: 'expressive',
+  blackout: 'expressive',
 } as const satisfies Readonly<Record<DialogueCueKey, 'stateful' | 'expressive'>>;
 ```
 
@@ -63,6 +66,8 @@ export const DIALOGUE_CUE_KINDS = {
 | `cg` | 表现型 | 行显示时切全屏 CG | **不补**（否则跳过会闪一张图） | `cg.ch01.news` 黑白新闻画面 |
 | `fx` | 表现型 | 行显示时镜头闪白/抖动/故障 | 不补 | 摇醒时的镜头震动 |
 | `emotion` / `emotionBy` | 表现型 | 行显示时冒表情气泡 | 不补 | 郑卿「笑」的头顶气泡 |
+| `sfx` | 表现型 | 行显示时播一次性音效（`audioDirector.playSfxAt`） | 不补 | 2026-11-20 分支 2「带鼾声配音」的呼噜一声 |
+| `blackout` | 表现型 | `true` 压黑世界层（只留角色与特效）、`false` 恢复 | 不补演；**但收尾必须 `setBlackout(false)`** | 黑屏胁迫段「只有周全和小白存在」 |
 | 镜头推拉（不是行字段，属过场表演） | 表现型 | 表演时间线自己驱动 | 不补 | `worldRoot` 缩放（见 `AGENTS.md` §2 第 15 条） |
 
 **怎么自检**：把该 cue 删掉后问「玩家跳过这段，游戏状态会不会卡住/错乱？」会 → 状态型；只是少看一眼 → 表现型。
@@ -71,6 +76,8 @@ export const DIALOGUE_CUE_KINDS = {
 **边界例子**：新闻回忆那一行**同时**带 `cg: 'cg.ch01.news'` 和 `bgm: 'ch01Crisis'`。
 归约只取 `bgm`，`stateCuesOfLine()` 返回 `{ bgm: 'ch01Crisis' }`——所以跳过时会切曲，但不会补播那张新闻 CG
 （这正是 `test/dorm-stateful-cues.test.ts` 里「新闻回忆那一行同时带 cg 和 bgm」那条反向断言守的东西）。
+2026-11-20 的黑屏胁迫段同理：`呃……` 那行同时带 `bgm: 'ch01Crisis'` 与 `blackout: true`，
+归约只认 `bgm`；黑屏不被补演，但收尾会无条件恢复（见 §4.6）。
 
 ---
 
@@ -78,7 +85,7 @@ export const DIALOGUE_CUE_KINDS = {
 
 | 符号 | 作用 |
 | --- | --- |
-| `DialogueCueKey` | 行 cue key 的联合类型：`cg` / `fx` / `bgm` / `emotion` |
+| `DialogueCueKey` | 行 cue key 的联合类型：`cg` / `fx` / `bgm` / `emotion` / `sfx` / `blackout` |
 | `DIALOGUE_CUE_KINDS` | 分类表；`satisfies` 强制每个 key 都表态，**漏分类编译失败** |
 | `DialogueCueKind` / `StatefulCueKey` / `ExpressiveCueKey` | 从分类表推出来的类型，不手写第二份 |
 | `cueKeysOfKind(kind)` | 按类别取 key 列表，供测试/工具使用 |
@@ -139,8 +146,8 @@ private finishDialogue(): void {
 
 ### 4.4 表现型 cue 留在 `applyLineCue()`
 
-`applyLineCue()` 现在只处理 `cg` / `fx` / `emotion`，**不含 `bgm`、不含 `bgmManager.play()`**。
-跳过时它根本不会被调用，于是 CG/气泡/镜头不会补播——这正是想要的。
+`applyLineCue()` 现在只处理 `cg` / `fx` / `emotion` / `sfx` / `blackout`，**不含 `bgm`、不含 `bgmManager.play()`**。
+跳过时它根本不会被调用，于是 CG/气泡/镜头/音效/黑屏不会补播——这正是想要的。
 
 **怎么自检**：
 `test/dorm-stateful-cues.test.ts` 里「寝室场景接线护栏（源码）」那组用例会读 `src/scenes/ch01-dorm-scene.ts` 原文断言：
@@ -163,6 +170,30 @@ private finishDialogue(): void {
 
 **新增世界状态不要做成 act 里的一次性动作**——act 会被跳过。要么像 `bgm` 一样有归约入口，
 要么放在 `finish()` 里（`emotion` 是 2026-11-18 加的表现型动作，正因为它只是「看一眼」，才允许放在 act 里）。
+
+### 4.6 多段剧情 + 选项（战后「从宫殿逃出之后」）
+
+这一段不是「一个节点一段台词」，而是 `intro → 提问分支 ×3 → 收尾段` 的多段结构
+（`src/story/ch01-after.ts` + `src/story/inquiry.ts` + `src/ui/story-choice.ts`）。
+跳过契约按「段」执行，同一套收尾函数：
+
+| 段 | 结束（自然 / 跳过） | 跳过时补什么 |
+| --- | --- | --- |
+| `intro` | 回到提问菜单，**不推进节点** | 补该段状态型 cue：`ch01Dorm` |
+| `branch` | 回到提问菜单，**不推进节点** | 该段没有状态型 cue；已问记录在**点选项时**就写下了，跳过不会让问题“复活” |
+| `closing` | `flushStateCues()` → `setBlackout(false)` → `flow.nodeCompleted()` → 结束卡 | 补 `ch01Dorm`（归约取「闪开」那一行覆盖《危机降临》）；黑屏被清掉 |
+
+两条机制上的硬约束（`test/dorm-stateful-cues.test.ts` + `test/ch01-after-script.test.ts` 有源码护栏）：
+
+1. **只有 `closing` 能推进节点**：`finishDialogue()` 里先判
+   `currentNode === 'after' && afterStage !== 'closing'` → `openInquiryMenu()` 后 return；
+   `flow.nodeCompleted()` 必须排在这段判断之后。
+2. **黑屏是无条件收尾**：`blackout` 是表现型（跳过不补演），但 `finishDialogue()` 无论走哪条路
+   都会 `setBlackout(false)`，否则结束卡/下一节会压在黑屏上。黑屏块本身夹在
+   `LAYERS.fog`(500) 与 `characters`(1000) 之间——这是「只留角色」的实现，不是隐藏整个场景。
+
+选项 UI 不复用系统菜单：`openStoryChoice()` 是**不可关闭**的模态（分支必须选一个），
+选项文案全部来自 `CH01_AFTER_INQUIRY`；场景里不许出现第二份文案。
 
 ---
 
@@ -209,8 +240,9 @@ for (let skipAt = 0; skipAt <= lines.length; skipAt += 1) {
 
 - 逐行跳过 → 最终状态恒等于自然过完；
 - 「叫醒郑卿」`skipAt = 0`（刚打开就跳过）→ 必得 `ch01Crisis`；
-- 「战后征召」没有 `bgm` → 跳过不额外切曲；
-- 只有 `cg`/`emotion`/`fx` 的台词 → 归约为空。
+- 战后多段剧本：`intro` / 三个分支 / `finale` 每段都单独做「任意跳过点」一致性；
+  `finale` 自然过完与任意跳过点都落在 `ch01Dorm`（「闪开」那行覆盖《危机降临》）；
+- 只有 `cg`/`emotion`/`fx`/`sfx`/`blackout` 的台词 → 归约为空（鼾声行、纯黑屏行都断言过）。
 
 ---
 
@@ -224,7 +256,8 @@ for (let skipAt = 0; skipAt <= lines.length; skipAt += 1) {
 | 跳过时把 CG/气泡也补一遍 | 跳过会闪一张 CG、冒一个没人说话的表情气泡 | 表现型只挂在行显示上，跳过不补 |
 | 给 `flushStateCues()` 里加 `this.stateCueCursor = 0` 重置 | 会让「收尾补算」变成死循环式重播 | 归约后把游标推到 `lines.length`，再清空 `dialogueLines` |
 
-**未接线的场景**：目前只有 `Ch01DormScene` 接了这套机制（也只有它的台词带 `bgm`）。
+**未接线的场景**：目前只有 `Ch01DormScene` 接了这套机制（也只有它的台词带 `bgm`，
+且 `bgm` 现在分布在 `src/story/ch01-dorm.ts` 的新闻回忆与 `src/story/ch01-after.ts` 的三处切换）。
 `src/scenes/ch01-kitchen-scene.ts` 用 `DialoguePlayer` 但没有任何行 cue；**哪天要给御膳房加 `line.bgm` / `line.cg`，
 必须照第 4 节把 `dialogueLines` / `stateCueCursor` / `applyStateCueAt()` / `flushStateCues()` 一起接上**，
 否则同一个 bug 会在御膳房重演（`AGENTS.md` §2 第 17 条）。
@@ -237,8 +270,12 @@ for (let skipAt = 0; skipAt <= lines.length; skipAt += 1) {
 | --- | --- |
 | `src/story/dialogue.ts` | `DIALOGUE_CUE_KINDS` 分类表、`DialogueStateCues`、`reduceStateCues` / `stateCuesOfLine` / `mergeStateCues` / `cueKeysOfKind` |
 | `src/scenes/ch01-dorm-scene.ts` | `dialogueLines` / `stateCueCursor`、`applyStateCueAt()`、`flushStateCues()`、`applyStateCues()`、`finishDialogue()`、`skipDialogue()` |
-| `src/story/ch01-dorm.ts` | 台词与 cue 的数据真值（`bgm` 只出现在新闻回忆那一行） |
-| `test/dorm-stateful-cues.test.ts` | 归约单测 + 每个跳过点一致性 + 表现型反向断言 + 场景源码护栏（20 用例） |
+| `src/story/ch01-dorm.ts` | 寝室台词与 cue 的数据真值（`bgm`：新闻回忆那一行）；`after` 节点只放战后第一段 |
+| `test/dorm-stateful-cues.test.ts` | 归约单测 + 每个跳过点一致性 + 表现型反向断言 + 场景源码护栏 |
+| `src/story/ch01-after.ts` | 战后多段剧本（intro / 三分支 / 收尾 / 衔接）与全部行 cue |
+| `src/story/inquiry.ts` | 「可反复提问 → 问完收尾」的纯状态机（问过的从菜单移除） |
+| `src/ui/story-choice.ts` | 可复用的剧情选项模态（不可关闭，只回调 `onPick`） |
+| `test/ch01-after-script.test.ts` | 剧本逐字镜像 + BGM/气泡/鼾声/黑屏 cue + 场景接线护栏 |
 | `docs/AUDIO-BGM.md` §5 | BGM cue 与场景绑定/改绑的分工 |
 | `AGENTS.md` §2 第 17 条 | 硬规则：状态型 cue 不得挂在单行台词显示上 |
 

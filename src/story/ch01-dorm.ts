@@ -1,4 +1,5 @@
 import { CH01_ASSET_KEYS } from '../assets/keys';
+import { CH01_AFTER_INTRO } from './ch01-after';
 import type { DialogueLine } from './dialogue';
 
 /**
@@ -191,30 +192,15 @@ export const CH01_NODES: Readonly<Record<Ch01NodeId, Ch01Node>> = {
     id: 'after',
     objective: CH01_OBJECTIVES.afterBattle,
     next: 'complete',
-    lines: [
-      // 战后回来人是**坐着**的（phase=after 进场即 sitting / tile (16,29)）。
-      // 醒来 CG 是趴姿特写、起身表演是「坐 → 站」，所以这句写成「从地板上坐起来」：
-      // 接得住 CG 的趴姿，也接得住现在画面里的坐姿；别再写「趴在地板上」（会和坐姿对不上）。
-      { speaker: '旁白', text: '呼——！你从地板上坐起来，后背全是冷汗。', cg: CH01_ASSET_KEYS.cg.wake },
-      { speaker: '周全', text: '假的……都是假的……', cg: CH01_ASSET_KEYS.cg.wake, emotion: 'sad' },
-      { speaker: '莫名其妙出现的白色小娃娃', role: 'xiaobai', text: '精神体会被强制踢出梦域。你会在此处醒来。' },
-      { speaker: '周全', text: '那几个铁皮怪物是什么？' },
-      { speaker: '莫名其妙出现的白色小娃娃', role: 'xiaobai', text: '因泰里「矿工」。守卫矿点，清除干扰源。' },
-      { speaker: '周全', text: '老郑一直睡下去会怎样？' },
-      { speaker: '莫名其妙出现的白色小娃娃', role: 'xiaobai', text: '矿点建设约30天，40天不可逆，150天死亡率超过99.7%。' },
-      { speaker: '周全', text: '一百五十天……老郑会死在梦里？', emotion: 'surprised' },
-      { speaker: '莫名其妙出现的白色小娃娃', role: 'xiaobai', text: '依据《灵能族战时管理条例》，现对你发起强制征召。任务：进入郑卿的梦域，解离其精神体核心。' },
-      { speaker: '周全', text: '你让我杀了老郑？！', emotion: 'angry' },
-      { speaker: '莫名其妙出现的白色小娃娃', role: 'xiaobai', text: '比喻失败。不会物理死亡；会切断链接，让他醒来。' },
-      { speaker: '周全', text: '为什么找我？' },
-      { speaker: '莫名其妙出现的白色小娃娃', role: 'xiaobai', text: '你对切断工具「解」的适配性极高。' },
-      { speaker: '周全', text: '……行吧。不过得答应我几个条件。第一，我们有名字，我叫周全，他叫郑卿。' },
-      { speaker: '莫名其妙出现的白色小娃娃', role: 'xiaobai', text: '允许。' },
-      { speaker: '周全', text: '第二，别笑得那么瘆人。第三，你叫小白。', emotion: 'annoyed' },
-      { speaker: '小白', role: 'xiaobai', text: '「小白」……采纳。下一次进入梦域，我会赋予你「解」。' },
-      { speaker: '旁白', text: '床上的郑卿翻了个身，呼噜声重新响起。' },
-      { speaker: '周全', text: '老郑，等我。' },
-    ],
+    /**
+     * 战后「从宫殿逃出之后」这一段是**多段结构**，不是一条直线：
+     * 醒来 → 三个提问（顺序随意）→ 收尾段（黑屏胁迫）→ 衔接段（征召与命名）。
+     *
+     * 这里只放第一段（醒来与编号之争），让 `Ch01Flow` 的「节点 → 完成」语义保持不变；
+     * 剩下的分支与收尾由场景按 `CH01_AFTER_INQUIRY` / `CH01_AFTER_FINALE` 播放。
+     * 文案唯一真值在 `src/story/ch01-after.ts`。
+     */
+    lines: CH01_AFTER_INTRO,
   },
   complete: {
     id: 'complete',

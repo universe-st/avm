@@ -23,6 +23,13 @@ export interface Ch01HudModel {
    * 玩家会看到右下角挂着一个灰按钮。这里单独开一条分支，整块不渲染。
    */
   readonly performanceActive: Ref<boolean>;
+  /**
+   * 选项菜单打开中（`openStoryChoice` 的模态）。
+   *
+   * 此时对话面板已收起，但底部也不该露出「交互」灰按钮——整块留空，
+   * 让视线落在模态里的选项上。
+   */
+  readonly choiceActive: Ref<boolean>;
   /** 新手指引：进入探索时出现，首次移动后消失。 */
   readonly tutorialVisible: Ref<boolean>;
   readonly onMenu: () => void;
@@ -89,7 +96,9 @@ export function buildCh01Hud(model: Ch01HudModel): void {
               ? 'card'
               : model.performanceActive.value
                 ? 'performance'
-                : 'explore',
+                : model.choiceActive.value
+                  ? 'choice'
+                  : 'explore',
         {
           dialogue: () => {
             /**
@@ -112,6 +121,10 @@ export function buildCh01Hud(model: Ch01HudModel): void {
           },
           // 表演期间整块留空：不画按钮、不画提示，避免灰按钮挂在画面上。
           performance: () => {
+            Spacer({ grow: 0 });
+          },
+          // 选项菜单打开时同理：底部留空，视线交给模态。
+          choice: () => {
             Spacer({ grow: 0 });
           },
           explore: () => {

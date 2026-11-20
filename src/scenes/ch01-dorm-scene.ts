@@ -57,6 +57,18 @@ import {
   type Ch01InteractableId,
 } from '../story/ch01-dorm';
 import {
+  CH01_AFTER_FINALE,
+  CH01_AFTER_INQUIRY,
+  type Ch01AfterQuestionId,
+} from '../story/ch01-after';
+import {
+  initialInquiryState,
+  inquiryMenuItems,
+  markAsked,
+  questionById,
+  type InquiryState,
+} from '../story/inquiry';
+import {
   CH01_PREVIEW_PHASES,
   Ch01Flow,
   endCardRestartData,
@@ -106,6 +118,7 @@ import {
 import { DialogueHistory } from '../story/dialogue-history';
 import { openDialogueHistory } from '../ui/history-modal';
 import { openGameMenu } from '../ui/game-menu';
+import { openStoryChoice } from '../ui/story-choice';
 import { TitleCard, GOLD, makeSceneText } from '../ui/cinematic';
 import { addDustMotes, addLightShaft, addVignette } from '../ui/fx-kit';
 import { addStageFrame, type StageFrameHandle } from '../ui/stage-frame';
@@ -216,6 +229,27 @@ export class Ch01DormScene extends UIScene {
   private emotionHoldUntil = 0;
   /** 郑卿的呼噜：登记在 audioDirector 的循环表里，退出/重开时统一收尾。 */
   private snore: LoopHandle | null = null;
+  /**
+   * 战后「从宫殿逃出之后」这一段是**多段剧本**，不是一条直线。
+   *
+   * - `intro`：醒来 + 编号之争，说完进提问菜单；
+   * - `branch`：某个提问分支，说完回到菜单；
+   * - `closing`：三个都问完后的收尾段（含黑屏胁迫与衔接段），说完才 `nodeCompleted()`。
+   *
+   * 只有 `closing` 才允许把流程推进到结束卡，其余两段都必须先回到菜单。
+   */
+  private afterStage: 'intro' | 'branch' | 'closing' = 'intro';
+  /** 提问菜单的纯状态（问过哪些）；唯一判定在 `src/story/inquiry.ts`。 */
+  private afterInquiry: InquiryState<Ch01AfterQuestionId> = initialInquiryState();
+  /** 提问菜单的模态句柄；非空 = 菜单开着。 */
+  private choiceModal: ModalHandle | null = null;
+  /**
+   * 黑屏演出的压黑块（「场景突然变成全黑，只有周全和小白存在」）。
+   *
+   * 夹在迷雾（500）之上、角色（1000）之下：地板/床/家具全黑，角色与小白仍可见。
+   * 表现型 cue，跳过不补演；但收尾时 `finishDialogue()` 会无条件清掉。
+   */
+  private blackoutRect: Phaser.GameObjects.Rectangle | null = null;
   private bgmStarted = false;
   private card: TitleCard | null = null;
   private cardTimer: Phaser.Time.TimerEvent | null = null;
@@ -314,6 +348,8 @@ export class Ch01DormScene extends UIScene {
    * 只看 `interactAvailable` 不够——那只是 disabled，灰按钮还会挂在右下角（t27 反馈）。
    */
   private readonly performanceActive = ref(false);
+  /** 选项菜单打开中：底部 HUD 留空，不露出「交互」灰按钮。 */
+  private readonly choiceActive = ref(false);
   /** 新手移动指引：首次进入探索时显示，玩家第一次移动后收起。 */
   private readonly tutorialVisible = ref(false);
 
@@ -422,6 +458,7 @@ export class Ch01DormScene extends UIScene {
       interactAvailable: this.interactAvailable,
       cardActive: this.cardActive,
       performanceActive: this.performanceActive,
+      choiceActive: this.choiceActive,
       tutorialVisible: this.tutorialVisible,
       onMenu: () => {
         audioDirector.playClick();
@@ -477,6 +514,12 @@ export class Ch01DormScene extends UIScene {
     this.exitModal = null;
     this.historyModal = null;
     this.menuModal = null;
+    // 战后多段剧本 / 提问菜单：每轮重开都要回到第一段，菜单与黑屏不能带进新一轮。
+    this.afterStage = 'intro';
+    this.afterInquiry = initialInquiryState();
+    this.choiceModal?.close('scene');
+    this.choiceModal = null;
+    this.choiceActive.value = false;
     // 注意：不要在这里清 `restore`——`init()` 先于 `create()` 读到它，而 `create()` 开头就会
     // 调 `resetState()`；清掉等于读档被静默降级成普通「继续游戏」。
     this.restoredBgm = false;
@@ -499,6 +542,9 @@ export class Ch01DormScene extends UIScene {
     this.flashOverlay = null;
     this.flashStep = null;
     this.flashHandoffOutMs = 0;
+    // 黑屏块是原生对象，重开/退出都要销毁，否则会跟着场景对象留在下一轮。
+    this.blackoutRect?.destroy();
+    this.blackoutRect = null;
     this.performanceActive.value = false;
     this.dreamPerformanceDone = false;
     this.suppressWakeCg = false;
@@ -943,8 +989,9 @@ export class Ch01DormScene extends UIScene {
           if (event.nodeId === 'phone' && !this.phoneCutsceneSeen) {
             this.phoneCutsceneSeen = true;
             this.startPhoneCutscene(event.lines);
+          } else if (event.nodeId === 'after') {
+            this.startAfterScript(event.lines);
           } else {
-            if (event.nodeId === 'after') saveProgress('dorm.after', { preview: this.preview });
             // 手机对白必须在坐姿下说：CG 已经放过的重入路径（或素材缺失）也要先钉构图。
             if (event.nodeId === 'phone') this.applyCompositionNow(CH01_DREAM_ENTRY_PERFORMANCE);
             this.startDialogue(event.lines);
@@ -1046,6 +1093,112 @@ export class Ch01DormScene extends UIScene {
     this.promptText?.setVisible(false);
     this.interactAvailable.value = false;
     this.handleDialogueEvents(this.dialogue.start());
+  }
+
+  // ------------------------------------------------- 战后「从宫殿逃出之后」（多段剧本）
+
+  /**
+   * 进入战后这一段：先放第一段（醒来 + 编号之争），说完由 `finishDialogue()` 接提问菜单。
+   *
+   * 不能直接 `startDialogue(lines)`——这一段有三段结构，`dialogue` 结束不等于节点结束。
+   */
+  private startAfterScript(lines: readonly DialogueLine[]): void {
+    this.afterStage = 'intro';
+    this.afterInquiry = initialInquiryState();
+    saveProgress('dorm.after', { preview: this.preview });
+    this.startDialogue(lines);
+  }
+
+  /**
+   * 打开提问菜单。
+   *
+   * 还有没问的 → 只列没问的问题（顺序照剧本）；三个都问完 → 只剩收尾那一项。
+   * 菜单是**不可关闭**的模态：分支必须选一个，返回键/点遮罩都吞掉（见 `openStoryChoice`）。
+   */
+  private openInquiryMenu(): void {
+    if (this.choiceModal?.open === true) return;
+    const items = inquiryMenuItems(CH01_AFTER_INQUIRY, this.afterInquiry);
+    const asking = items.some((item) => !item.closing);
+    this.choiceActive.value = true;
+    this.choiceModal = openStoryChoice(this.mvvm, {
+      title: '提问',
+      hint: asking ? '问过的问题会从菜单里消失；可以按任意顺序提问。' : '该问的都问完了。',
+      items: items.map((item) => ({ id: item.id, label: item.label })),
+      onPick: (id) => {
+        this.choiceModal = null;
+        this.choiceActive.value = false;
+        this.onInquiryPicked(id);
+      },
+    });
+  }
+
+  /** 菜单选项被点：问题 → 播该分支；`closing` → 播收尾段（说完才推进节点）。 */
+  private onInquiryPicked(id: string): void {
+    if (id === 'closing') {
+      this.afterStage = 'closing';
+      this.startDialogue(CH01_AFTER_FINALE);
+      return;
+    }
+    const question = questionById(CH01_AFTER_INQUIRY, id as Ch01AfterQuestionId);
+    // 不认识的 id（坏存档/改稿）不能把玩家卡死：重新打开菜单。
+    if (question === null) {
+      this.openInquiryMenu();
+      return;
+    }
+    // 先记「已问」再播：中途点跳过也算问过，菜单不会再把它列出来。
+    this.afterStage = 'branch';
+    this.afterInquiry = markAsked(CH01_AFTER_INQUIRY, this.afterInquiry, question.id);
+    this.startDialogue(question.lines);
+  }
+
+  /** 收起对话面板（不动流程，只清显示与非模态状态）。 */
+  private clearDialoguePanel(): void {
+    this.dialogueVisible.value = false;
+    this.dialogueSpeaker.value = '';
+    this.dialogueRole = null;
+    this.dialogueTone.value = 'default';
+    this.dialogueText.value = '';
+    this.dialogueHint.value = '继续';
+    this.dialoguePageIndex.value = 0;
+    this.dialoguePageCount.value = 1;
+    this.cg?.hide();
+    this.emotionBubble?.hide();
+  }
+
+  /**
+   * 黑屏演出：「场景突然变成全黑，只有周全和小白存在」。
+   *
+   * 用一块夹在 `fog` 与 `characters` 之间的纯黑矩形压住世界层——地板、床、家具、舞台框
+   * 都在角色之下，所以全黑；周全（`characterDepth()` ≥ 1000）与小白（`effects`）仍可见。
+   * 同时在黑幕之上的只有飘尘与交互提示，一并收掉。
+   */
+  private setBlackout(on: boolean): void {
+    if (on) {
+      if (this.blackoutRect) return;
+      const plan = getViewportPlan();
+      this.blackoutRect = this.add
+        .rectangle(0, 0, plan.designWidth, plan.designHeight, 0x05060a, 1)
+        .setOrigin(0, 0)
+        .setDepth(LAYERS.fog + 10);
+      for (const object of this.ambientFx) this.setObjectVisible(object, false);
+      this.promptText?.setVisible(false);
+      this.highlightRing?.setVisible(false);
+      this.cg?.hide();
+      this.emotionBubble?.hide();
+      return;
+    }
+    // 「恢复」要幂等：没黑过也照样把该恢复的恢复（跳过时黑屏可能没演过）。
+    this.blackoutRect?.destroy();
+    this.blackoutRect = null;
+    for (const object of this.ambientFx) this.setObjectVisible(object, true);
+  }
+
+  /** 环境氛围对象（容器/Graphics）都支持 setVisible；用鸭子类型避免为三种返回类型各写一份。 */
+  private setObjectVisible(object: Phaser.GameObjects.GameObject, visible: boolean): void {
+    const target = object as Phaser.GameObjects.GameObject & {
+      setVisible?: (value: boolean) => unknown;
+    };
+    target.setVisible?.(visible);
   }
 
   private handleDialogueEvents(events: readonly DialogueEvent[]): void {
@@ -1160,6 +1313,9 @@ export class Ch01DormScene extends UIScene {
     // - 自然过完时游标已在末尾，这里什么也不做（行为与改动前一致）；
     // - 放在 `nodeCompleted()` 之前，节点完成事件自己再切曲时以后者为准。
     this.flushStateCues();
+    // 黑屏是表现型（跳过不补演），但「已经黑掉的画面」必须收尾：
+    // 否则跳过收尾段会把结束卡/下一节压在黑屏上。
+    this.setBlackout(false);
     // 玩家用「跳过」提前结束征召段时，起身表演还没播过；至少把坐姿切回站立，
     // 别让后面的结束卡背后还坐着一个已经「站起来」说过话的人。
     if (this.wakePerformancePending) {
@@ -1168,21 +1324,23 @@ export class Ch01DormScene extends UIScene {
       this.player?.setSitting(false);
     }
     this.dialogue = null;
+    /**
+     * 战后「从宫殿逃出之后」是多段剧本：intro / 提问分支播完都**不能**推进节点，
+     * 要回到提问菜单（问过的从菜单消失），三个都问完再播收尾段。
+     */
+    if (this.flow.state.currentNode === 'after' && this.afterStage !== 'closing') {
+      this.clearDialoguePanel();
+      this.openInquiryMenu();
+      this.syncControls();
+      this.updateNear();
+      return;
+    }
     // 回忆段一旦开始，《危机来临》就保持到离开寝室（梦域战斗会接手切曲）；
     // 即使玩家中途点「跳过」也不切回日常，情绪不能断。
     const next = this.flow.nodeCompleted();
     this.handleEvents(next);
     // 如果 next 又开了对话，startDialogue 会把 visible 保持为 true，避免 Branch 闪一下探索按钮。
-    if (!this.dialogue) {
-      this.dialogueVisible.value = false;
-      this.dialogueSpeaker.value = '';
-      this.dialogueTone.value = 'default';
-      this.dialogueText.value = '';
-      this.dialoguePageIndex.value = 0;
-      this.dialoguePageCount.value = 1;
-      this.cg?.hide();
-      this.emotionBubble?.hide();
-    }
+    if (!this.dialogue) this.clearDialoguePanel();
     this.syncControls();
     this.updateNear();
   }
@@ -1247,6 +1405,13 @@ export class Ch01DormScene extends UIScene {
    * `applyStateCueAt()` / `flushStateCues()`，分类见 `DIALOGUE_CUE_KINDS`。
    */
   private applyLineCue(line: DialogueLine): void {
+    // 黑屏与一次性音效都是**表现型**：只有这一行真的被看见才执行，跳过不补播。
+    // （黑屏的「恢复」另外由 `finishDialogue()` 无条件兜底，见 `setBlackout`。）
+    if (line.blackout !== undefined) this.setBlackout(line.blackout);
+    if (line.sfx !== undefined) {
+      // 目前只有鼾声一条，音量/音高沿用场景默认；以后要按行控音量再把 cue 改成对象。
+      audioDirector.playSfxAt(line.sfx, { volume: 0.55, rate: 0.95 });
+    }
     // 战后第一句会先盖着醒来 CG（旁白是「坐在寝室地板上」）；起身表演开始后不再让
     // 后续 `cg: wake` 把画面重新盖上，否则坐→站的过程全在 CG 底下，玩家根本看不见。
     const suppressedWakeCg =
@@ -1914,6 +2079,8 @@ export class Ch01DormScene extends UIScene {
     this.interactAvailable.value = false;
     this.cg?.hide();
     this.emotionBubble?.hide();
+    // 兜底：任何路径走到结束卡，黑屏都必须已经撤掉（正常路径在 finishDialogue 里清）。
+    this.setBlackout(false);
     this.stopSceneAudio();
     saveProgress('ch01.complete', { preview: this.preview });
     openCh01EndCard(this.mvvm, {
@@ -2081,6 +2248,9 @@ export class Ch01DormScene extends UIScene {
     this.flashOverlay = null;
     this.flashStep = null;
     this.flashHandoffOutMs = 0;
+    // 黑屏块是原生对象，重开/退出都要销毁，否则会跟着场景对象留在下一轮。
+    this.blackoutRect?.destroy();
+    this.blackoutRect = null;
     this.xiaobaiBob?.remove();
     this.xiaobaiBob = null;
     this.walkTween?.stop();
@@ -2107,6 +2277,9 @@ export class Ch01DormScene extends UIScene {
     this.historyModal = null;
     this.menuModal?.close('scene');
     this.menuModal = null;
+    this.choiceModal?.close('scene');
+    this.choiceModal = null;
+    this.choiceActive.value = false;
     this.stageFrame?.destroy();
     this.stageFrame = null;
     for (const fx of this.ambientFx) fx.destroy();

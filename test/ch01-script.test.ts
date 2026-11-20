@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CH01_ASSET_KEYS } from '../src/assets/keys';
 import { CH01_NODES } from '../src/story/ch01-dorm';
+import { CH01_AFTER_ALL_LINES, CH01_AFTER_INTRO } from '../src/story/ch01-after';
 import { PALACE_BEATS } from '../src/story/ch01-palace';
 
 /**
@@ -56,14 +57,17 @@ describe('第一章寝室 · 郑卿段落', () => {
   });
 
   it('战后醒来首句与「坐着」一致（进场即 sitting，不是趴在地板上）', () => {
-    const first = CH01_NODES.after.lines[0];
+    const first = CH01_AFTER_INTRO[0];
     expect(first?.speaker).toBe('旁白');
     // 「趴/躺」这类姿态描述会和 phase=after 的坐姿精灵打架；首句必须写坐。
     expect(first?.text).not.toContain('趴');
     expect(first?.text).toContain('坐');
-    // 整段征召都在坐/站姿态下说完，其余台词也不许再冒出趴/躺。
-    const afterText = CH01_NODES.after.lines.map((line) => line.text).join('');
-    expect(afterText).not.toMatch(/趴|躺/);
+    // 整段（含分支与收尾）都不许把**周全**写成趴/躺。
+    // 郑卿「躺在床上」是剧情事实（分支 1 要指着他说话），不属于这条约束。
+    const zhouText = CH01_AFTER_ALL_LINES.filter((line) => line.speaker === '周全')
+      .map((line) => line.text)
+      .join('');
+    expect(zhouText).not.toMatch(/趴|躺/);
   });
 
   it('金殿剧情只在 palace 场景演一次，dream 节点不再复述', () => {

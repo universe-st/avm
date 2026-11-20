@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { CH01_ASSET_KEYS } from '../src/assets/keys';
 import { CH01_NODES, type Ch01NodeId } from '../src/story/ch01-dorm';
+import { CH01_AFTER_FINALE, CH01_AFTER_INQUIRY } from '../src/story/ch01-after';
 import {
   DIALOGUE_CUE_KINDS,
   EMPTY_STATE_CUES,
@@ -9,6 +10,7 @@ import {
   mergeStateCues,
   reduceStateCues,
   stateCuesOfLine,
+  type DialogueCueKey,
   type DialogueLine,
   type DialogueStateCues,
 } from '../src/story/dialogue';
@@ -44,16 +46,28 @@ function bgmAfterSkipping(lines: readonly DialogueLine[], skipAt: number): BgmId
 }
 
 describe('行 cue 分类：状态型 vs 表现型', () => {
-  it('bgm 是状态型；cg / fx / emotion 是表现型', () => {
+  it('bgm 是状态型；cg / fx / emotion / sfx / blackout 是表现型', () => {
     expect(DIALOGUE_CUE_KINDS.bgm).toBe('stateful');
     expect(DIALOGUE_CUE_KINDS.cg).toBe('expressive');
     expect(DIALOGUE_CUE_KINDS.fx).toBe('expressive');
     expect(DIALOGUE_CUE_KINDS.emotion).toBe('expressive');
+    // 2026-11-20 新剧本引入的两类表现型 cue：黑屏演出与一次性音效（鼾声）。
+    expect(DIALOGUE_CUE_KINDS.sfx).toBe('expressive');
+    expect(DIALOGUE_CUE_KINDS.blackout).toBe('expressive');
   });
 
   it('按分类取 key（分类表是唯一真值，不手写第二份）', () => {
+    // 不写死 key 列表：两张按类别取出来的表必须正好是分类表的全部 key（互斥且不丢）。
+    const all = Object.keys(DIALOGUE_CUE_KINDS) as DialogueCueKey[];
+    expect([...cueKeysOfKind('stateful'), ...cueKeysOfKind('expressive')].sort()).toEqual(
+      [...all].sort(),
+    );
+    // 状态型目前只有 BGM；以后加 objective/checkpoint 时这里会显式失败，逼着改文档与归约。
     expect(cueKeysOfKind('stateful')).toEqual(['bgm']);
-    expect([...cueKeysOfKind('expressive')].sort()).toEqual(['cg', 'emotion', 'fx']);
+    // 每个 key 都必须出现在它自己那一类里（漏分类 typecheck 会拦，这里兜运行时）。
+    for (const key of all) {
+      expect(cueKeysOfKind(DIALOGUE_CUE_KINDS[key]), key).toContain(key);
+    }
   });
 });
 
@@ -154,12 +168,52 @@ describe('寝室对话：任意跳过点补出的 BGM 都与自然过完一致',
     expect(CH01_NODES.zheng.lines.some((line) => line.bgm === 'ch01Dorm')).toBe(false);
   });
 
-  it('「战后征召」没有 BGM 状态型 cue：跳过不额外切曲', () => {
-    const lines = CH01_NODES.after.lines;
-    expect(lines.some((line) => line.bgm !== undefined)).toBe(false);
-    for (let skipAt = 0; skipAt <= lines.length; skipAt += 1) {
-      expect(bgmAfterSkipping(lines, skipAt), `第 ${skipAt} 行跳过`).toBeUndefined();
+  it('战后「逃出宫殿之后」：BGM 是状态型（校园 → 危机 → 校园），不是行情上的表现', () => {
+    // 第一段（醒来与编号之争）明确回到校园日常。
+    expect(reduceStateCues(CH01_NODES.after.lines, 0).bgm).toBe('ch01Dorm');
+    // 黑屏胁迫那一段切到《危机降临》，「画面闪开」再切回校园日常——
+    // 所以整段自然播完的最终状态仍是校园日常（让玩家在结束卡前回到日常氛围）。
+    const crisisAt = CH01_AFTER_FINALE.findIndex((line) => line.bgm === 'ch01Crisis');
+    expect(crisisAt).toBeGreaterThan(0);
+    expect(CH01_AFTER_FINALE[crisisAt]?.blackout).toBe(true);
+    expect(reduceStateCues(CH01_AFTER_FINALE, 0).bgm).toBe('ch01Dorm');
+    // 从黑屏那一行开始归约：先危机、后又被「闪开」那行覆盖回日常。
+    expect(reduceStateCues(CH01_AFTER_FINALE, crisisAt).bgm).toBe('ch01Dorm');
+  });
+
+  it('战后多段剧本：任意跳过点补出的 BGM 与自然过完一致（含每个提问分支）', () => {
+    const segments: readonly { readonly label: string; readonly lines: readonly DialogueLine[] }[] =
+      [
+        { label: 'after.intro', lines: CH01_NODES.after.lines },
+        ...CH01_AFTER_INQUIRY.questions.map((question) => ({
+          label: `after.${question.id}`,
+          lines: question.lines,
+        })),
+        { label: 'after.finale', lines: CH01_AFTER_FINALE },
+      ];
+    for (const segment of segments) {
+      const natural = reduceStateCues(segment.lines, 0);
+      for (let skipAt = 0; skipAt <= segment.lines.length; skipAt += 1) {
+        expect(
+          stateAfterSkipping(segment.lines, skipAt),
+          `${segment.label} 在第 ${skipAt} 行跳过`,
+        ).toEqual(natural);
+      }
     }
+  });
+
+  it('黑屏与鼾声是表现型：只有它们的行不会被当状态补播', () => {
+    const snore = CH01_AFTER_INQUIRY.questions
+      .find((question) => question.id === 'scene')
+      ?.lines.find((line) => line.sfx !== undefined);
+    expect(snore, '分支 2 的鼾声行不见了').toBeDefined();
+    // 只有 sfx 的行归约为空 → 跳过时不补响。
+    expect(stateCuesOfLine(snore as DialogueLine)).toEqual(EMPTY_STATE_CUES);
+    // 黑屏那一行同时带 bgm：只取 bgm，blackout 本身不参与归约。
+    const blackoutLine = CH01_AFTER_FINALE.find((line) => line.blackout === true);
+    expect(blackoutLine).toBeDefined();
+    expect(stateCuesOfLine(blackoutLine as DialogueLine)).toEqual({ bgm: 'ch01Crisis' });
+    expect(Object.keys(stateCuesOfLine(blackoutLine as DialogueLine))).toEqual(['bgm']);
   });
 });
 
@@ -267,5 +321,23 @@ describe('寝室场景接线护栏（源码）', () => {
   it('跳过仍然只走 finishDialogue()，不在跳过里单独补东西', () => {
     expect(skipDialogue).toContain('this.finishDialogue();');
     expect(skipDialogue).not.toContain('bgmManager');
+  });
+
+  it('黑屏是表现型：行显示时执行，收尾无条件恢复（且在推进节点之前）', () => {
+    expect(applyLineCue).toContain('this.setBlackout(line.blackout)');
+    expect(finishDialogue).toContain('this.setBlackout(false);');
+    const restoreAt = finishDialogue.indexOf('this.setBlackout(false);');
+    const completedAt = finishDialogue.indexOf('this.flow.nodeCompleted()');
+    expect(restoreAt, 'skip 收尾没有恢复黑屏').toBeGreaterThanOrEqual(0);
+    expect(completedAt, '恢复黑屏必须在推进节点之前').toBeGreaterThan(restoreAt);
+  });
+
+  it('战后多段剧本：intro/分支结束先回提问菜单，只有收尾段才推进节点', () => {
+    expect(finishDialogue).toContain("this.afterStage !== 'closing'");
+    expect(finishDialogue).toContain('this.openInquiryMenu();');
+    const menuAt = finishDialogue.indexOf('this.openInquiryMenu();');
+    const completedAt = finishDialogue.indexOf('this.flow.nodeCompleted()');
+    expect(menuAt, 'finishDialogue 没有回提问菜单').toBeGreaterThanOrEqual(0);
+    expect(completedAt, '提问菜单必须先于节点推进').toBeGreaterThan(menuAt);
   });
 });
