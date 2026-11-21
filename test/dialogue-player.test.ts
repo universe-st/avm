@@ -173,20 +173,26 @@ describe('DialoguePlayer', () => {
     }
   });
 
-  it('balanceDialogueLine 在标点处折行，避免第二行只剩标点', () => {
-    const text = '精神体会被强制踢出梦域。你会在此处醒来';
+  it('balanceDialogueLine 只在尾行太短时提前断点', () => {
+    // 20 字：按 19 字折行会把句号单独留在尾行，改成在「。」后断（12 / 8）。
+    const text = '精神体会被强制踢出梦域。你会在此处醒来。';
     const balanced = balanceDialogueLine(text);
     const lines = balanced.split('\n');
     expect(lines).toHaveLength(2);
     expect(lines[0]?.endsWith('。')).toBe(true);
-    expect((lines[1] ?? '').length).toBeGreaterThan(1);
+    expect(Array.from(lines[1] ?? '').length).toBeGreaterThan(1);
     expect(lines.join('')).toBe(text);
 
+    // 19 字一行放得下：不要硬插换行，交给渲染层按真实字宽折。
+    expect(balanceDialogueLine('精神体会被强制踢出梦域。你会在此处醒来')).toBe(
+      '精神体会被强制踢出梦域。你会在此处醒来',
+    );
     expect(balanceDialogueLine('短句。')).toBe('短句。');
     expect(balanceDialogueLine('第一行\n第二行')).toBe('第一行\n第二行');
-    // 没有标点也能硬折，且不丢字
-    const long = '一二三四五六七八九十一二三四五六七八九十';
-    expect(balanceDialogueLine(long).split('\n').join('')).toBe(long);
+    // 尾行够长（6 字）不动；没有标点也不硬折，免得把一行切成「19 + 5」。
+    expect(balanceDialogueLine('一二三四五六七八九十一二三四五六七八九十')).toBe(
+      '一二三四五六七八九十一二三四五六七八九十',
+    );
   });
 
   it('typeMs=0 立即显示整句，但仍要手动推进与分页', () => {

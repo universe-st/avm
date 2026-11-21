@@ -167,6 +167,10 @@ export function truncateLines(
  * is split so every line does, and a single glyph wider than the box is left alone on its own line
  * (splitting it further is impossible, and dropping it would hide content).
  *
+ * **Line-break rule (kinsoku)**: a split never puts a punctuation mark at the start of a line; the
+ * character before it moves down with it (only opening quotes / book-title marks may start a line).
+ * Chinese prose otherwise ends up with a lone `」` or `，` on a line of its own.
+ *
  * Code points, not code units, so an emoji or a surrogate pair is never cut in half.
  */
 export function rewrapOverflowingLines(
@@ -193,8 +197,9 @@ export function rewrapOverflowingLines(
       const next = index + codePointLengthAt(line, index);
       const candidate = current + line.slice(index, next);
       if (current.length > 0 && measureWidth(candidate) > maxWidth) {
-        out.push(current);
-        current = line.slice(index, next);
+        const carried = carryDownForKinsoku(current, line.slice(index, next));
+        if (carried.head.length > 0) out.push(carried.head);
+        current = carried.tail;
       } else {
         current = candidate;
       }
@@ -204,6 +209,38 @@ export function rewrapOverflowingLines(
   }
 
   return changed ? out : lines.slice();
+}
+
+/** Characters that may legitimately start a line: opening quotes and book-title marks. */
+const LINE_START_ALLOWED: ReadonlySet<string> = new Set(['「', '『', '《', '〈', '“', '‘']);
+const PUNCTUATION = /^\p{P}$/u;
+
+/**
+ * True when `char` must not be the first character of a line (kinsoku / 行首禁则).
+ *
+ * Punctuation is judged by Unicode category (`\p{P}`), so new marks in any script are covered without
+ * maintaining a list. Kept in sync with the game's `isForbiddenLineStart` in
+ * `src/story/dialogue.ts` (`test/dialogue-linebreak.test.ts` cross-checks them).
+ */
+export function isForbiddenLineStart(char: string | undefined): boolean {
+  if (char === undefined || char === '') return false;
+  return PUNCTUATION.test(char) && !LINE_START_ALLOWED.has(char);
+}
+
+/**
+ * Moves the last code point(s) of `head` down so `next` does not start with punctuation.
+ *
+ * `carryDownForKinsoku('…饶什么命啊', '？')` → `{ head: '…饶什么命', tail: '啊？' }`.
+ * Stops when the next line starts with a regular character; a line that is nothing but punctuation is
+ * merged downward rather than emitted as an empty line (`head: ''`).
+ */
+function carryDownForKinsoku(head: string, next: string): { head: string; tail: string } {
+  let headChars = [...head];
+  let tail = next;
+  while (isForbiddenLineStart([...tail][0]) && headChars.length > 0) {
+    tail = `${headChars.pop() ?? ''}${tail}`;
+  }
+  return { head: headChars.join(''), tail };
 }
 
 /**

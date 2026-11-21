@@ -2,6 +2,7 @@ import {
   DIALOGUE_TYPE_MS,
   balanceDialogueLine,
   charsOf,
+  isForbiddenLineStart,
   maskDialogueText,
   type DialogueLine,
 } from './dialogue';
@@ -42,46 +43,93 @@ export type DialogueEvent =
     }
   | { readonly type: 'complete' };
 
+/** 句子结束标点：翻页优先在这些字后面断。 */
+const SENTENCE_END: ReadonlySet<string> = new Set(['。', '！', '？', '…', '\n']);
+/** 分句标点：找不到句末标点时才退到这里。 */
+const CLAUSE_END: ReadonlySet<string> = new Set(['；', '，', '、', '：', '—']);
+/** 收尾页少于这个字数就不算一页（宁可把断点往前挪，也不让玩家点一下只看到「好。」）。 */
+const MIN_TAIL_CHARS = 6;
+/** 一页至少要占满这么多比例，才值得为了句子边界提前断（否则页会太短）。 */
+const MIN_PAGE_RATIO = 0.45;
+
 /**
  * 把一句文本切成若干页，每页不超过 `pageChars` 个字符。
  *
- * 断点优先落在中文标点后面（`。！？；，、`），避免把「沉睡症全球蔓延，患者莫名长」这种
- * 半句话从中间切开；找不到合适的标点就硬切。`pageChars <= 0` 时不分页。
+ * 断点选择（从好到差）：
+ * 1. **句末标点**（`。！？…`）——整段对话里最靠后、又不太靠前的那个，让每页都是完整的句子；
+ * 2. **分句标点**（`，；、：—`）——句末标点找不到时的次优断点；
+ * 3. 硬切。
+ *
+ * 无论落在哪一档，都要过**行首禁则**：下一页第一个字符不能是标点
+ * （只有前引号/前书名号例外），会把句号、右引号、`％` 这类字符留在上一页末尾。
+ * 收尾页太短时（如硬切后只剩「好。」）把断点往前挪，避免点一下只翻出两个字。
+ * `pageChars <= 0` 时不分页。
  */
 export function paginateText(text: string, pageChars: number): readonly string[] {
   const chars = charsOf(text);
   if (!Number.isFinite(pageChars) || pageChars <= 0 || chars.length <= pageChars) {
     return [text];
   }
-  const BREAK = new Set(['。', '！', '？', '；', '，', '、', '…', '—', '\n']);
-  const pages: string[] = [];
+  const cuts: number[] = [0];
   let start = 0;
   while (start < chars.length) {
-    const limit = Math.min(chars.length, start + pageChars);
-    if (limit >= chars.length) {
-      pages.push(chars.slice(start).join(''));
-      break;
-    }
-    // 在 [limit-8, limit] 里往回找最近的标点；找不到就用硬上限。
-    let cut = limit;
-    for (let i = limit; i > Math.max(start, limit - 8); i -= 1) {
-      if (BREAK.has(chars[i - 1] as string)) {
-        cut = i;
-        break;
-      }
-    }
-    pages.push(chars.slice(start, cut).join(''));
+    if (chars.length - start <= pageChars) break;
+    const limit = start + pageChars;
+    let cut = chooseCut(chars, start, limit);
+    cut = snapPastForbiddenStart(chars, cut, chars.length);
+    if (cut <= start) cut = limit;
+    // 句末标点后面的右引号可能刚好把这一页推到末尾：那就不再单开一页。
+    if (cut >= chars.length) break;
+    cuts.push(cut);
     start = cut;
   }
-  // 硬切可能把句尾标点单独剩成一页（例如整句 69 字、上限 68，最后一页只有「。」）。
-  // 这种只剩标点的尾页并回上一页，宁可让上一页多两个字，也不要出现只有标点的一页。
-  while (pages.length > 1) {
-    const last = pages[pages.length - 1] ?? '';
-    const tail = Array.from(last);
-    if (tail.length > 2 || !tail.every((char) => BREAK.has(char))) break;
-    pages.splice(pages.length - 2, 2, `${pages[pages.length - 2] ?? ''}${last}`);
+
+  // 收尾页太短：优先把最后一个断点往前挪到上一个标点；挪不动就并回上一页。
+  if (cuts.length > 1) {
+    const lastStart = cuts[cuts.length - 1] as number;
+    const tailChars = chars.length - lastStart;
+    if (tailChars < MIN_TAIL_CHARS) {
+      const prevStart = cuts[cuts.length - 2] as number;
+      const moved = lastCutBefore(chars, lastStart, prevStart);
+      if (moved > prevStart && chars.length - moved >= MIN_TAIL_CHARS) {
+        cuts[cuts.length - 1] = moved;
+      } else if (chars.length - prevStart <= pageChars + MIN_TAIL_CHARS + 2) {
+        cuts.pop();
+      }
+    }
   }
-  return pages;
+
+  return cuts.map((from, index) => chars.slice(from, cuts[index + 1] ?? chars.length).join(''));
+}
+
+/** 这一页该在哪里断：优先句末标点，其次分句标点，最后硬切到上限。 */
+function chooseCut(chars: readonly string[], start: number, limit: number): number {
+  const shortest = start + Math.ceil((limit - start) * MIN_PAGE_RATIO);
+  for (let index = limit; index > shortest; index -= 1) {
+    if (SENTENCE_END.has(chars[index - 1] as string)) return index;
+  }
+  for (let index = limit; index > Math.max(start, limit - 8); index -= 1) {
+    if (CLAUSE_END.has(chars[index - 1] as string)) return index;
+  }
+  return limit;
+}
+
+/** 行首禁则：断点后面紧跟标点时，把标点留在上一页（返回新的断点）。 */
+function snapPastForbiddenStart(chars: readonly string[], from: number, end: number): number {
+  let cut = from;
+  while (cut < end && isForbiddenLineStart(chars[cut])) cut += 1;
+  return cut;
+}
+
+/** 在 `(floor, from)` 之间找最后一个标点后的断点，并过一遍行首禁则；找不到返回 `floor`。 */
+function lastCutBefore(chars: readonly string[], from: number, floor: number): number {
+  for (let index = from - 1; index > floor; index -= 1) {
+    const previous = chars[index - 1];
+    if (previous === undefined) continue;
+    if (!SENTENCE_END.has(previous) && !CLAUSE_END.has(previous)) continue;
+    return snapPastForbiddenStart(chars, index, chars.length);
+  }
+  return floor;
 }
 
 /**

@@ -10,6 +10,7 @@ import {
   ELLIPSIS,
   ellipsizeAlways,
   ellipsizeLine,
+  isForbiddenLineStart,
   rewrapOverflowingLines,
   truncateLines,
   type MeasureWidth,
@@ -256,5 +257,58 @@ describe('rewrapOverflowingLines · the CJK case Phaser cannot break', () => {
 
   it('keeps empty lines', () => {
     expect(rewrapOverflowingLines(['', 'x'], 100, measure)).toEqual(['', 'x']);
+  });
+});
+
+describe('rewrapOverflowingLines · 行首禁则 (kinssoku)', () => {
+  /** A monospace measurer: every code point is 10px wide, so 100px = 10 characters per line. */
+  const measure = (text: string): number => [...text].length * 10;
+
+  /** The rule the widget guarantees: no line starts with punctuation unless it is an opener. */
+  const assertNoPunctuationStart = (lines: readonly string[]): void => {
+    for (const line of lines) {
+      expect(isForbiddenLineStart([...line][0])).toBe(false);
+    }
+  };
+
+  it('drops a comma that would land at the start of the next line, carrying a character with it', () => {
+    // Exactly ten characters fit; the comma is the 11th and used to open the next line.
+    const source = '一二三四五六七八九十，后面还有不少字';
+    const lines = rewrapOverflowingLines([source], 100, measure);
+    expect(lines.join('')).toBe(source);
+    expect(lines[0]).toBe('一二三四五六七八九');
+    expect(lines[1]?.startsWith('十，')).toBe(true);
+    assertNoPunctuationStart(lines);
+  });
+
+  it('keeps a closing quote off the start of a line', () => {
+    const source = '一二三四五六七八九十」后面';
+    const lines = rewrapOverflowingLines([source], 100, measure);
+    expect(lines.join('')).toBe(source);
+    expect(lines[1]?.startsWith('十」')).toBe(true);
+    assertNoPunctuationStart(lines);
+  });
+
+  it('lets an opening quote start a line — that is a legal break', () => {
+    const source = '一二三四五六七八九十「引用」';
+    const lines = rewrapOverflowingLines([source], 100, measure);
+    expect(lines.join('')).toBe(source);
+    expect(lines[1]?.startsWith('「')).toBe(true);
+    assertNoPunctuationStart(lines);
+  });
+
+  it('carries several characters down rather than start with a punctuation run', () => {
+    const source = '一二三四五六七八九十……好';
+    const lines = rewrapOverflowingLines([source], 100, measure);
+    expect(lines.join('')).toBe(source);
+    expect(lines[1]?.startsWith('十……')).toBe(true);
+    assertNoPunctuationStart(lines);
+  });
+
+  it('never loses text or emits an empty line for a punctuation-only line', () => {
+    const source = '……，。！？，。！？';
+    const lines = rewrapOverflowingLines([source], 20, measure);
+    expect(lines.join('')).toBe(source);
+    expect(lines.every((line) => line.length > 0)).toBe(true);
   });
 });

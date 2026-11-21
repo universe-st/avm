@@ -46,7 +46,10 @@ pnpm android:release
 15. 原生渲染分层只能取 `src/render/layers.ts` 的 `LAYERS` / `SCREEN_LAYERS` / `characterDepth()`；资源 key 只能取 `src/assets/keys.ts` 的分组。**过场里推拉镜头只能缩放世界层容器（`worldRoot`），禁止改 `cameras.main.zoom`（会把 Compose 对话框一起放大、挤出屏幕）；屏幕层特效（立绘/遮幅/字卡/速度线）只能用 `SCREEN_LAYERS`。**地图、角色、UI、CG 的归属见 `docs/RENDER-LAYERS.md`，不要在场景里写魔法 depth 或手写资源 key。
 16. **资源随场景走**：内容场景只通过 `GameModule.requires` 声明资源，切场景必须走 `enterModule` / `launchStage`；`AssetService` 会在目标场景 `create` 后释放旧 bundle（`core`/`ui` 常驻）。禁止跨场景 `prefetch`，禁止场景里手工 `textures.remove` / `cache.*.remove`；验收看 `__AVM__.assets.bundles()`。
 17. **状态型 cue 不得挂在单行台词显示上**：行 cue 的现状是**只有 `bgm` 属于状态型**，`cg` / `fx` / `emotion` 属于表现型（分类真值：`src/story/dialogue.ts` 的 `DIALOGUE_CUE_KINDS`）。状态型 cue 只能由节点/阶段收尾的幂等归约（`reduceStateCues` → 场景 `flushStateCues()`）给出，**「跳过」与自然过完必须走同一条收尾并补状态型 cue**；表现型跳过时**不得**补播。以后加目标/检查点这类世界状态（往 `DialogueStateCues` 加字段）同样走归约，不许挂在行显示上；新增 cue 先在分类表里表态（漏分类 `pnpm typecheck` 直接失败），并补「每个 lineIndex 都当跳过点」的单测；禁止在 `skipDialogue()` 里硬写某首曲子。契约见 `docs/CUE-CONTRACT.md`，护栏 `test/dorm-stateful-cues.test.ts`。
+
 18. **立绘必须与说话人对位（金殿）**：谁开口，屏幕上就只能是那个人的立绘。对位表 `PALACE_SPEAKER_PORTRAIT`（`src/story/ch01-palace.ts`）+ 归约 `reducePortraitForSay()` 是唯一判定，场景在 `say` 分支调用 `alignPortraitForLine()`；**不要靠手写 `portrait` act 记住换脸**（2026-11-18 的「周全的台词配郑卿的脸」就是这么来的）。旁白不换脸；没立绘的角色（矿工）开口时收脸，不许顶上一张。新增说话人必须在表里表态，护栏 `test/palace-portrait-speaker.test.ts` 会逐句走时间线。
+
+19. **台词换行遵守行首禁则（2026-11-21）**：一句台词太长要翻页时，**页与页之间优先在句末标点断开**；**任何换行（翻页、页内折行、渲染层按宽度折行）后，新行第一个字符不能是标点**——只有前引号 `「『“` 与前书名号 `《〈` 例外。判定唯一源 `isForbiddenLineStart()`（`src/story/dialogue.ts`，按 Unicode `\p{P}` 分类，不手写标点表）；翻页在 `paginateText()`（`src/story/dialogue-player.ts`），页内只做孤行控制 `balanceDialogueLine()`，真正按字宽折行在框架 `rewrapOverflowingLines()`（vendor 补丁，两边判定要对拍）。新增/改写台词不用手数行，护栏 `test/dialogue-linebreak.test.ts` 会把**全部剧本**逐页折一遍。规则与取舍见 [台词排版](docs/DIALOGUE-TYPOGRAPHY.md)。
 
 ## 3. 代码风格
 

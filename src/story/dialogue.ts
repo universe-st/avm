@@ -224,36 +224,86 @@ export function speakerLabel(speaker?: string): string {
   return name === '旁白' ? '' : name;
 }
 
+/**
+ * 行首禁则（kinsoku）允许出现在行首的标点：**只有前引号与前书名号**。
+ *
+ * 中文排版里「，。！？、；：）」』》」这类标点不许出现在行首；换行时要把它们
+ * 留在上一行末尾。只放宽「前半边」的引号/书名号——「「『《」后面接的是内容，
+ * 从它们开头是自然的断点。
+ */
+const LINE_START_ALLOWED: ReadonlySet<string> = new Set([
+  '「',
+  '『',
+  '《',
+  '〈',
+  '“',
+  '‘',
+]);
+
+const PUNCTUATION = /^\p{P}$/u;
 
 /**
- * 把一行过长的对话按标点折成两行，避免最后一行只剩一个「。」。
+ * 这个字符能不能当一行的第一个字符？
  *
- * 面板宽 628、字号 34，一行约 18 个汉字；Phaser 的自动换行会在任意字处断，
- * 21 字的句子常把句号单独挤到第二行。这里在接近 18 字的标点后手动换行，
- * 第二行至少带走一个词。**只在显式开启时使用**，不改变 `paginateText` 的字数语义。
+ * 判定标准是**类别**（Unicode `\p{P}`）而不是一张手写清单：中文标点、英文标点、
+ * 全角/半角、引号括号书名号都算标点，只有前引号/前书名号例外。
+ * 这样以后剧本里出现新标点（`％`、`～`、`·`……）也不会漏掉。
  */
-export function balanceDialogueLine(text: string, maxChars = 18): string {
+export function isForbiddenLineStart(char: string | undefined): boolean {
+  if (char === undefined || char === '') return false;
+  return PUNCTUATION.test(char) && !LINE_START_ALLOWED.has(char);
+}
+
+/**
+ * 一行最多放几个汉字：面板内容宽 676、字号 34（`lg`），实测一行 19 个汉字。
+ *
+ * 这个数只用于「尾行会不会太短」的判断，不是硬折行宽度——真正的按宽度折行在
+ * `rewrapOverflowingLines()` 里做（框架），它才拿得到真实字宽。
+ */
+export const DIALOGUE_LINE_CHARS = 19;
+
+/** 尾行少于这么多字就算「太短」（只剩「了！」「。」这类），值得提前一个断点。 */
+const MIN_WRAP_TAIL = 5;
+
+/**
+ * 防孤行（widow）：若按 19 字折行后最后一行只剩几个字，就把断点前移到一个标点、
+ * 让尾行多带几个字。
+ *
+ * **不负责**普通长句的首个断点：那由渲染层按真实字宽折行，硬插 `\n` 反而会把一行切成
+ * 「19 + 5」这种半截行（实测：44 字的旁白被插在第 23 字，屏幕上出现 5 字的孤行）。
+ * 所以只有「尾行太短」时才动手，且断点必须满足行首禁则（见 `isForbiddenLineStart`）。
+ *
+ * `maxChars` 省略时用 {@link DIALOGUE_LINE_CHARS}；`text` 已经带 `\n` 时原样返回。
+ */
+export function balanceDialogueLine(text: string, maxChars = DIALOGUE_LINE_CHARS): string {
   const chars = charsOf(text);
   if (chars.length <= maxChars || text.includes('\n')) return text;
-  const BREAKS = new Set(['。', '！', '？', '；', '，', '、', '…', '—']);
-  let cut = -1;
-  let best = Number.POSITIVE_INFINITY;
-  const limit = Math.min(chars.length - 1, maxChars + 6);
-  for (let index = 1; index <= limit; index += 1) {
-    if (!BREAKS.has(chars[index - 1] as string)) continue;
-    const distance = Math.abs(index - maxChars);
-    if (distance < best) {
-      best = distance;
-      cut = index;
-    }
+  const tailStart = Math.floor((chars.length - 1) / maxChars) * maxChars;
+  if (chars.length - tailStart >= MIN_WRAP_TAIL) return text;
+  // 尾行太短：在 [MIN_WRAP_TAIL, maxChars] 里找最后一个标点，把断点挪到它后面。
+  const cut = lastBreakAtOrBefore(chars, maxChars);
+  if (cut === null) return text;
+  return `${chars.slice(0, cut).join('')}\n${chars.slice(cut).join('')}`;
+}
+
+/** 允许在它后面断行的标点（含句末与分句）。 */
+const BREAK_AFTER: ReadonlySet<string> = new Set(['。', '！', '？', '；', '，', '、', '…', '—', '：']);
+
+/**
+ * 在 `(MIN_WRAP_TAIL, limit]` 里找最后一个标点后的断点，并过一遍行首禁则。
+ *
+ * 要求挪完断点后尾行仍然不少于 {@link MIN_WRAP_TAIL} 字，否则这个断点没有意义；
+ * 行首禁则可能把断点往前顶（标点留在上一行），顶过 `limit` 就放弃，宁可保留孤行，
+ * 也不让上一行超出 19 字又被渲染层再折一次。
+ */
+function lastBreakAtOrBefore(chars: readonly string[], limit: number): number | null {
+  for (let index = limit; index > MIN_WRAP_TAIL; index -= 1) {
+    if (!BREAK_AFTER.has(chars[index - 1] as string)) continue;
+    let cut = index;
+    while (cut < chars.length && isForbiddenLineStart(chars[cut])) cut += 1;
+    if (cut > limit) continue;
+    if (chars.length - cut < MIN_WRAP_TAIL) continue;
+    return cut;
   }
-  if (cut <= 0 || cut >= chars.length) cut = Math.min(maxChars, chars.length - 1);
-  const head = chars.slice(0, cut);
-  const tail = chars.slice(cut);
-  // 不让第二行以标点开头（避头尾）：把尾部的标点挪回第一行。
-  while (tail.length > 0 && BREAKS.has(tail[0] as string)) {
-    head.push(tail.shift() as string);
-  }
-  if (head.length === 0 || tail.length === 0) return text;
-  return `${head.join('')}\n${tail.join('')}`;
+  return null;
 }
