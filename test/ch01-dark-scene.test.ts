@@ -103,4 +103,23 @@ describe('黑场胁迫 · 剧本接线', () => {
   it('dark 是表现型 cue：跳过不补演（收尾只还原画面与声音）', () => {
     expect(DIALOGUE_CUE_KINDS.dark).toBe('expressive');
   });
+
+  it('压迫解除后先趴着喘两声，再起身：getUp 只挂在「呼哧……」那一行', () => {
+    const getUpLines = CH01_AFTER_FINALE.filter((line) => line.getUp === true);
+    expect(getUpLines).toHaveLength(1);
+    expect(getUpLines[0]?.speaker).toBe('周全');
+    expect(getUpLines[0]?.text).toBe('呼哧……');
+    expect(DIALOGUE_CUE_KINDS.getUp).toBe('expressive');
+
+    // 顺序：压趴（crush）→ 旁白「压迫感骤然消失」（黑屏结束 + release）→ 呼哧 → 小白继续。
+    const indexCrush = CH01_AFTER_FINALE.findIndex((line) => line.dark === 'crush');
+    const indexPant = CH01_AFTER_FINALE.findIndex((line) => line.text.startsWith('那无处不在的压迫感'));
+    const indexGetUp = CH01_AFTER_FINALE.findIndex((line) => line.getUp === true);
+    expect(indexCrush).toBeGreaterThan(-1);
+    expect(indexPant).toBe(indexCrush + 1);
+    expect(indexGetUp).toBe(indexPant + 1);
+    expect(CH01_AFTER_FINALE[indexPant]?.blackout).toBe(false);
+    expect(CH01_AFTER_FINALE[indexPant]?.dark).toBe('release');
+    expect(CH01_AFTER_FINALE[indexPant]?.bgm).toBe('ch01Dorm');
+  });
 });

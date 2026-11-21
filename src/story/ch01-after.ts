@@ -192,14 +192,20 @@ export const CH01_AFTER_CLOSING: readonly DialogueLine[] = [
     dark: 'crush',
   },
   // 「画面闪开，BGM 切回校园日常」：黑屏恢复 + 一记白闪，BGM 回到日常。
+  // 压迫一松，人已经趴在地上：这一行给「大口喘气」的旁白，下一行他喘出声，再起身。
   {
-    speaker: CH01_AFTER_XIAOBAI_SPEAKER,
-    role: 'xiaobai',
-    text: '另外，如果拖延太久，清除因泰里矿点的难度会指数级上升。40地球日后，目标生命体征开始不可逆恶化。150地球日后，生命终结概率超过99.7%。',
+    speaker: '旁白',
+    text: '那无处不在的压迫感骤然消失，你大口喘着粗气，头上冒出细汗。',
     bgm: 'ch01Dorm',
     blackout: false,
     fx: 'flash',
     dark: 'release',
+  },
+  { speaker: '周全', text: '呼哧……', getUp: true },
+  {
+    speaker: CH01_AFTER_XIAOBAI_SPEAKER,
+    role: 'xiaobai',
+    text: '另外，如果拖延太久，清除因泰里矿点的难度会指数级上升。40地球日后，目标生命体征开始不可逆恶化。150地球日后，生命终结概率超过99.7%。',
   },
   { speaker: '周全', text: '（喘粗气）你的意思是……他会死？' },
   xiaobai('我等待你的抉择。'),

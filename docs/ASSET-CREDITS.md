@@ -711,3 +711,18 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
 - 后期：`tools/make-app-icon.py`（Lanczos 降采样；≤72px 提对比 1.08 / 亮度 1.05 + UnsharpMask 保住小尺寸可读性；96px mild 锐化；自适应前景按 72dp 安全区缩放 0.6486 + 径向羽化）
 - 验收：`python3 tools/verify-app-icon.py dist/android/<apk>`，逐像素比对源图与 Cordova 默认图（不同），详见 `docs/APP-ICON.md`
 - 复核：上架前按火山方舟商用条款复核，商店页注明「AI 生成美术」
+
+## 14. 黑场收尾 · 周全趴地姿势（2026-11-21）
+
+- 文件：`public/assets/img/character/ch01/zhou_prone.png`（160×400 RGBA，人物横躺 150×80、底边 392、水平中心 80）
+- 用途：战后黑场胁迫收尾——被压趴下 → 趴着喘气 → 撑起站立（`CH01_GETUP_PERFORMANCE`）。
+- 来源：游戏素材大师 · 图片生成（火山方舟 `doubao-seedream-5-0-flash-260915`，1536×1024，count 2，watermark off）
+- 任务：`imwpvyjerb878c9`（2 张，选 img-01；img-00 手臂压在身下、轮廓不如 01 清楚）
+- 提示词要点：纯绿底 `#00FF00`、单人全身；Q 版三头身/赛璐璐平涂/粗描边；人物固定设定（黑短发、白 polo 蓝领、深藏青运动裤白侧条、白鞋）；
+  **姿势**：整个人趴在地上、头在画面右侧、头和肩微抬、前臂撑地、腰背弓起、双腿后伸膝盖触地、表情痛苦咬牙冒汗；禁止站立/坐起/跪直、第二人、地面线、投影、文字
+- 只给了文字设定、**没有上传参考图**：`uploadImageRef` 只收 base64，160×400 精灵转 base64 约 7–45 KB，性价比低；
+  出图里 polo/裤子/鞋的配色与角色一致，低分辨率（屏显约 81×43 CSS px）+ 黑场压暗后风格差异不明显
+- 抠像：`keyImageJob`（keyColor `#00FF00` / keyLow 14 / keyHigh 80 / despill 0.65 / **bgTolerance 0**）
+- 后期（一次性脚本，未入库）：按色相剔除残留绿色（`g - max(r,b) > 8` → alpha 0，含地面绿影），并把 g 压到 `max(r,b)+4`（去绿边）；
+  裁 alpha bbox → 等比缩到宽 150 → 合成到 160×400 画布（底边 392、水平居中）→ PNG
+- 复核：上架前按火山方舟商用条款复核，商店页注明「AI 生成美术」

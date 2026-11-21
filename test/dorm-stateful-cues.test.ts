@@ -56,6 +56,8 @@ describe('行 cue 分类：状态型 vs 表现型', () => {
     expect(DIALOGUE_CUE_KINDS.blackout).toBe('expressive');
     // 2026-11-21 黑场胁迫演出（暗角/夹紧/心跳/小白放大）：只在这一行被看见时推进。
     expect(DIALOGUE_CUE_KINDS.dark).toBe('expressive');
+    // 2026-11-21 黑场收尾的起身：跳过不补演，收尾会把趴姿清掉。
+    expect(DIALOGUE_CUE_KINDS.getUp).toBe('expressive');
   });
 
   it('按分类取 key（分类表是唯一真值，不手写第二份）', () => {

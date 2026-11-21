@@ -57,6 +57,8 @@ pnpm android:release
     同一段的音效也有坑：心跳素材 `ch01_dark_heartbeat.mp3` 是**一组两记**，按 `120000/bpm` 排组、
     用 `rate` 对齐组内间距；按 `60000/bpm` 逐记排会叠三层、听起来像心律不齐（实测）。
     六拍数值表在 `src/story/ch01-dark-scene.ts`，表现层 `src/ui/dark-pressure.ts`，契约见 `docs/CUE-CONTRACT.md` §4.7。
+    收尾的「压趴下 → 喘气 → 撑起身」：趴姿是**临时贴图层**（`zhou_prone`），起身走
+    `CH01_GETUP_PERFORMANCE`；任何跳过/收尾/重开都必须取消压趴延时器并 `clearPronePose()`。
 
 ## 3. 代码风格
 

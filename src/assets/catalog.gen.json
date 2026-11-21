@@ -1,7 +1,7 @@
 {
   "assets/.DS_Store": {
     "bytes": 6148,
-    "mtimeMs": 1795231842374
+    "mtimeMs": 1795234463874
   },
   "assets/audio/bgm/ch01_crisis.mp3": {
     "bytes": 1345036,
@@ -634,6 +634,10 @@
   "assets/img/character/ch01/zhou_left.png": {
     "bytes": 4707,
     "mtimeMs": 1792892582661
+  },
+  "assets/img/character/ch01/zhou_prone.png": {
+    "bytes": 18545,
+    "mtimeMs": 1795234463744
   },
   "assets/img/character/ch01/zhou_right.png": {
     "bytes": 5414,

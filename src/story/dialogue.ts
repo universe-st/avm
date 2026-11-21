@@ -66,6 +66,14 @@ export interface DialogueLine {
    * （`finishDialogue()` → `setBlackout(false)` → 收尾）。
    */
   readonly dark?: DarkBeat;
+  /**
+   * 这一行说完后，主角从地上站起来（趴地 → 坐起 → 起身序列）。
+   *
+   * 战后黑场胁迫的收尾：压迫解除后他趴在地上喘气，听完「呼哧……」再起身。
+   * 属于**表现型**：跳过不补演；但收尾 `finishDialogue()` 会把趴姿无条件清掉，
+   * 否则角色会一直趴着进结束卡。
+   */
+  readonly getUp?: boolean;
 }
 
 /**
@@ -74,7 +82,7 @@ export interface DialogueLine {
  * **新增 cue 字段时先加到这里，再到 `DIALOGUE_CUE_KINDS` 里表态**：新 cue 到底属于
  * 「状态型」还是「表现型」。下面用 `satisfies` 兜住，漏分类直接编译失败。
  */
-export type DialogueCueKey = 'cg' | 'fx' | 'bgm' | 'emotion' | 'sfx' | 'blackout' | 'dark';
+export type DialogueCueKey = 'cg' | 'fx' | 'bgm' | 'emotion' | 'sfx' | 'blackout' | 'dark' | 'getUp';
 
 /**
  * 行 cue 的两类语义（这是机制，不是补丁）。
@@ -94,6 +102,7 @@ export const DIALOGUE_CUE_KINDS = {
   sfx: 'expressive',
   blackout: 'expressive',
   dark: 'expressive',
+  getUp: 'expressive',
 } as const satisfies Readonly<Record<DialogueCueKey, 'stateful' | 'expressive'>>;
 
 export type DialogueCueKind = (typeof DIALOGUE_CUE_KINDS)[DialogueCueKey];

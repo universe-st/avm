@@ -671,6 +671,8 @@ export class DarkPressureRig {
       targets: display,
       y: base.y + pixels,
       scaleY: base.scaleY * (1 - Math.min(0.06, pixels * 0.0035)),
+      // 被压得往前弓：越到后面倾角越大（14px 下沉 → 约 10°），是「难受」的主要读点。
+      rotation: Math.min(0.17, pixels * 0.012),
       duration: this.reduced ? 0 : 380,
       ease: 'Sine.easeOut',
     });
@@ -854,6 +856,7 @@ export class DarkPressureRig {
         this.scene.tweens.killTweensOf(display);
         display.setPosition(base.x, base.y);
         display.setScale(base.scaleX, base.scaleY);
+        display.setRotation(0);
       }
       return;
     }
@@ -874,6 +877,7 @@ export class DarkPressureRig {
         y: base.y,
         scaleX: base.scaleX,
         scaleY: base.scaleY,
+        rotation: 0,
         duration,
         ease: 'Sine.easeOut',
       });

@@ -208,7 +208,21 @@ private finishDialogue(): void {
 | `squeeze` | 「什么……情况……好难受……」 | 光池收暗、周全下沉压扁、血色脉冲 |
 | `verdict` | 小白念《灵能族战时管理条例》 | 小白放大到 3 倍、符环扫开、压边收紧、通电音 |
 | `crush` | 「哇啊啊啊……停……停下！」 | 冷白闪 + 三下短震 + 周全泛红 + 光晕过载抖动 |
-| `release` | 「另外，如果拖延太久……」+ `blackout: false` | 白闪、压力解除音、吐气；光池/缚索/压边全部淡出 |
+| `release` | 旁白「那无处不在的压迫感骤然消失……」+ `blackout: false` | 白闪、压力解除音、吐气；光池/缚索/压边全部淡出，人**已经趴在地上**喘 |
+
+压迫解除后还有两拍收尾（2026-11-21 用户要求）：
+
+1. 旁白「那无处不在的压迫感骤然消失，你大口喘着粗气，头上冒出细汗。」→ 一行「呼哧……」，
+   这一行带 `getUp: true`；
+2. `getUp` 行**打完字**自动播 `CH01_GETUP_PERFORMANCE`：趴 → 坐（170ms 交叉淡入）→
+   起身 8 帧（小白同步飘回头部中线），然后才轮到小白继续说话。
+
+「压趴下」是 `crush` 拍过 480ms 的延时：`collapseToProne()` 会在玩家脚底原位叠一张
+`zhou_prone` 贴图并藏起站立 sprite。三个必须处理的边界：
+
+- **快点到黑暗结束**（480ms 还没到）：`settlePronePose()` 先补建趴姿再开始喘；
+- **跳过 / 收尾**：`finishDialogue()` → `clearPronePose()` 取消延时器、销毁贴图、恢复站立；
+- **场景 shutdown / 重开**：`resetState()` / `onShutdown()` 同样清延时器与贴图。
 
 分工（改数值只动前两个文件）：
 
@@ -228,6 +242,9 @@ private finishDialogue(): void {
 5. **心跳不要按单记排**：`ch01_dark_heartbeat.mp3` 是「一组两记」，按 `120000/bpm` 排组、
    用 `rate` 把组内间距拉到位；按 `60000/bpm` 排会叠三层、听起来像心律不齐。
 6. **reduced**：光池/缚索/压边/放大照做但瞬间到位，震屏、心跳脉冲、粒子、符环扫开全部跳过。
+7. **趴姿是临时层，不是 PlayerActor 的姿态**：`zhou_prone` 单独一张图叠在脚底，
+   起身时由 `setSitting(true)` 接管；任何收尾路径都必须 `clearPronePose()`，
+   并且要**取消压趴的延时器**——否则快进到黑暗结束后，它会在结束卡背后补建一个趴着的人。
 
 舞台预览：`?stage=scene.ch01.dorm&phase=dark`（从 `呃……` 那一拍直接开始）。
 护栏：`test/ch01-dark-scene.test.ts`（强度单调、release 归零、六拍顺序、起点行）、

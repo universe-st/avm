@@ -181,6 +181,14 @@ export const CH01_ASSET_KEYS = {
      * 不再需要 110ms 的「转身」交叉淡入。只在「起身后、玩家还没动」这段生效。
      */
     zhouIdleRight: 'img.char.ch01.zhou_idle_right',
+    /**
+     * 趴在地上（面朝右、抬头喘气）的单帧姿势。
+     *
+     * 2026-11-21 为「黑场胁迫收尾」生成：压趴下 → 大口喘气 → 撑起站立。
+     * 160×400 画布、底边 392、水平中心 80，`displayScale` 1.0（同一套画布基准）；
+     * 美术生成 + 后期见 `docs/ASSET-CREDITS.md` §14。
+     */
+    zhouProne: 'img.char.ch01.zhou_prone',
     zheng: 'img.char.ch01.zheng',
     miner: 'img.char.ch01.miner',
   },
@@ -305,6 +313,21 @@ export const CH01_ZHOU_STAND_UP = {
 } as const;
 
 /** 坐地朝右静帧的显示元数据：底边/中心与站立帧同基准，缩放 1.0。 */
+/**
+ * 趴地姿势（2026-11-21）：`zhou_prone.png` 的几何元数据。
+ *
+ * 160×400 画布，人物横躺在画布底部（底边 392）、人物长 150 / 高 80、水平中心 80。
+ * 与坐姿 / 起身序列同一套画布与缩放（1.0），换姿势只换贴图，不换基准线。
+ */
+export const CH01_ZHOU_PRONE = {
+  key: CH01_ASSET_KEYS.characters.zhouProne,
+  displayScale: 1,
+  canvasWidth: 160,
+  canvasHeight: 400,
+  bottom: 392,
+  centerX: 80,
+} as const;
+
 export const CH01_ZHOU_SIT_RIGHT = {
   key: CH01_ASSET_KEYS.characters.zhouSitRight,
   displayScale: 1,

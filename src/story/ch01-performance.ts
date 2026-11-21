@@ -160,7 +160,7 @@ export function standUpFramesFromLayout(
   return Math.min(Math.floor(width / meta.frameWidth), meta.frameCount);
 }
 
-export type PerformanceTimelineId = 'dreamEntry' | 'dreamFlash' | 'wakeUp';
+export type PerformanceTimelineId = 'dreamEntry' | 'dreamFlash' | 'wakeUp' | 'getUp';
 
 interface StepTiming {
   /** 正常节奏下这一步占用的时长（ms）。 */
@@ -365,6 +365,40 @@ export const CH01_WAKE_PERFORMANCE: PerformanceTimeline = {
       reducedMs: Math.round(CH01_STAND_UP_SEQUENCE.durationMs / 2),
     },
     { kind: 'wait', ms: 160, reducedMs: 60 },
+  ],
+};
+
+/**
+ * 黑场胁迫收尾：趴地 → 撑起坐住 → 起身（8 帧）→ 小白同步飘回头部中线。
+ *
+ * 第一拍是 `wait`：场景在这 170ms 里把趴姿交叉淡成坐姿（站起序列第 0 帧），
+ * 时间线自己不驱动贴图，等淡完再开帧序列，避免「还趴着就开始站」。
+ * 之后的 `frame-sequence` / `float-actor(parallel)` 与 `CH01_WAKE_PERFORMANCE` 同源同长。
+ */
+export const CH01_GETUP_PERFORMANCE: PerformanceTimeline = {
+  id: 'getUp',
+  steps: [
+    { kind: 'wait', ms: 170, reducedMs: 60 },
+    {
+      kind: 'frame-sequence',
+      actor: 'zhou',
+      sequence: 'standUp',
+      frameCount: CH01_STAND_UP_SEQUENCE.frameCount,
+      frameMs: CH01_STAND_UP_SEQUENCE.frameMs,
+      ease: CH01_STAND_UP_SEQUENCE.ease,
+      ms: CH01_STAND_UP_SEQUENCE.durationMs,
+      reducedMs: Math.round(CH01_STAND_UP_SEQUENCE.durationMs / 2),
+    },
+    {
+      kind: 'float-actor',
+      actor: 'xiaobai',
+      anchor: 'head',
+      offsetPx: CH01_XIAOBAI_HEAD_OFFSET_PX,
+      parallel: true,
+      ms: CH01_STAND_UP_SEQUENCE.durationMs,
+      reducedMs: Math.round(CH01_STAND_UP_SEQUENCE.durationMs / 2),
+    },
+    { kind: 'wait', ms: 140, reducedMs: 60 },
   ],
 };
 

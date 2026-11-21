@@ -54,6 +54,9 @@ interface AssetDef {
 - 资源路径/key 按 `map / character / cg / battle / ui` 分组，key 统一从 `src/assets/keys.ts` 取，详见 `docs/RENDER-LAYERS.md`。当前 `ch.01` 共 40 个文件。
 - 2026-10-29 新增：沉睡症新闻回忆 CG `img.cg.ch01.news`（1080×1920 黑白 WebP，257 KB）与回忆 BGM `audio.bgm.ch01_crisis`（84s，1.34 MB）。Q 版 8 向 20 帧行走 sheet 占约 3.2 MB，章节包实际约 10.2 MB；`budgetKB` 已按实际登记为 12 MB，后续压缩行走帧时再回收。
 - BGM/SFX 标 `required:false`：音频失败只静音，不阻断剧情。
+- 2026-11-21（黑场收尾趴姿）：`ch.01` 新增 `img.char.ch01.zhou_prone` → `assets/img/character/ch01/zhou_prone.png`
+  （160×400 RGBA，人物横躺 150×80、底边 392、水平中心 80，与坐姿/起身同一套画布基准）。
+  由游戏素材大师 `image` 模块生成（job `imwpvyjerb878c9`）后抠像 + 去绿边 + 等比缩放合成；见 `docs/ASSET-CREDITS.md` §14。
 - 2026-11-21（战后黑场胁迫段音效）：`ch.01` 新增 4 条 `required:false` 音效 →
   `assets/audio/sfx/ch01_dark_pressure.mp3`（10.55s 无缝循环，127 KB）、
   `ch01_dark_grip.mp3`（1.41s，18 KB）、`ch01_dark_release.mp3`（1.91s，24 KB）、

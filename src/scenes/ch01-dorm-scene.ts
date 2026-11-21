@@ -8,6 +8,7 @@ import {
   CH01_Q_STATIC_SPRITES,
   CH01_Q_WALK_FRAME_COUNT,
   CH01_Q_WALK_SHEETS,
+  CH01_ZHOU_PRONE,
   CH01_ZHOU_SIT_RIGHT,
   CH01_ZHOU_STAND_FRAME,
   CH01_ZHOU_STAND_UP,
@@ -79,6 +80,7 @@ import {
 import {
   CH01_DREAM_ENTRY_PERFORMANCE,
   CH01_DREAM_FLASH_PERFORMANCE,
+  CH01_GETUP_PERFORMANCE,
   CH01_SIT_HEAD_OFFSET,
   CH01_SIT_TILE,
   CH01_STAND_HEAD_CENTER_OFFSET,
@@ -268,6 +270,19 @@ export class Ch01DormScene extends UIScene {
    * 只在台词 cue `dark` 第一次出现时建；`finishDialogue()`（含跳过）与 SHUTDOWN 都收尾。
    */
   private dark: DarkPressureRig | null = null;
+  /**
+   * 趴地贴图（压迫把人压到地上）；`finishDialogue()` / SHUTDOWN 一律清掉。
+   *
+   * 素材缺失（`zhou_prone` 没打进包）时整段退回站立，不阻断剧情。
+   */
+  private proneSprite: Phaser.GameObjects.Image | null = null;
+  /** 趴姿的抖动/喘气 tween；切换姿势先 kill，别让两条 tween 抢同一个 y。 */
+  private proneTween: Phaser.Tweens.Tween | null = null;
+  /** 惨叫拍之后「压趴下」的延时器；跳过/收尾/快进都要能取消，否则它会在结束卡背后补建趴姿。 */
+  private collapseTimer: Phaser.Time.TimerEvent | null = null;
+  /** 这一轮对话里有没有「说完就起身」的行，以及它的行号。 */
+  private getUpPending = false;
+  private getUpIndex = -1;
   /** 预览 `phase=dark`：直接从黑场胁迫那一拍开始，方便单点看这段演出。 */
   private previewDark = false;
   private bgmStarted = false;
@@ -570,6 +585,15 @@ export class Ch01DormScene extends UIScene {
     // 压迫演出（暗角/黑边/丝线/循环音/心跳定时器）同样不能带进下一轮。
     this.dark?.destroy();
     this.dark = null;
+    // 趴地贴图与喘气 tween 也不能带进下一轮（此时 player 已置空，只清理对象本身）。
+    this.proneTween?.remove();
+    this.proneTween = null;
+    this.collapseTimer?.remove();
+    this.collapseTimer = null;
+    this.proneSprite?.destroy();
+    this.proneSprite = null;
+    this.getUpPending = false;
+    this.getUpIndex = -1;
     // 注意：不要清 `previewDark`——它由 `init()` 从舞台参数读入，而 `create()` 先调 `resetState()`；
     // 在这里清掉等于 `phase=dark` 永远失效（2026-11-21 实测踩过）。
     this.performanceActive.value = false;
@@ -1107,6 +1131,9 @@ export class Ch01DormScene extends UIScene {
     // 记下完整台词与状态型 cue 的游标：跳过时要靠它们补算「被跨过的行」。
     this.dialogueLines = lines;
     this.stateCueCursor = 0;
+    // 「呼哧……」这一行说完自动起身；按行 cue 找，不写死行号（预览会切片）。
+    this.getUpIndex = lines.findIndex((line) => line.getUp === true);
+    this.getUpPending = this.getUpIndex >= 0;
     this.dialogueVisible.value = true;
     this.dialogueSpeaker.value = '';
     this.dialogueRole = null;
@@ -1316,6 +1343,18 @@ export class Ch01DormScene extends UIScene {
           });
         }
         this.lastTyped = event.typedCount;
+        // 黑场收尾：喘完这一声就撑起来站好（跳过不补演，收尾会清掉趴姿）。
+        if (
+          event.done &&
+          this.getUpPending &&
+          event.index === this.getUpIndex &&
+          event.pageIndex === event.pageCount - 1
+        ) {
+          this.getUpPending = false;
+          this.cancelAutoAdvance();
+          this.startGetUp();
+          return;
+        }
         // 战后回来的第一句征召台词打完 → 收起醒来 CG、演起身；演完玩家再点「继续」。
         if (
           event.done &&
@@ -1406,6 +1445,8 @@ export class Ch01DormScene extends UIScene {
     // 黑屏是表现型（跳过不补演），但「已经黑掉的画面」必须收尾：
     // 否则跳过收尾段会把结束卡/下一节压在黑屏上。
     this.setBlackout(false);
+    // 跳过/自然收尾都要把趴姿清掉：否则后面结束卡背后还趴着一个人。
+    this.clearPronePose();
     // 玩家用「跳过」提前结束征召段时，起身表演还没播过；至少把坐姿切回站立，
     // 别让后面的结束卡背后还坐着一个已经「站起来」说过话的人。
     if (this.wakePerformancePending) {
@@ -1499,6 +1540,9 @@ export class Ch01DormScene extends UIScene {
     // （黑屏的「恢复」另外由 `finishDialogue()` 无条件兜底，见 `setBlackout`。）
     if (line.blackout !== undefined) this.setBlackout(line.blackout);
     if (line.dark !== undefined) this.playDarkBeat(line.dark);
+    // 惨叫拍：过 480ms 把人生生压趴下；黑暗结束后先让他趴着喘气。
+    if (line.dark === 'crush') this.scheduleCollapseToProne();
+    if (line.dark === 'release') this.settlePronePose();
     if (line.sfx !== undefined) {
       // 目前只有鼾声一条，音量/音高沿用场景默认；以后要按行控音量再把 cue 改成对象。
       audioDirector.playSfxAt(line.sfx, { volume: 0.55, rate: 0.95 });
@@ -2117,6 +2161,146 @@ export class Ch01DormScene extends UIScene {
     });
   }
 
+  // ------------------------------------------------- 压趴下 / 喘气 / 撑起
+
+  /** 惨叫拍过一拍：把人生生压趴下（素材缺失就保持站立，不阻断）。 */
+  private scheduleCollapseToProne(): void {
+    const runId = this.lifecycle.runId;
+    this.collapseTimer?.remove();
+    this.collapseTimer = this.time.delayedCall(this.reduced ? 140 : 480, () => {
+      this.collapseTimer = null;
+      if (!this.lifecycle.isLive(runId)) return;
+      // 快进到「黑暗结束」之后再触发就不该再趴下（此时该由 `settlePronePose` 决定）。
+      if (!this.blackoutRect) return;
+      this.collapseToProne();
+    });
+  }
+
+  /**
+   * 趴下：在脚底原位叠一张趴地贴图，把站立的 sprite 藏起来。
+   *
+   * 不复用 `PlayerActor` 的姿态机：趴只是「一个姿势 + 一段临时表演」，用完销毁，
+   * 不污染坐/走/站状态；撑起时再由 `setSitting(true)` 接管。
+   */
+  private collapseToProne(): void {
+    const player = this.player;
+    const display = player?.display ?? null;
+    if (!player || !display || this.proneSprite) return;
+    const key = CH01_ZHOU_PRONE.key;
+    if (!this.textures.exists(key)) return;
+    setPixelTexture(this, key);
+
+    const feet = player.position;
+    const prone = this.add
+      .image(feet.x, feet.y, key)
+      .setOrigin(
+        CH01_ZHOU_PRONE.centerX / CH01_ZHOU_PRONE.canvasWidth,
+        CH01_ZHOU_PRONE.bottom / CH01_ZHOU_PRONE.canvasHeight,
+      )
+      .setScale(CH01_ZHOU_PRONE.displayScale)
+      .setDepth(display.depth)
+      .setTint(0xffb4b4);
+    this.proneSprite = prone;
+    display.setVisible(false);
+    this.proneTween = this.reduced
+      ? null
+      : this.tweens.add({
+          targets: prone,
+          x: feet.x + 1.6,
+          duration: 90,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
+  }
+
+  /** 黑暗结束：松手，让他趴着喘（清掉黑场里的通红与发抖）。 */
+  private settlePronePose(): void {
+    // 玩家可能一路快点到黑暗结束、480ms 的「压趴」还没触发：这里补建，再开始喘。
+    this.collapseTimer?.remove();
+    this.collapseTimer = null;
+    if (!this.proneSprite) this.collapseToProne();
+    const prone = this.proneSprite;
+    if (!prone) return;
+    this.proneTween?.remove();
+    this.proneTween = null;
+    prone.clearTint();
+    const feet = this.player?.position;
+    if (feet) prone.setX(feet.x);
+    if (this.reduced) return;
+    this.proneTween = this.tweens.add({
+      targets: prone,
+      y: prone.y - 1.6,
+      duration: 680,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+  }
+
+  /** 把趴姿原样收掉（跳过 / 收尾 / 重开）：人回到站立，贴图销毁。 */
+  private clearPronePose(): void {
+    this.collapseTimer?.remove();
+    this.collapseTimer = null;
+    const had = this.proneSprite !== null || this.getUpPending || this.getUpIndex >= 0;
+    this.proneSprite = null;
+    this.proneTween?.remove();
+    this.proneTween = null;
+    this.getUpPending = false;
+    this.getUpIndex = -1;
+    if (!had) return;
+    const display = this.player?.display;
+    if (display) {
+      display.clearTint();
+      display.setVisible(true).setAlpha(1);
+    }
+    this.player?.setSitting(false);
+  }
+
+  /**
+   * 从趴地撑起来：趴 → 坐（170ms 交叉淡入）→ 起身 8 帧（小白同步飘回头部中线）。
+   *
+   * 表演由 `CH01_GETUP_PERFORMANCE` 驱动，首拍是 `wait`，正好给交叉淡入留窗口；
+   * `startPerformance` 一进来就置 `performing`，淡入期间也吃不到点击。
+   */
+  private startGetUp(): void {
+    const player = this.player;
+    if (!player || this.performing) return;
+    this.suppressWakeCg = true;
+    this.cg?.hide();
+
+    const prone = this.proneSprite;
+    this.proneTween?.remove();
+    this.proneTween = null;
+    const display = player.display;
+    // 先钉成坐姿（站起序列第 0 帧），再用交叉淡入把趴姿换掉。
+    player.setSitting(true);
+    if (display) {
+      display.setVisible(true).setAlpha(this.reduced ? 1 : 0);
+      if (!this.reduced) {
+        this.tweens.add({ targets: display, alpha: 1, duration: 170, ease: 'Sine.easeInOut' });
+      }
+    }
+    this.spawnSitDust(player.position);
+    if (prone) {
+      prone.setTint(0xffb4b4);
+      this.tweens.add({
+        targets: prone,
+        alpha: 0,
+        duration: this.reduced ? 0 : 170,
+        onComplete: () => {
+          prone.destroy();
+          if (this.proneSprite === prone) this.proneSprite = null;
+        },
+      });
+    }
+
+    this.startPerformance(CH01_GETUP_PERFORMANCE, () => {
+      this.player?.setSitting(false);
+      if (settings.autoAdvance) this.scheduleAutoAdvance();
+    });
+  }
+
   /** 梦域这一段先在金殿里演完（走位/台词），再由宫殿场景自己切战斗。 */
   private beginPalace(battleId: string): void {
     if (this.transitioning) return;
@@ -2383,6 +2567,12 @@ export class Ch01DormScene extends UIScene {
     // 压迫演出的循环音/心跳是场景级资源，必须在 SHUTDOWN 前停掉并还原角色构图。
     this.dark?.destroy();
     this.dark = null;
+    this.proneTween?.remove();
+    this.proneTween = null;
+    this.collapseTimer?.remove();
+    this.collapseTimer = null;
+    this.proneSprite?.destroy();
+    this.proneSprite = null;
     this.xiaobaiBob?.remove();
     this.xiaobaiBob = null;
     this.walkTween?.stop();

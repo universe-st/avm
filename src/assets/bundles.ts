@@ -856,6 +856,14 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         tags: ['character'],
       },
       {
+        // 趴地单帧（160×400）：压趴下 / 喘气用。
+        key: 'img.char.ch01.zhou_prone',
+        kind: 'image',
+        url: 'assets/img/character/ch01/zhou_prone.png',
+        label: '周全 · 趴地（受压迫）',
+        tags: ['character'],
+      },
+      {
         // 8 帧横排 1280×400；按 displayScale 1.0 播（见 CH01_ZHOU_STAND_UP）。
         key: 'img.char.ch01.zhou_stand_up',
         kind: 'image',
