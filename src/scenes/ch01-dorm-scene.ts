@@ -2,9 +2,6 @@ import Phaser from 'phaser';
 import { ref } from '@phaser-mvvm/core';
 import { UIScene, type ModalHandle } from '@phaser-mvvm/phaser';
 
-/** 对话面板一页最多显示的字数（34px 字号 × 4 行 × 约 17 字）。 */
-const DIALOGUE_PAGE_CHARS = 68;
-
 import {
   CH01_ASSET_KEYS,
   CH01_Q_FRAME,
@@ -109,6 +106,7 @@ import { DialoguePlayer, type DialogueEvent } from '../story/dialogue-player';
 import { playCutsceneVideo, type CutsceneVideoHandle } from '../ui/cutscene-video';
 import { mountFlashOverlay, type FlashOverlayHandle } from '../ui/flash-overlay';
 import {
+  DIALOGUE_PAGE_CHARS,
   DIALOGUE_TYPE_MS,
   reduceStateCues,
   speakerLabel,

@@ -48,12 +48,17 @@ function methodBody(text: string, signature: string): string {
 describe('金殿过场逐字接线', () => {
   it('say 事件把整句交给 Typewriter，不再直接整句上屏', () => {
     const body = methodBody(source(SCENE), 'private handleEvents(');
-    expect(body).toContain('this.typewriter.start(event.text, typewriterIntervalMs(settings.textSpeed))');
-    expect(body).toContain('this.applyTypeStep(');
+    // 分页之后由 showLinePage 把「这一页」交给打字机；handleEvents 只负责分页与进第一页。
+    expect(body).toContain('this.showLinePage(0)');
+    expect(body).toContain('this.sayPageCount.value = this.linePages.length');
     // 历史记录必须是完整原文，不是遮罩后的串。
     expect(body).toMatch(/text:\s*event\.text/);
     // 旧实现：`this.sayText.value = event.text` 整句直接进文本框。
     expect(body).not.toContain('this.sayText.value = event.text');
+
+    const showPage = methodBody(source(SCENE), 'private showLinePage(');
+    expect(showPage).toContain('this.typewriter.start(page, typewriterIntervalMs(settings.textSpeed))');
+    expect(showPage).toContain('this.applyTypeStep(');
   });
 
   it('遮罩由 Typewriter 统一做，纯逻辑不依赖 Phaser', () => {
@@ -138,8 +143,16 @@ describe('金殿旁白行为不变', () => {
     expect(body).toContain('narration: tone === ');
   });
 
-  it('分页策略没被改动（金殿仍是单页）', () => {
-    const body = methodBody(source(SCENE), 'private handleEvents(');
-    expect(body).toContain('this.sayPageCount.value = 1');
+  it('金殿也走同一条排版规则：分页 + 孤行控制 + 点击翻页', () => {
+    const say = methodBody(source(SCENE), 'private handleEvents(');
+    expect(say).toContain('paginateText(event.text, DIALOGUE_PAGE_CHARS)');
+    expect(say).toContain('balanceDialogueLine(page)');
+    const advance = methodBody(source(SCENE), 'private advance(): void {');
+    expect(advance).toContain('this.linePageIndex + 1 < this.linePages.length');
+    expect(advance).toContain('this.showLinePage(this.linePageIndex + 1)');
+    // 翻页不推进时间线：只有在没有下一页时才 player.advance()。
+    expect(advance.indexOf('this.player.advance()')).toBeGreaterThan(
+      advance.indexOf('this.showLinePage(this.linePageIndex + 1)'),
+    );
   });
 });

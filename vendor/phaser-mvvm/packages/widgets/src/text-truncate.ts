@@ -197,7 +197,7 @@ export function rewrapOverflowingLines(
       const next = index + codePointLengthAt(line, index);
       const candidate = current + line.slice(index, next);
       if (current.length > 0 && measureWidth(candidate) > maxWidth) {
-        const carried = carryDownForKinsoku(current, line.slice(index, next));
+        const carried = carryDownForBreak(current, line.slice(index, next));
         if (carried.head.length > 0) out.push(carried.head);
         current = carried.tail;
       } else {
@@ -214,6 +214,13 @@ export function rewrapOverflowingLines(
 /** Characters that may legitimately start a line: opening quotes and book-title marks. */
 const LINE_START_ALLOWED: ReadonlySet<string> = new Set(['「', '『', '《', '〈', '“', '‘']);
 const PUNCTUATION = /^\p{P}$/u;
+/**
+ * Characters that form an unbreakable token: numbers, Latin words, percentages.
+ *
+ * A line break inside one would read as two different things (`32.4` / `7%`), so those runs move
+ * down whole. Kept in sync with `isTokenChar` in the game's `src/story/dialogue.ts`.
+ */
+const TOKEN_CHAR = /^[A-Za-z0-9%‰％._+:/#-]$/u;
 
 /**
  * True when `char` must not be the first character of a line (kinsoku / 行首禁则).
@@ -227,18 +234,40 @@ export function isForbiddenLineStart(char: string | undefined): boolean {
   return PUNCTUATION.test(char) && !LINE_START_ALLOWED.has(char);
 }
 
+/** True for one character of a number / Latin word / percentage (`32.47%`, `TEAR-27`). */
+export function isTokenChar(char: string | undefined): boolean {
+  return char !== undefined && char !== '' && TOKEN_CHAR.test(char);
+}
+
 /**
- * Moves the last code point(s) of `head` down so `next` does not start with punctuation.
+ * Moves the tail of `head` down so `next` does not start with punctuation (kinsoku) and does not
+ * cut a number or Latin word in half.
  *
- * `carryDownForKinsoku('…饶什么命啊', '？')` → `{ head: '…饶什么命', tail: '啊？' }`.
- * Stops when the next line starts with a regular character; a line that is nothing but punctuation is
- * merged downward rather than emitted as an empty line (`head: ''`).
+ * `carryDownForBreak('…饶什么命啊', '？')` → `{ head: '…饶什么命', tail: '啊？' }`;
+ * `carryDownForBreak('概率超过32.4', '7%')` → `{ head: '概率超过', tail: '32.47%' }`.
+ * A line that is nothing but punctuation is merged downward rather than emitted as an empty line.
  */
-function carryDownForKinsoku(head: string, next: string): { head: string; tail: string } {
-  let headChars = [...head];
+function carryDownForBreak(head: string, next: string): { head: string; tail: string } {
+  const headChars = [...head];
   let tail = next;
-  while (isForbiddenLineStart([...tail][0]) && headChars.length > 0) {
+  // 1) 行首禁则：新行不能以标点开头，把上一行末字一起带下去。
+  while (headChars.length > 0 && isForbiddenLineStart([...tail][0])) {
     tail = `${headChars.pop() ?? ''}${tail}`;
+  }
+  const kinsokuHead = headChars.join('');
+  const kinsokuTail = tail;
+  if (kinsokuHead === '') return { head: '', tail: kinsokuTail };
+  // 2) 不拆数字/英文词：断点两侧都是 token 字符时，退到这个 token 的开头。
+  while (
+    headChars.length > 0 &&
+    isTokenChar(headChars[headChars.length - 1]) &&
+    isTokenChar([...tail][0])
+  ) {
+    tail = `${headChars.pop() ?? ''}${tail}`;
+  }
+  // token 比一行还宽、或带下去后只剩一两个字：接受断在 token 中间（没有更好的落点）。
+  if ([...headChars.join('')].length < Math.max(2, Math.floor([...kinsokuHead].length / 3))) {
+    return { head: kinsokuHead, tail: kinsokuTail };
   }
   return { head: headChars.join(''), tail };
 }

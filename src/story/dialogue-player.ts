@@ -3,6 +3,7 @@ import {
   balanceDialogueLine,
   charsOf,
   isForbiddenLineStart,
+  isTokenChar,
   maskDialogueText,
   type DialogueLine,
 } from './dialogue';
@@ -77,6 +78,7 @@ export function paginateText(text: string, pageChars: number): readonly string[]
     const limit = start + pageChars;
     let cut = chooseCut(chars, start, limit);
     cut = snapPastForbiddenStart(chars, cut, chars.length);
+    cut = snapPastToken(chars, cut, start, pageChars);
     if (cut <= start) cut = limit;
     // 句末标点后面的右引号可能刚好把这一页推到末尾：那就不再单开一页。
     if (cut >= chars.length) break;
@@ -112,6 +114,37 @@ function chooseCut(chars: readonly string[], start: number, limit: number): numb
     if (CLAUSE_END.has(chars[index - 1] as string)) return index;
   }
   return limit;
+}
+
+/**
+ * 不拆数字/英文词：断点落在 token 中间时，把整个 token 留在上一页。
+ *
+ * 最多往前多带 `TOKEN_SLACK` 个字（面板还有第 5 行的余量）；token 实在太长就把断点挪到
+ * 它的开头（整个词进下一页），挪不动（词本身就从页首开始）才允许断开。
+ */
+function snapPastToken(
+  chars: readonly string[],
+  cut: number,
+  start: number,
+  pageChars: number,
+): number {
+  const TOKEN_SLACK = 8;
+  let next = cut;
+  while (
+    next < chars.length &&
+    next - start < pageChars + TOKEN_SLACK &&
+    isTokenChar(chars[next]) &&
+    isTokenChar(chars[next - 1])
+  ) {
+    next += 1;
+  }
+  if (next === cut) return cut;
+  if (isTokenChar(chars[next]) && isTokenChar(chars[next - 1])) {
+    let back = cut;
+    while (back > start + 1 && isTokenChar(chars[back - 1])) back -= 1;
+    return back > start ? back : cut;
+  }
+  return next;
 }
 
 /** 行首禁则：断点后面紧跟标点时，把标点留在上一页（返回新的断点）。 */

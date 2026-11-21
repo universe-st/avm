@@ -312,3 +312,29 @@ describe('rewrapOverflowingLines · 行首禁则 (kinssoku)', () => {
     expect(lines.every((line) => line.length > 0)).toBe(true);
   });
 });
+
+describe('rewrapOverflowingLines · 不拆数字/英文词', () => {
+  const measure = (text: string): number => [...text].length * 10;
+
+  it('百分数不会被切成「32.4 / 7%」两行', () => {
+    const source = '一二三四五六七八九十一二99.7%后面还有字';
+    const lines = rewrapOverflowingLines([source], 150, measure);
+    expect(lines.join('')).toBe(source);
+    expect(lines[1]?.startsWith('99.7%')).toBe(true);
+  });
+
+  it('英文编号 TEAR-27 整体换行', () => {
+    const source = '一二三四五六七八九十TEAR-27句';
+    const lines = rewrapOverflowingLines([source], 150, measure);
+    expect(lines.join('')).toBe(source);
+    expect(lines[1]?.startsWith('TEAR-27')).toBe(true);
+  });
+
+  it('比一行还长的 token 仍然会断，且不产生空行', () => {
+    const source = 'a'.repeat(22);
+    const lines = rewrapOverflowingLines([source], 50, measure);
+    expect(lines.join('')).toBe(source);
+    expect(lines.every((line) => line.length > 0)).toBe(true);
+    expect(lines.length).toBeGreaterThan(1);
+  });
+});

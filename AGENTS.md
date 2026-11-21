@@ -49,7 +49,7 @@ pnpm android:release
 
 18. **立绘必须与说话人对位（金殿）**：谁开口，屏幕上就只能是那个人的立绘。对位表 `PALACE_SPEAKER_PORTRAIT`（`src/story/ch01-palace.ts`）+ 归约 `reducePortraitForSay()` 是唯一判定，场景在 `say` 分支调用 `alignPortraitForLine()`；**不要靠手写 `portrait` act 记住换脸**（2026-11-18 的「周全的台词配郑卿的脸」就是这么来的）。旁白不换脸；没立绘的角色（矿工）开口时收脸，不许顶上一张。新增说话人必须在表里表态，护栏 `test/palace-portrait-speaker.test.ts` 会逐句走时间线。
 
-19. **台词换行遵守行首禁则（2026-11-21）**：一句台词太长要翻页时，**页与页之间优先在句末标点断开**；**任何换行（翻页、页内折行、渲染层按宽度折行）后，新行第一个字符不能是标点**——只有前引号 `「『“` 与前书名号 `《〈` 例外。判定唯一源 `isForbiddenLineStart()`（`src/story/dialogue.ts`，按 Unicode `\p{P}` 分类，不手写标点表）；翻页在 `paginateText()`（`src/story/dialogue-player.ts`），页内只做孤行控制 `balanceDialogueLine()`，真正按字宽折行在框架 `rewrapOverflowingLines()`（vendor 补丁，两边判定要对拍）。新增/改写台词不用手数行，护栏 `test/dialogue-linebreak.test.ts` 会把**全部剧本**逐页折一遍。规则与取舍见 [台词排版](docs/DIALOGUE-TYPOGRAPHY.md)。
+19. **台词换行遵守行首禁则（2026-11-21）**：一句台词太长要翻页时，**页与页之间优先在句末标点断开**；**任何换行（翻页、页内折行、渲染层按宽度折行）后，新行第一个字符不能是标点**——只有前引号 `「『“` 与前书名号 `《〈` 例外。判定唯一源 `isForbiddenLineStart()`（`src/story/dialogue.ts`，按 Unicode `\p{P}` 分类，不手写标点表）；翻页在 `paginateText()`（`src/story/dialogue-player.ts`），页内只做孤行控制 `balanceDialogueLine()`，真正按字宽折行在框架 `rewrapOverflowingLines()`（vendor 补丁，两边判定要对拍）。**数字/英文词（`32.47%`、`TEAR-27`）是不可拆 token**（`isTokenChar()`）：翻页时整词留在上一页，渲染折行时整词换行。**金殿过场也走同一套分页**（`PalacePlayer` 的 `say` 交给 `paginateText`/`balanceDialogueLine`，点击顺序=补全本页→翻页→推进时间线）。新增/改写台词不用手数行，护栏 `test/dialogue-linebreak.test.ts` 会把**全部剧本**逐页折一遍。规则与取舍见 [台词排版](docs/DIALOGUE-TYPOGRAPHY.md)。
 
 ## 3. 代码风格
 

@@ -9,10 +9,13 @@ import {
 import { KITCHEN_NODES } from '../src/story/ch01-kitchen';
 import { PALACE_BEATS } from '../src/story/ch01-palace';
 import { PROLOGUE_CUES } from '../src/story/prologue';
-import { balanceDialogueLine, isForbiddenLineStart } from '../src/story/dialogue';
+import { balanceDialogueLine, isForbiddenLineStart, isTokenChar } from '../src/story/dialogue';
 import { paginateText } from '../src/story/dialogue-player';
 // 框架负责「渲染时按宽度折行」的那一半规则：两边的判定必须一致，否则剧情层合规、画面仍会翻车。
-import { isForbiddenLineStart as isForbiddenLineStartInWidgets } from '../vendor/phaser-mvvm/packages/widgets/src/text-truncate';
+import {
+  isForbiddenLineStart as isForbiddenLineStartInWidgets,
+  isTokenChar as isTokenCharInWidgets,
+} from '../vendor/phaser-mvvm/packages/widgets/src/text-truncate';
 
 /**
  * 台词换行规则（需求原话）：
@@ -79,6 +82,20 @@ describe('isForbiddenLineStart · 行首禁则判定', () => {
     expect(isForbiddenLineStart(undefined)).toBe(false);
   });
 
+  it('不可拆 token 的判定与框架一致（数字/英文词/百分号）', () => {
+    const samples = [...'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz%‰％._+:/#-，。、；：？！…—·「」（）　 '];
+    for (const char of samples) {
+      expect(isTokenCharInWidgets(char), JSON.stringify(char)).toBe(isTokenChar(char));
+    }
+    expect(isTokenChar('3')).toBe(true);
+    expect(isTokenChar('%')).toBe(true);
+    expect(isTokenChar('A')).toBe(true);
+    expect(isTokenChar('-')).toBe(true);
+    expect(isTokenChar('。')).toBe(false);
+    expect(isTokenChar('周')).toBe(false);
+    expect(isTokenChar(undefined)).toBe(false);
+  });
+
   it('与框架渲染折行的判定完全一致（防两边漂移）', () => {
     const samples = [
       ...'，。、；：？！…—·％%.,!?:;)]』》〉】〕「『《〈“‘”’（）【】',
@@ -131,6 +148,13 @@ describe('paginateText · 翻页断点', () => {
     const pages = paginateText(text, PAGE_CHARS);
     expect(pages).toHaveLength(1);
     expect(pages[0]).toBe(text);
+  });
+
+  it('翻页不拆数字：99.7% 这类 token 整体留在同一页', () => {
+    const text = '一二三四五六七八九32.47%后面还有字';
+    const pages = paginateText(text, 10);
+    expect(pages.join('')).toBe(text);
+    expect(pages[0]?.endsWith('32.47%')).toBe(true);
   });
 
   it('不丢字、不产生空页，短句不分页', () => {
@@ -191,9 +215,23 @@ describe('全部剧本数据 · 换行合规', () => {
           const first = Array.from(line)[0];
           if (isForbiddenLineStart(first)) problems.push(`${id} p${pageIndex + 1}l${lineIndex + 1}「${line.slice(0, 16)}」`);
         });
-        // 翻页也不能把页撑到面板之外（68 字上限 + 行末标点最多多带一两个字）。
-        expect(Array.from(page).length, `${id} 第 ${pageIndex + 1} 页`).toBeLessThanOrEqual(PAGE_CHARS + 2);
+        // 翻页也不能把页撑到面板之外（68 字上限 + 行末标点/token 回拉最多多带几个字）。
+        expect(Array.from(page).length, `${id} 第 ${pageIndex + 1} 页`).toBeLessThanOrEqual(PAGE_CHARS + 8);
       });
+      // 页与页之间也不能把数字/英文词拆开（按去掉折行符后的页长算偏移）。
+      const flatPages = pages.map((page) => page.replace(/\n/g, ''));
+      const flat = Array.from(text.replace(/\n/g, ''));
+      let offset = 0;
+      for (const page of flatPages) {
+        offset += Array.from(page).length;
+        if (
+          offset < flat.length &&
+          isTokenChar(flat[offset - 1]) &&
+          isTokenChar(flat[offset])
+        ) {
+          problems.push(`${id} 第 ${offset} 字处把 token 拆到了两页`);
+        }
+      }
     }
     expect(problems).toEqual([]);
   });

@@ -255,6 +255,25 @@ export function isForbiddenLineStart(char: string | undefined): boolean {
 }
 
 /**
+ * 不可拆开的 token 字符：数字、英文词、百分号（`32.47%`、`TEAR-27`、`ETH-HB-001B`）。
+ *
+ * 换行/翻页落在这类字符中间会把一句话读成两句（实测渲染层把「32.47%」切成「32.4 / 7%」）。
+ * 与框架 `rewrapOverflowingLines()` 的 `isTokenChar` 必须一致，`test/dialogue-linebreak.test.ts` 对拍。
+ */
+const TOKEN_CHAR = /^[A-Za-z0-9%‰％._+:/#-]$/u;
+
+export function isTokenChar(char: string | undefined): boolean {
+  return char !== undefined && char !== '' && TOKEN_CHAR.test(char);
+}
+
+/**
+ * 一句台词一页最多几个字（寝室/御膳房/金殿共用）。
+ *
+ * 面板 300 高、字号 34，68 字约 4 行（第 5 行留给行末标点回拉与行首禁则）。
+ */
+export const DIALOGUE_PAGE_CHARS = 68;
+
+/**
  * 一行最多放几个汉字：面板内容宽 676、字号 34（`lg`），实测一行 19 个汉字。
  *
  * 这个数只用于「尾行会不会太短」的判断，不是硬折行宽度——真正的按宽度折行在

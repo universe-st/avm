@@ -60,6 +60,7 @@ import {
 } from '../story/ch01-kitchen';
 import { DialoguePlayer, type DialogueEvent } from '../story/dialogue-player';
 import {
+  DIALOGUE_PAGE_CHARS,
   DIALOGUE_TYPE_MS,
   speakerLabel,
   speakerTone,
@@ -84,7 +85,6 @@ import { writeSlot, type SaveWriteResult } from '../app/save/save-store';
 import { planBgmRestore, resolvePlayerRestore } from '../app/save/restore-plan';
 import { restoreSaveFromScene } from '../app/save/load';
 
-const DIALOGUE_PAGE_CHARS = 68;
 const PLAYER_SCALE = 0.6138;
 const PLAYER_HEAD_OFFSET = 232;
 const WALK_SPEED = 210;

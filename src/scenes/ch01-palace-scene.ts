@@ -33,12 +33,15 @@ import {
 import { addStageFrame, type StageFrameHandle } from '../ui/stage-frame';
 import { isPointerOnUiControl } from '../ui/ui-pointer-guard';
 import {
+  DIALOGUE_PAGE_CHARS,
+  balanceDialogueLine,
   speakerLabel,
   speakerTone,
   type DialogueRole,
   type EmotionKind,
   type SpeakerTone,
 } from '../story/dialogue';
+import { paginateText } from '../story/dialogue-player';
 import { Typewriter, typewriterIntervalMs, type TypewriterStep } from '../story/typewriter';
 import { typeVoiceForSpeaker } from '../audio/type-voice';
 import { DialogueHistory } from '../story/dialogue-history';
@@ -132,6 +135,12 @@ export class Ch01PalaceScene extends UIScene {
   private lineRole: DialogueRole | undefined;
   /** 上一帧已经显示的字数：一帧补多个字时也只播一次逐字音。 */
   private lastTyped = 0;
+  /**
+   * 当前这句的分页结果。金殿过场和寝室/御膳房共用同一条排版规则：
+   * `paginateText`（句末断点 + 行首禁则）→ `balanceDialogueLine`（孤行控制）。
+   */
+  private linePages: readonly string[] = [];
+  private linePageIndex = 0;
 
   private get reduced(): boolean {
     return resolveReducedMotion();
@@ -211,6 +220,8 @@ export class Ch01PalaceScene extends UIScene {
     this.lineSpeaker = undefined;
     this.lineRole = undefined;
     this.lastTyped = 0;
+    this.linePages = [];
+    this.linePageIndex = 0;
   }
 
   override update(_time: number, delta: number): void {
@@ -448,23 +459,27 @@ export class Ch01PalaceScene extends UIScene {
         this.lineRole = event.role;
         this.lastTyped = 0;
         this.sayVisible.value = true;
-        this.sayPageIndex.value = 0;
-        this.sayPageCount.value = 1;
-        // 整句原文进历史；屏幕上先只露出遮罩文本（全角空格占位，行数不变），逐字填。
+        // 整句原文进历史（分页不影响历史——玩家回看的是整句）；
+        // 屏幕上先只露出这一页的遮罩文本（全角空格占位，行数不变），逐字填。
         this.history.push({
           speaker: speakerLabel(event.speaker),
           text: event.text,
           narration: tone === 'narration',
           at: this.time.now,
         });
-        this.applyTypeStep(
-          this.typewriter.start(event.text, typewriterIntervalMs(settings.textSpeed)),
-          { blip: false },
+        this.linePages = paginateText(event.text, DIALOGUE_PAGE_CHARS).map((page) =>
+          balanceDialogueLine(page),
         );
+        this.sayPageCount.value = this.linePages.length;
+        this.showLinePage(0);
       } else if (event.type === 'complete') {
         this.cancelAutoAdvance();
         this.typewriter.reset();
         this.lastTyped = 0;
+        this.linePages = [];
+        this.linePageIndex = 0;
+        this.sayPageIndex.value = 0;
+        this.sayPageCount.value = 1;
         this.finish();
       }
     }
@@ -539,6 +554,29 @@ export class Ch01PalaceScene extends UIScene {
   }
 
   /**
+   * 显示当前这句的第 `index` 页：换文本、重置逐字、刷新页码。
+   *
+   * 进句/翻页都不播逐字音（这些字不是「逐字打出来」的）；之后每帧新增的字才响。
+   */
+  private showLinePage(index: number): void {
+    const page = this.linePages[index] ?? '';
+    if (page === '') {
+      this.linePages = [];
+      this.linePageIndex = 0;
+      this.sayPageIndex.value = 0;
+      this.sayPageCount.value = 1;
+      this.applyTypeStep(this.typewriter.complete(), { blip: false });
+      return;
+    }
+    this.linePageIndex = index;
+    this.sayPageIndex.value = index;
+    this.lastTyped = 0;
+    this.applyTypeStep(this.typewriter.start(page, typewriterIntervalMs(settings.textSpeed)), {
+      blip: false,
+    });
+  }
+
+  /**
    * 每帧推进逐字。历史弹窗/切场/收尾期间不喂 delta，等于就地暂停。
    */
   private advanceTypewriter(deltaMs: number): void {
@@ -578,9 +616,18 @@ export class Ch01PalaceScene extends UIScene {
       this.applyTypeStep(this.typewriter.complete(), { blip: false });
       return;
     }
+    // 这一句还有下一页：翻页重新逐字，不推进时间线（与地图对话的点击语义一致）。
+    if (this.linePageIndex + 1 < this.linePages.length) {
+      audioDirector.playClick();
+      this.cancelAutoAdvance();
+      this.showLinePage(this.linePageIndex + 1);
+      return;
+    }
     audioDirector.playClick();
     this.cancelAutoAdvance();
     this.sayVisible.value = false;
+    this.linePages = [];
+    this.linePageIndex = 0;
     this.handleEvents(this.player.advance());
   }
 
@@ -590,6 +637,10 @@ export class Ch01PalaceScene extends UIScene {
     this.cancelAutoAdvance();
     this.typewriter.reset();
     this.lastTyped = 0;
+    this.linePages = [];
+    this.linePageIndex = 0;
+    this.sayPageIndex.value = 0;
+    this.sayPageCount.value = 1;
     this.sayVisible.value = false;
     this.handleEvents(this.player.skip());
   }
