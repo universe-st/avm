@@ -56,6 +56,7 @@ export const DIALOGUE_CUE_KINDS = {
   emotion: 'expressive',
   sfx: 'expressive',
   blackout: 'expressive',
+  dark: 'expressive',
 } as const satisfies Readonly<Record<DialogueCueKey, 'stateful' | 'expressive'>>;
 ```
 
@@ -77,7 +78,7 @@ export const DIALOGUE_CUE_KINDS = {
 归约只取 `bgm`，`stateCuesOfLine()` 返回 `{ bgm: 'ch01Crisis' }`——所以跳过时会切曲，但不会补播那张新闻 CG
 （这正是 `test/dorm-stateful-cues.test.ts` 里「新闻回忆那一行同时带 cg 和 bgm」那条反向断言守的东西）。
 2026-11-20 的黑屏胁迫段同理：`呃……` 那行同时带 `bgm: 'ch01Crisis'` 与 `blackout: true`，
-归约只认 `bgm`；黑屏不被补演，但收尾会无条件恢复（见 §4.6）。
+归约只认 `bgm`；黑屏与黑场胁迫演出（`dark`）不被补演，但收尾会无条件恢复/收干净（见 §4.6、§4.7）。
 
 ---
 
@@ -85,7 +86,7 @@ export const DIALOGUE_CUE_KINDS = {
 
 | 符号 | 作用 |
 | --- | --- |
-| `DialogueCueKey` | 行 cue key 的联合类型：`cg` / `fx` / `bgm` / `emotion` / `sfx` / `blackout` |
+| `DialogueCueKey` | 行 cue key 的联合类型：`cg` / `fx` / `bgm` / `emotion` / `sfx` / `blackout` / `dark` |
 | `DIALOGUE_CUE_KINDS` | 分类表；`satisfies` 强制每个 key 都表态，**漏分类编译失败** |
 | `DialogueCueKind` / `StatefulCueKey` / `ExpressiveCueKey` | 从分类表推出来的类型，不手写第二份 |
 | `cueKeysOfKind(kind)` | 按类别取 key 列表，供测试/工具使用 |
@@ -194,6 +195,43 @@ private finishDialogue(): void {
 
 选项 UI 不复用系统菜单：`openStoryChoice()` 是**不可关闭**的模态（分支必须选一个），
 选项文案全部来自 `CH01_AFTER_INQUIRY`；场景里不许出现第二份文案。
+
+### 4.7 黑场胁迫演出（`dark`，2026-11-21）
+
+小白压制周全那一段（`CH01_AFTER_CLOSING` 的 `呃……` → `另外，如果拖延太久……`）不是「一句话一个特效」，
+而是一套**六拍**的舞台演出：
+
+| 拍 | 台词 | 画面/声音 |
+| --- | --- | --- |
+| `onset` | 「呃……」+ `blackout: true` | 黑场成立、冷光池、小白逼近到原大 2 倍、低频底噪与心跳起 |
+| `grip` | 旁白「无形的大手……」 | 灵能缚索出现、攥紧音、一记震屏、心跳加快 |
+| `squeeze` | 「什么……情况……好难受……」 | 光池收暗、周全下沉压扁、血色脉冲 |
+| `verdict` | 小白念《灵能族战时管理条例》 | 小白放大到 3 倍、符环扫开、压边收紧、通电音 |
+| `crush` | 「哇啊啊啊……停……停下！」 | 冷白闪 + 三下短震 + 周全泛红 + 光晕过载抖动 |
+| `release` | 「另外，如果拖延太久……」+ `blackout: false` | 白闪、压力解除音、吐气；光池/缚索/压边全部淡出 |
+
+分工（改数值只动前两个文件）：
+
+- **剧本**：`src/story/ch01-after.ts` 只写 `dark: '<拍>'`；
+- **数值表**：`src/story/ch01-dark-scene.ts` 的 `DARK_BEATS`（暗角、夹紧、小白倍数、缚索、bpm、底噪、下沉）；
+- **表现层**：`src/ui/dark-pressure.ts` 的 `DarkPressureRig`（冷光池/光晕/缚索/压边/心跳/音效）。
+
+契约：
+
+1. **表现型**：跳过不补演。但「已经起来的压迫演出」必须收干净——
+   `finishDialogue()` → `setBlackout(false)` → `releaseDarkPressure()`；
+   `resetState()` / `onShutdown()` 还要 `dark.destroy()`（循环音、心跳定时器、tween、角色构图）。
+2. **黑场里不要用黑色做「压边/暗角」**：世界层已经是黑的，黑色压在黑色上等于没画。
+   这一段用**亮的冷光软边**（线性渐变贴图）+ 光池收暗来表达「画面被夹住」（v1 黑边实测完全看不见）。
+3. **小白放大只取整数倍**（基准 0.45 → 2×/3×），像素图非整数倍会抖。
+4. **不碰 `cameras.main.zoom`**；震屏只走 `cameras.main.shake`，否则 Compose 对话框会被一起放大。
+5. **心跳不要按单记排**：`ch01_dark_heartbeat.mp3` 是「一组两记」，按 `120000/bpm` 排组、
+   用 `rate` 把组内间距拉到位；按 `60000/bpm` 排会叠三层、听起来像心律不齐。
+6. **reduced**：光池/缚索/压边/放大照做但瞬间到位，震屏、心跳脉冲、粒子、符环扫开全部跳过。
+
+舞台预览：`?stage=scene.ch01.dorm&phase=dark`（从 `呃……` 那一拍直接开始）。
+护栏：`test/ch01-dark-scene.test.ts`（强度单调、release 归零、六拍顺序、起点行）、
+`test/dorm-stateful-cues.test.ts`（分类表）、`.evidence/tools/after-2026-11-21/verify-dark-scene.mjs`（实机 A–E）。
 
 ---
 

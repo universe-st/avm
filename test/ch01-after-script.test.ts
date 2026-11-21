@@ -121,9 +121,9 @@ describe('战后剧本 · 原文与顺序', () => {
 
   it('三个提问分支逐字一致，选项顺序与文案照稿', () => {
     expect(CH01_AFTER_INQUIRY.questions.map((question) => question.label)).toEqual([
-      '1. 郑卿怎么了？',
-      '2. 刚才是怎么回事？',
-      '3. 你是谁？',
+      '郑卿怎么了？',
+      '刚才是怎么回事？',
+      '你是谁？',
     ]);
     expect(CH01_AFTER_INQUIRY.closingLabel).toBe('你想让我做什么。');
     const byId = new Map(CH01_AFTER_INQUIRY.questions.map((question) => [question.id, question]));
@@ -253,8 +253,16 @@ describe('场景接线（源码护栏）', () => {
     expect(scene).toContain('markAsked(CH01_AFTER_INQUIRY');
     expect(scene).toContain('questionById(CH01_AFTER_INQUIRY');
     // 选项文案只能在 story 数据里；场景写死文案就说明又造了一套。
-    expect(scene).not.toContain('1. 郑卿怎么了？');
+    expect(scene).not.toContain('郑卿怎么了？');
     expect(scene).not.toContain('你想让我做什么');
+  });
+
+  it('黑场胁迫段的压迫演出接在场景生命周期上（建/收/拆都在同一处）', () => {
+    expect(scene).toContain("from '../ui/dark-pressure'");
+    expect(scene).toContain('new DarkPressureRig(');
+    // 自然过完 / 跳过 / 切场都要收：setBlackout(false) 与 SHUTDOWN/resetState。
+    expect(scene).toContain('this.releaseDarkPressure()');
+    expect(scene).toContain('this.dark?.destroy()');
   });
 
   it('三个问题都问完才播收尾段（afterStage 只有 closing 才推进节点）', () => {

@@ -17,7 +17,7 @@ import type { DialogueLine } from './dialogue';
 export interface InquiryQuestion<Id extends string = string> {
   /** 稳定 id；菜单点击与 `asked` 记录都用它。 */
   readonly id: Id;
-  /** 菜单按钮上的文案（原文中的编号也保留在这里）。 */
+  /** 菜单按钮上的文案；不带编号（编号由 UI 故意不画，见 `story-choice.ts`）。 */
   readonly label: string;
   /** 点开这个问题后要播的台词。 */
   readonly lines: readonly DialogueLine[];

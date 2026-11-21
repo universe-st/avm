@@ -101,7 +101,7 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     status: 'ready',
     requires: ['core', 'ui', 'ch.01', 'cutscene.ch01phone', 'cutscene.ch01palace.sfx'],
     description:
-      '寝室小地图：移动、碰撞、叫醒郑卿、找手机（播放手机 CG）、小白登场。phase=opening|explore|after|complete，debug=1 显示碰撞。',
+      '寝室小地图：移动、碰撞、叫醒郑卿、找手机（播放手机 CG）、小白登场。phase=opening|explore|after|dark|complete；dark 直接从战后黑场胁迫（小白问罪）那一拍开始，debug=1 显示碰撞。',
     tags: ['ch01', 'map'],
   },
   {

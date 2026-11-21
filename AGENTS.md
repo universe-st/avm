@@ -51,6 +51,13 @@ pnpm android:release
 
 19. **台词换行遵守行首禁则（2026-11-21）**：一句台词太长要翻页时，**页与页之间优先在句末标点断开**；**任何换行（翻页、页内折行、渲染层按宽度折行）后，新行第一个字符不能是标点**——只有前引号 `「『“` 与前书名号 `《〈` 例外。判定唯一源 `isForbiddenLineStart()`（`src/story/dialogue.ts`，按 Unicode `\p{P}` 分类，不手写标点表）；翻页在 `paginateText()`（`src/story/dialogue-player.ts`），页内只做孤行控制 `balanceDialogueLine()`，真正按字宽折行在框架 `rewrapOverflowingLines()`（vendor 补丁，两边判定要对拍）。**数字/英文词（`32.47%`、`TEAR-27`）是不可拆 token**（`isTokenChar()`）：翻页时整词留在上一页，渲染折行时整词换行。**金殿过场也走同一套分页**（`PalacePlayer` 的 `say` 交给 `paginateText`/`balanceDialogueLine`，点击顺序=补全本页→翻页→推进时间线）。新增/改写台词不用手数行，护栏 `test/dialogue-linebreak.test.ts` 会把**全部剧本**逐页折一遍。规则与取舍见 [台词排版](docs/DIALOGUE-TYPOGRAPHY.md)。
 
+20. **暗场/黑场演出不要用黑色画「压边、暗角、遮挡」**：世界层已经是黑的，黑色压在黑色上等于没画
+    （2026-11-21 黑场胁迫 v1 实测：黑边与分带暗角完全看不见）。要表达「画面被夹住」，用**亮的冷光软边**
+    ——canvas 线性/径向渐变贴图，不要用 Graphics 同心圆或一叠矩形条（会露出色带/像相框）。
+    同一段的音效也有坑：心跳素材 `ch01_dark_heartbeat.mp3` 是**一组两记**，按 `120000/bpm` 排组、
+    用 `rate` 对齐组内间距；按 `60000/bpm` 逐记排会叠三层、听起来像心律不齐（实测）。
+    六拍数值表在 `src/story/ch01-dark-scene.ts`，表现层 `src/ui/dark-pressure.ts`，契约见 `docs/CUE-CONTRACT.md` §4.7。
+
 ## 3. 代码风格
 
 - TypeScript strict；`verbatimModuleSyntax`；类型导入用 `import type`。
@@ -65,6 +72,8 @@ pnpm android:release
 - 改开幕/过场：完整走一遍「开始 → 全部 cue → 点击继续 → 第一章寝室」，再测「跳过」「返回键」和 `prefers-reduced-motion`；`?stage=scene.prologue` 直接进开幕。
 - 改第一章/地图：`?stage=scene.ch01.dorm&phase=explore&hud=0`；验移动/碰撞/交互/目标/对话/返回标题；`debug=1` 看碰撞格。
 - 改剧情战：`?stage=battle.ch01.first&phase=opening|mid|defeat&hud=0`；验攻击固定 1、3 回合必败、战败回寝室、预览可重开/返回。
+- 改战后黑场胁迫（小白压制周全）：`?stage=scene.ch01.dorm&phase=dark&hud=0` 从「呃……」那一拍直接开始；
+  验六拍顺序、黑屏收尾、跳过（结尾卡背后不留黑屏/心跳/小白放大）、`prefers-reduced-motion`。
 - 改舞台目录/预览：`pnpm check`；按 `docs/STAGE-PREVIEW.md` §10 验「URL / 控制台 / HUD 目录 / 未知 id 回退 / hud=0」；新增场景/CG/战斗必须能单点打开、带 seed 重开、返回标题。
 - 改资源：`pnpm assets:check`；确认 `public/assets` 下没有未引用文件。
 - 改 Android：`pnpm android:debug` 出调试包即可；只有用户主动要求时才装模拟器/真机，验「启动到标题、点击开始、返回键」。

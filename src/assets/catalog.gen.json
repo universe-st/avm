@@ -1,4 +1,8 @@
 {
+  "assets/.DS_Store": {
+    "bytes": 6148,
+    "mtimeMs": 1795231842374
+  },
   "assets/audio/bgm/ch01_crisis.mp3": {
     "bytes": 1345036,
     "mtimeMs": 1793527488408
@@ -34,6 +38,22 @@
   "assets/audio/sfx/ch01_chapter_chime.mp3": {
     "bytes": 27316,
     "mtimeMs": 1793528194854
+  },
+  "assets/audio/sfx/ch01_dark_grip.mp3": {
+    "bytes": 17901,
+    "mtimeMs": 1795231189382
+  },
+  "assets/audio/sfx/ch01_dark_heartbeat.mp3": {
+    "bytes": 16173,
+    "mtimeMs": 1795231841968
+  },
+  "assets/audio/sfx/ch01_dark_pressure.mp3": {
+    "bytes": 127629,
+    "mtimeMs": 1795231189382
+  },
+  "assets/audio/sfx/ch01_dark_release.mp3": {
+    "bytes": 23949,
+    "mtimeMs": 1795231189383
   },
   "assets/audio/sfx/ch01_kitchen_alert.mp3": {
     "bytes": 15309,

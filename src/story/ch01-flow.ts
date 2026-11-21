@@ -102,11 +102,18 @@ export interface Ch01FlowOptions {
   readonly snapshot?: Ch01FlowSnapshot;
 }
 
-export const CH01_PREVIEW_PHASES = ['opening', 'explore', 'after', 'complete'] as const;
+export const CH01_PREVIEW_PHASES = ['opening', 'explore', 'after', 'dark', 'complete'] as const;
 export type Ch01PreviewPhase = (typeof CH01_PREVIEW_PHASES)[number];
 
+/**
+ * `phase=dark` 是「战后黑场胁迫」的单点预览：流程仍从 after 节点进（见 `scene` 的
+ * `previewDark`），只是场景把对话切片直接跳到黑场那一拍。归一成 `after` 是有意的：
+ * 「从战后回来」的全部流程语义（坐姿/存档检查点/结束卡）都复用 after，不需要第二套节点。
+ */
 export function normalizeCh01PreviewPhase(value: string | undefined): Ch01PreviewPhase {
-  if (value === 'explore' || value === 'after' || value === 'complete') return value;
+  if (value === 'explore' || value === 'after' || value === 'dark' || value === 'complete') {
+    return value === 'dark' ? 'after' : value;
+  }
   return 'opening';
 }
 

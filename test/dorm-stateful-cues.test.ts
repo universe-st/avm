@@ -46,7 +46,7 @@ function bgmAfterSkipping(lines: readonly DialogueLine[], skipAt: number): BgmId
 }
 
 describe('行 cue 分类：状态型 vs 表现型', () => {
-  it('bgm 是状态型；cg / fx / emotion / sfx / blackout 是表现型', () => {
+  it('bgm 是状态型；cg / fx / emotion / sfx / blackout / dark 是表现型', () => {
     expect(DIALOGUE_CUE_KINDS.bgm).toBe('stateful');
     expect(DIALOGUE_CUE_KINDS.cg).toBe('expressive');
     expect(DIALOGUE_CUE_KINDS.fx).toBe('expressive');
@@ -54,6 +54,8 @@ describe('行 cue 分类：状态型 vs 表现型', () => {
     // 2026-11-20 新剧本引入的两类表现型 cue：黑屏演出与一次性音效（鼾声）。
     expect(DIALOGUE_CUE_KINDS.sfx).toBe('expressive');
     expect(DIALOGUE_CUE_KINDS.blackout).toBe('expressive');
+    // 2026-11-21 黑场胁迫演出（暗角/夹紧/心跳/小白放大）：只在这一行被看见时推进。
+    expect(DIALOGUE_CUE_KINDS.dark).toBe('expressive');
   });
 
   it('按分类取 key（分类表是唯一真值，不手写第二份）', () => {

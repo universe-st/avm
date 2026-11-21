@@ -213,6 +213,25 @@ export const CH01_ASSET_KEYS = {
     chapterChime: 'audio.sfx.ch01_chapter_chime',
     /** 头顶表情气泡「啵」地冒出来（t61；六情绪共用一条，靠 rate 微变区分）。 */
     bubblePop: 'audio.sfx.ch01_bubble_pop',
+    /**
+     * 战后黑场胁迫段（小白压制周全）的三条深场音。
+     *
+     * - `darkPressure`：低频压迫底噪，10.55s 无缝循环，随节拍提音量；
+     * - `darkGrip`：无形巨手攥紧的一记闷响（每次挤压/惨叫打一记）；
+     * - `darkRelease`：压力解除的释压声（`blackout:false` 那一下）。
+     *
+     * 生成/后期口径见 `docs/ASSET-CREDITS.md` §4.2；前三条都做了 200–4kHz 的中频补偿，
+     * 因为原始 take 95% 能量在 120Hz 以下，手机外放会等于没声音。
+     */
+    darkPressure: 'audio.sfx.ch01_dark_pressure',
+    darkGrip: 'audio.sfx.ch01_dark_grip',
+    darkRelease: 'audio.sfx.ch01_dark_release',
+    /**
+     * 心跳：从金殿 `palace_heartbeat` 裁出的**一组两记**（1.25s，尾部淡出）。
+     *
+     * 不直接用金殿那条 3s 的原文件：它含两组，按 1s 节拍播会叠三层、变成心律不齐。
+     */
+    darkHeartbeat: 'audio.sfx.ch01_dark_heartbeat',
   },
 } as const;
 

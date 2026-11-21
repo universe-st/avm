@@ -54,6 +54,13 @@ interface AssetDef {
 - 资源路径/key 按 `map / character / cg / battle / ui` 分组，key 统一从 `src/assets/keys.ts` 取，详见 `docs/RENDER-LAYERS.md`。当前 `ch.01` 共 40 个文件。
 - 2026-10-29 新增：沉睡症新闻回忆 CG `img.cg.ch01.news`（1080×1920 黑白 WebP，257 KB）与回忆 BGM `audio.bgm.ch01_crisis`（84s，1.34 MB）。Q 版 8 向 20 帧行走 sheet 占约 3.2 MB，章节包实际约 10.2 MB；`budgetKB` 已按实际登记为 12 MB，后续压缩行走帧时再回收。
 - BGM/SFX 标 `required:false`：音频失败只静音，不阻断剧情。
+- 2026-11-21（战后黑场胁迫段音效）：`ch.01` 新增 4 条 `required:false` 音效 →
+  `assets/audio/sfx/ch01_dark_pressure.mp3`（10.55s 无缝循环，127 KB）、
+  `ch01_dark_grip.mp3`（1.41s，18 KB）、`ch01_dark_release.mp3`（1.91s，24 KB）、
+  `ch01_dark_heartbeat.mp3`（1.25s，由金殿心跳裁出的「一组两记」，16 KB）。
+  前三条由游戏素材大师生成（Seed-Audio），原始 take 95% 能量在 120Hz 以下、手机外放等于没声音，
+  后期各叠了一层 200–4kHz 的中频（见 `docs/ASSET-CREDITS.md` §4.2）；全部 24kHz 单声道 96kbps。
+  接入：`src/ui/dark-pressure.ts`（压迫底噪 loop / 攥紧 / 释压 / 心跳）。
 - 2026-11-15（t61 表情气泡音效）：`ch.01` 新增 `audio.sfx.ch01_bubble_pop` → `assets/audio/sfx/ch01_bubble_pop.mp3`（200ms、4.2 KB、峰值 -5.7 dBFS，`required:false`）。头顶气泡冒出时由 `EmotionBubble.show()` 走 `audioDirector.playSfxAt(key, { volume: 0.18, rate })` 播一记；120ms 节流，六情绪靠固定 rate 微变。音量 t68 按 t67 运行时 tap 复测下调（pop 有效峰值 −22.5 dBFS，比旁白 blip 低 6.1dB）。来源/后期见 `docs/ASSET-CREDITS.md` §4.1。
 - 2026-11-06（t23 寝室入梦/起身表演白盒）：新增占位 key `img.char.ch01.zhou_sit_right`，url 先指向现有 `zhou_sit.png`（正式「坐地朝右」素材出来只改 url）；寝室模块 `ch01Dorm` 预载 `cutscene.ch01palace.sfx`（约 300 KB）作为白光/坐下/起身的占位音效，避免表演中途静音。
 - 2026-11-07（t29 寝室演出重排）：新增占位 key `img.char.ch01.zhou_stand_up`（起身帧序列，url 先指向 `zhou_sit.png`）。正式素材约定：横排 strip **8 帧 × 160×400 = 1280×400**、透明背景、脚底 y≈394、65ms/帧；到位后只改 `bundles.ts` 的 url（`kind` 仍是 image，场景按 frameWidth 自动切帧）。坐姿显示缩放由 `sittingScaleFor(贴图源图高)` 按贴图换算，不再写死 `ZHOU_SIT_SCALE`。

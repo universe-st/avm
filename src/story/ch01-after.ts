@@ -23,7 +23,11 @@ import type { InquiryScript } from './inquiry';
  *
  * 演出提示（括号里的舞台指示、BGM 切换、鼾声、黑屏）都落在行 cue 上：
  * - 状态型 `bgm` 走归约，跳过也不丢；
- * - 表现型 `cg` / `fx` / `emotion` / `sfx` / `blackout` 只在被看见时执行，跳过不补播。
+ * - 表现型 `cg` / `fx` / `emotion` / `sfx` / `blackout` / `dark` 只在被看见时执行，跳过不补播。
+ *
+ * 「黑屏胁迫」那一段的六拍（`dark: 'onset'|'grip'|'squeeze'|'verdict'|'crush'|'release'`）
+ * 的数值表在 `src/story/ch01-dark-scene.ts`，表现层在 `src/ui/dark-pressure.ts`：
+ * 暗角、两侧夹紧、灵能丝线、小白放大、心跳加速、压迫底噪与攥紧/释压音效。
  */
 
 /**
@@ -71,8 +75,8 @@ export const CH01_AFTER_INTRO: readonly DialogueLine[] = [
 /**
  * 三个提问分支 + 收尾选项文案。
  *
- * 选项文案原文带编号（`1.` / `2.` / `3.`）；问过的从菜单移除，编号保持原样，
- * 不重新编号——玩家能对上自己刚问过哪一条。
+ * 按钮上**不写编号**（2026-11-21 用户要求：「选项对话框每个选项前面不用加编号」）；
+ * 问过的一项从菜单移除后也不重新编号，剩下的选项就是两个问题本身。
  */
 export type Ch01AfterQuestionId = 'zheng' | 'scene' | 'identity';
 
@@ -81,7 +85,7 @@ export const CH01_AFTER_INQUIRY: InquiryScript<Ch01AfterQuestionId> = {
   questions: [
     {
       id: 'zheng',
-      label: '1. 郑卿怎么了？',
+      label: '郑卿怎么了？',
       lines: [
         { speaker: '旁白', text: '你伸手指了指躺在床上的郑卿。' },
         { speaker: '周全', text: '所以，他到底怎么了？' },
@@ -100,7 +104,7 @@ export const CH01_AFTER_INQUIRY: InquiryScript<Ch01AfterQuestionId> = {
     },
     {
       id: 'scene',
-      label: '2. 刚才是怎么回事？',
+      label: '刚才是怎么回事？',
       lines: [
         { speaker: '周全', text: '那么刚才，你把我带去那个地方，是哪里？' },
         xiaobai('ETH-HB-001B的梦域空间。'),
@@ -126,7 +130,7 @@ export const CH01_AFTER_INQUIRY: InquiryScript<Ch01AfterQuestionId> = {
     },
     {
       id: 'identity',
-      label: '3. 你是谁？',
+      label: '你是谁？',
       lines: [
         { speaker: '周全', text: '那么，你是谁？为什么会从我的手机里钻出来？' },
         xiaobai(
@@ -171,11 +175,22 @@ export const CH01_AFTER_CLOSING: readonly DialogueLine[] = [
   // 演出提示「场景突然变成全黑，只有周全和小白存在，BGM 切换为危机降临」：
   // BGM 是状态型（跳过也生效，归约会取「闪开」那一行覆盖回校园日常）；
   // 黑屏是表现型（跳过不补演，但收尾时无条件恢复）。
-  { speaker: '周全', text: '呃……', bgm: 'ch01Crisis', blackout: true },
-  { speaker: '旁白', text: '你感觉似乎有一双无形的大手扼住了你全身，五脏六腑都要被挤压在一起。' },
-  { speaker: '周全', text: '什么……情况……啊……好难受……' },
-  xiaobai('依据《灵能族战时管理条例》，我有权对阻碍任务执行的碳基生命体实施必要强制措施。'),
-  { speaker: '周全', text: '哇啊啊啊……停……停下！姑奶奶……我错了……您……您说啥是啥！！' },
+  { speaker: '周全', text: '呃……', bgm: 'ch01Crisis', blackout: true, dark: 'onset' },
+  {
+    speaker: '旁白',
+    text: '你感觉似乎有一双无形的大手扼住了你全身，五脏六腑都要被挤压在一起。',
+    dark: 'grip',
+  },
+  { speaker: '周全', text: '什么……情况……啊……好难受……', dark: 'squeeze' },
+  {
+    ...xiaobai('依据《灵能族战时管理条例》，我有权对阻碍任务执行的碳基生命体实施必要强制措施。'),
+    dark: 'verdict',
+  },
+  {
+    speaker: '周全',
+    text: '哇啊啊啊……停……停下！姑奶奶……我错了……您……您说啥是啥！！',
+    dark: 'crush',
+  },
   // 「画面闪开，BGM 切回校园日常」：黑屏恢复 + 一记白闪，BGM 回到日常。
   {
     speaker: CH01_AFTER_XIAOBAI_SPEAKER,
@@ -184,6 +199,7 @@ export const CH01_AFTER_CLOSING: readonly DialogueLine[] = [
     bgm: 'ch01Dorm',
     blackout: false,
     fx: 'flash',
+    dark: 'release',
   },
   { speaker: '周全', text: '（喘粗气）你的意思是……他会死？' },
   xiaobai('我等待你的抉择。'),

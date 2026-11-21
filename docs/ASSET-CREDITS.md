@@ -67,6 +67,30 @@
 - 路线：只降运行时增益，**源 mp3 不重编**——GainNode 只改电平不改音色，200ms 的「啵」仍清晰可辨；重编只会在降电平后多一层有损编码。
 - 契约：pop 峰值至少比旁白 blip 低 6 dB、比周全低 10 dB；`test/emotion-bubble-sfx.test.ts` 解析三条 voice blip 的 WAV 峰值 + `TYPE_VOICE_GAIN` 做数值断言，并把 `BUBBLE_POP_VOLUME` 锁在 [0.18, 0.26]。
 
+### 4.2 战后黑场胁迫段（小白压制周全，2026-11-21）
+
+- 用途：`src/ui/dark-pressure.ts` 的六拍演出（见 `docs/CUE-CONTRACT.md` §4.7）。
+- 来源：游戏素材大师 · 音效生成（火山引擎 Seed-Audio，`seed-audio-1.0`），auto 审核；后期 ffmpeg。
+- 原始 take 与文件（`~/.dsh/game-material-master/sfx-jobs/`）：
+
+| 文件 | job / take | 提示词（摘要） | 原始时长 |
+| --- | --- | --- | --- |
+| `ch01_dark_pressure.mp3` | `fmwpu36hk3b928e` / `kmwpu3mbidc9410` | 恐怖悬疑持续压迫底噪，极低电子嗡鸣 + 胸腔共振 + 极轻耳鸣，无旋律/鼓点/人声，首尾同一层持续音可无缝循环，约 12s | 12.04s |
+| `ch01_dark_grip.mp3` | `fmwpu36hu5c8132` / `kmwpu3p3m07cccd` | 无形巨手猛地攥紧：低沉厚重的闷响（皮革/铁箍/空气同时收紧）+ 低频冲击 + 紧绷震颤，约 1.4s，尾部快速收干 | 1.41s |
+| `ch01_dark_release.mp3` | `fmwpu36i178f4fd` / `kmwpu3qz2e6e3d8` | 压力骤然解除：低频空气下坠的释放声 + 衣料松弛 + 耳鸣消退，约 1.6s，尾部自然消散 | 3.11s |
+| `ch01_dark_heartbeat.mp3` | 由 `public/assets/audio/sfx/palace_heartbeat.mp3` 裁出（同一来源，见 §11.12） | —— | 1.25s |
+
+- 后期（ffmpeg）：
+  - 压底噪：`acrossfade` 首尾各 1.5s 做无缝循环（12.04 → 10.55s），再叠一层 `highpass=180,lowpass=2400,+13dB` 的中频副本与一条 3.15kHz、−34dBFS 的耳鸣正弦（0.22Hz 颤音）；`loudnorm I=-17 TP=-3`。
+  - 攥紧：`highpass=220,lowpass=4200,+18dB` 中频副本 + `loudnorm I=-13 TP=-2`。
+  - 释压：`highpass=200,lowpass=5000,+12dB` + 截 2.0s、`afade` 尾部 + `loudnorm I=-16`。
+  - 心跳：`atrim=0:1.25` + 0.3s 淡出 + `loudnorm I=-18`。
+  - 全部 24kHz / 单声道 / 96kbps mp3。
+- 为什么必须叠中频：三条原始 take 的能量 95%（压底噪）/ 96%（攥紧）/ 78%（释压）都在 120Hz 以下，
+  手机外放听不见（和《清除协议》踩过的坑同源）。叠完后压底噪 120–4000Hz 占 26%，
+  攥紧 24%、释压 26%，外放能听见「嗡嗡压下来 / 攥紧 / 松开」。
+- 复核：上架前按火山引擎商用条款复核，商店页注明「AI 生成音频」。
+
 ## 5. 程序生成的位图与图标
 
 | 文件 | 生成方式 | 说明 |

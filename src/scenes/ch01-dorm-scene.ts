@@ -58,6 +58,8 @@ import {
   CH01_AFTER_INQUIRY,
   type Ch01AfterQuestionId,
 } from '../story/ch01-after';
+import { firstDarkLineIndex, type DarkBeat } from '../story/ch01-dark-scene';
+import { DarkPressureRig } from '../ui/dark-pressure';
 import {
   initialInquiryState,
   inquiryMenuItems,
@@ -260,6 +262,14 @@ export class Ch01DormScene extends UIScene {
    * 表现型 cue，跳过不补演；但收尾时 `finishDialogue()` 会无条件清掉。
    */
   private blackoutRect: Phaser.GameObjects.Rectangle | null = null;
+  /**
+   * 战后黑场胁迫段的表现层（小白压制周全）：低频、心跳、暗角、夹紧、丝线、符环。
+   *
+   * 只在台词 cue `dark` 第一次出现时建；`finishDialogue()`（含跳过）与 SHUTDOWN 都收尾。
+   */
+  private dark: DarkPressureRig | null = null;
+  /** 预览 `phase=dark`：直接从黑场胁迫那一拍开始，方便单点看这段演出。 */
+  private previewDark = false;
   private bgmStarted = false;
   private card: TitleCard | null = null;
   private cardTimer: Phaser.Time.TimerEvent | null = null;
@@ -393,6 +403,8 @@ export class Ch01DormScene extends UIScene {
 
     const rawPhase = context ? stageParam(context, 'phase') : undefined;
     this.previewPhase = normalizeCh01PreviewPhase(rawPhase);
+    // `phase=dark` 归一成 after（流程从战后节点放），但场景要记住「直接跳到黑场那一段」。
+    this.previewDark = rawPhase === 'dark';
     if (rawPhase !== undefined && !CH01_PREVIEW_PHASES.includes(rawPhase as Ch01PreviewPhase)) {
       console.warn(`[ch01-dorm] 未知 phase=${rawPhase}，回退 opening`);
     }
@@ -555,6 +567,11 @@ export class Ch01DormScene extends UIScene {
     // 黑屏块是原生对象，重开/退出都要销毁，否则会跟着场景对象留在下一轮。
     this.blackoutRect?.destroy();
     this.blackoutRect = null;
+    // 压迫演出（暗角/黑边/丝线/循环音/心跳定时器）同样不能带进下一轮。
+    this.dark?.destroy();
+    this.dark = null;
+    // 注意：不要清 `previewDark`——它由 `init()` 从舞台参数读入，而 `create()` 先调 `resetState()`；
+    // 在这里清掉等于 `phase=dark` 永远失效（2026-11-21 实测踩过）。
     this.performanceActive.value = false;
     this.dreamPerformanceDone = false;
     this.suppressWakeCg = false;
@@ -699,14 +716,16 @@ export class Ch01DormScene extends UIScene {
         : // 开局站在书桌下方、靠左侧床的一侧。
           opening
           ? { spawn: { at: [14, 12] as const, facing: 'down' as const } }
-          : {}),
+          : this.previewDark
+            ? { spawn: { at: CH01_SIT_TILE, facing: 'right' as const } }
+            : {}),
     });
     this.cg = new CgOverlay(this, this.reduced);
     this.emotionBubble = new EmotionBubble(this, this.reduced);
 
     const phone = this.room.interactables.find((item) => item.id === 'phone');
     const xiaobaiKey = CH01_ASSET_KEYS.characters.xiaobai;
-    if (this.textures.exists(xiaobaiKey) && (wakeStart || phone)) {
+    if (this.textures.exists(xiaobaiKey) && (wakeStart || this.previewDark || phone)) {
       setPixelTexture(this, xiaobaiKey);
       // 正常开场：小白先在手机上方成形；战后回来：它已经浮在坐在原地的主角右侧。
       const at = wakeStart
@@ -1116,6 +1135,21 @@ export class Ch01DormScene extends UIScene {
     this.afterStage = 'intro';
     this.afterInquiry = initialInquiryState();
     saveProgress('dorm.after', { preview: this.preview });
+    /**
+     * 舞台预览 `phase=dark`：跳过前面所有对话，直接从「呃……」那一拍（黑场开始）演。
+     *
+     * 只跳**显示层**：切片从黑场那一行开始，`startDialogue` 的游标与状态型 cue 都按切片算，
+     * 那一行自带《危机来临》的 bgm cue，所以曲子和压迫演出与正式播放完全同源。
+     */
+    if (this.previewDark) {
+      this.previewDark = false;
+      this.afterStage = 'closing';
+      this.suppressWakeCg = true;
+      this.showXiaobai();
+      const start = firstDarkLineIndex(CH01_AFTER_FINALE);
+      this.startDialogue(start >= 0 ? CH01_AFTER_FINALE.slice(start) : CH01_AFTER_FINALE);
+      return;
+    }
     this.startDialogue(lines);
   }
 
@@ -1189,7 +1223,17 @@ export class Ch01DormScene extends UIScene {
       this.blackoutRect = this.add
         .rectangle(0, 0, plan.designWidth, plan.designHeight, 0x05060a, 1)
         .setOrigin(0, 0)
-        .setDepth(LAYERS.fog + 10);
+        .setDepth(LAYERS.fog + 10)
+        .setAlpha(this.reduced ? 1 : 0);
+      // 不是硬切：240ms 把房间「抽走」，眼睛能读出是「光没了」而不是跳帧。
+      if (!this.reduced) {
+        this.tweens.add({
+          targets: this.blackoutRect,
+          alpha: 1,
+          duration: 240,
+          ease: 'Sine.easeIn',
+        });
+      }
       for (const object of this.ambientFx) this.setObjectVisible(object, false);
       this.promptText?.setVisible(false);
       this.highlightRing?.setVisible(false);
@@ -1201,6 +1245,38 @@ export class Ch01DormScene extends UIScene {
     this.blackoutRect?.destroy();
     this.blackoutRect = null;
     for (const object of this.ambientFx) this.setObjectVisible(object, true);
+    // 压迫演出是表现型，但「已经起来的低频/心跳/小白放大」必须收干净：
+    // 自然过完、跳过、切场都走这里（幂等）。
+    this.releaseDarkPressure();
+  }
+
+  /** 演一拍黑场胁迫（第一次自动建 rig）。 */
+  private playDarkBeat(beat: DarkBeat): void {
+    if (!this.player || !this.xiaobai || !this.xiaobai.visible) return;
+    // 小白的常态浮动会和 rig 的位置/缩放 tween 抢，先停，收尾时再起。
+    this.stopXiaobaiBob();
+    if (!this.dark) {
+      this.dark = new DarkPressureRig({
+        scene: this,
+        player: this.player,
+        xiaobai: this.xiaobai,
+        reduced: this.reduced,
+      });
+    }
+    this.dark.play(beat);
+  }
+
+  /** 收起压迫演出，并把小白恢复正常浮动（回调里要过生命周期闸）。 */
+  private releaseDarkPressure(): void {
+    const rig = this.dark;
+    if (!rig) return;
+    rig.release();
+    this.stopXiaobaiBob();
+    const runId = this.lifecycle.runId;
+    this.time.delayedCall(this.reduced ? 0 : 340, () => {
+      if (!this.lifecycle.isLive(runId)) return;
+      this.startXiaobaiBob();
+    });
   }
 
   /** 环境氛围对象（容器/Graphics）都支持 setVisible；用鸭子类型避免为三种返回类型各写一份。 */
@@ -1233,7 +1309,11 @@ export class Ch01DormScene extends UIScene {
         this.dialoguePageCount.value = event.pageCount;
         const gained = event.typedCount - this.lastTyped;
         if (gained > 0 && gained <= 2) {
-          audioDirector.playTypeBlip(typeVoiceForSpeaker(event.speaker, this.dialogueRole ?? undefined));
+          const voice = typeVoiceForSpeaker(event.speaker, this.dialogueRole ?? undefined);
+          // 黑场里小白的逐字音压低半度：同样一句话，听起来就不像平时的她。
+          audioDirector.playTypeBlip(voice, {
+            rate: this.dark?.isActive === true && voice === 'xiaobai' ? 0.78 : 1,
+          });
         }
         this.lastTyped = event.typedCount;
         // 战后回来的第一句征召台词打完 → 收起醒来 CG、演起身；演完玩家再点「继续」。
@@ -1418,6 +1498,7 @@ export class Ch01DormScene extends UIScene {
     // 黑屏与一次性音效都是**表现型**：只有这一行真的被看见才执行，跳过不补播。
     // （黑屏的「恢复」另外由 `finishDialogue()` 无条件兜底，见 `setBlackout`。）
     if (line.blackout !== undefined) this.setBlackout(line.blackout);
+    if (line.dark !== undefined) this.playDarkBeat(line.dark);
     if (line.sfx !== undefined) {
       // 目前只有鼾声一条，音量/音高沿用场景默认；以后要按行控音量再把 cue 改成对象。
       audioDirector.playSfxAt(line.sfx, { volume: 0.55, rate: 0.95 });
@@ -1544,7 +1625,7 @@ export class Ch01DormScene extends UIScene {
   private isWakeStart(): boolean {
     return (
       this.resumeMode === 'afterBattle' ||
-      (this.resumeMode === 'start' && this.previewPhase === 'after')
+      (this.resumeMode === 'start' && this.previewPhase === 'after' && !this.previewDark)
     );
   }
 
@@ -2299,6 +2380,9 @@ export class Ch01DormScene extends UIScene {
     // 黑屏块是原生对象，重开/退出都要销毁，否则会跟着场景对象留在下一轮。
     this.blackoutRect?.destroy();
     this.blackoutRect = null;
+    // 压迫演出的循环音/心跳是场景级资源，必须在 SHUTDOWN 前停掉并还原角色构图。
+    this.dark?.destroy();
+    this.dark = null;
     this.xiaobaiBob?.remove();
     this.xiaobaiBob = null;
     this.walkTween?.stop();

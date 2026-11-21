@@ -945,6 +945,41 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         label: '表情气泡冒出「啵」',
         tags: ['sfx'],
       },
+      // 战后黑场胁迫段（2026-11-21）：压迫底噪（10.55s 无缝循环）+ 攥紧 + 释压。
+      // 三条都补了 200–4kHz 中频，原始 take 95% 能量在 120Hz 以下，手机外放听不见。
+      {
+        key: 'audio.sfx.ch01_dark_pressure',
+        kind: 'audio',
+        url: 'assets/audio/sfx/ch01_dark_pressure.mp3',
+        required: false,
+        label: '黑场胁迫 · 压迫底噪（循环）',
+        tags: ['sfx', 'loop'],
+      },
+      {
+        key: 'audio.sfx.ch01_dark_grip',
+        kind: 'audio',
+        url: 'assets/audio/sfx/ch01_dark_grip.mp3',
+        required: false,
+        label: '黑场胁迫 · 无形巨手攥紧',
+        tags: ['sfx'],
+      },
+      {
+        key: 'audio.sfx.ch01_dark_release',
+        kind: 'audio',
+        url: 'assets/audio/sfx/ch01_dark_release.mp3',
+        required: false,
+        label: '黑场胁迫 · 压力解除',
+        tags: ['sfx'],
+      },
+      {
+        // 由 palace_heartbeat 裁出的「一组两记」（1.25s），避免按拍叠音。
+        key: 'audio.sfx.ch01_dark_heartbeat',
+        kind: 'audio',
+        url: 'assets/audio/sfx/ch01_dark_heartbeat.mp3',
+        required: false,
+        label: '黑场胁迫 · 心跳（一组两记）',
+        tags: ['sfx'],
+      },
       {
         key: 'img.cg.ch01.phone',
         kind: 'image',

@@ -73,7 +73,7 @@ export class AudioDirector {
    * 配角在两条普通 blip 之间轮换。复用 Sound 实例（逐字频率约 18/s，
    * 每次 add + destroy 会明显增加 GC 与音频节点开销）。
    */
-  playTypeBlip(voice: TypeVoice = 'narrator'): void {
+  playTypeBlip(voice: TypeVoice = 'narrator', options: { readonly rate?: number } = {}): void {
     const scene = this.scene;
     if (!scene || settings.muted) return;
     // 还没被用户手势解锁时播也听不到，只会刷 AudioContext autoplay 警告。
@@ -98,6 +98,12 @@ export class AudioDirector {
       1,
       Math.max(0, settings.sfx * TYPE_VOICE_GAIN[voice]),
     );
+    /**
+     * 音高（0.5–2）：默认 1。黑场胁迫里小白的逐字音降到 0.78，
+     * 同一个声线立刻「沉下来」，不需要换资源。
+     */
+    const rate = Math.min(2, Math.max(0.5, options.rate ?? 1));
+    (sound as unknown as { rate: number }).rate = rate;
     sound.play();
   }
 

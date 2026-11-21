@@ -7,6 +7,14 @@ import type { BgmId } from '../audio/bgm-tracks';
  */
 
 export type DialogueFx = 'flash' | 'shake' | 'glitch';
+
+/**
+ * 「黑场胁迫」演出的节拍词汇（见 `ch01-dark-scene.ts` 的强度表）。
+ *
+ * 放在这里是因为它是**行 cue 的取值域**（和 `DialogueFx` 同级），
+ * 具体每一拍多黑/多紧属于章节数据，不进这个通用模块。
+ */
+export type DarkBeat = 'onset' | 'grip' | 'squeeze' | 'verdict' | 'crush' | 'release';
 export type EmotionKind = 'confused' | 'angry' | 'happy' | 'surprised' | 'sad' | 'annoyed';
 export type EmotionTarget = 'zhou' | 'zheng' | 'xiaobai';
 
@@ -49,6 +57,15 @@ export interface DialogueLine {
    * 否则跳过会把结束卡/下一节压在黑屏上。
    */
   readonly blackout?: boolean;
+  /**
+   * 黑场胁迫的**演出节拍**（小白压制周全那一段用）。
+   *
+   * 与 `blackout` 分工：`blackout` 只负责「画面黑不黑」，`dark` 负责这一拍的
+   * 光、暗角、夹紧、心跳、灵能丝线与小白放大；数值表在 `ch01-dark-scene.ts`。
+   * 属于**表现型**：跳过不补演，但收尾必须把已经起来的压迫演出收干净
+   * （`finishDialogue()` → `setBlackout(false)` → 收尾）。
+   */
+  readonly dark?: DarkBeat;
 }
 
 /**
@@ -57,7 +74,7 @@ export interface DialogueLine {
  * **新增 cue 字段时先加到这里，再到 `DIALOGUE_CUE_KINDS` 里表态**：新 cue 到底属于
  * 「状态型」还是「表现型」。下面用 `satisfies` 兜住，漏分类直接编译失败。
  */
-export type DialogueCueKey = 'cg' | 'fx' | 'bgm' | 'emotion' | 'sfx' | 'blackout';
+export type DialogueCueKey = 'cg' | 'fx' | 'bgm' | 'emotion' | 'sfx' | 'blackout' | 'dark';
 
 /**
  * 行 cue 的两类语义（这是机制，不是补丁）。
@@ -76,6 +93,7 @@ export const DIALOGUE_CUE_KINDS = {
   emotion: 'expressive',
   sfx: 'expressive',
   blackout: 'expressive',
+  dark: 'expressive',
 } as const satisfies Readonly<Record<DialogueCueKey, 'stateful' | 'expressive'>>;
 
 export type DialogueCueKind = (typeof DIALOGUE_CUE_KINDS)[DialogueCueKey];
