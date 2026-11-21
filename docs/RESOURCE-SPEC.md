@@ -56,7 +56,7 @@ interface AssetDef {
 - BGM/SFX 标 `required:false`：音频失败只静音，不阻断剧情。
 - 2026-11-21（黑场收尾趴姿）：`ch.01` 新增 `img.char.ch01.zhou_prone` → `assets/img/character/ch01/zhou_prone.png`
   （160×400 RGBA，人物横躺 150×80、底边 392、水平中心 80，与坐姿/起身同一套画布基准）。
-  由游戏素材大师 `image` 模块生成（job `imwpvyjerb878c9`）后抠像 + 去绿边 + 等比缩放合成；见 `docs/ASSET-CREDITS.md` §14。
+  由游戏素材大师 `image` 模块生成（job `imwpx1zuvb80bfe`，带 `zhou_idle_right` / `zhou_sit_right` 参考图）后抠像 + 去绿边 + 等比缩放合成；见 `docs/ASSET-CREDITS.md` §14。
 - 2026-11-21（战后黑场胁迫段音效）：`ch.01` 新增 4 条 `required:false` 音效 →
   `assets/audio/sfx/ch01_dark_pressure.mp3`（10.55s 无缝循环，127 KB）、
   `ch01_dark_grip.mp3`（1.41s，18 KB）、`ch01_dark_release.mp3`（1.91s，24 KB）、

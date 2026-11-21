@@ -371,14 +371,14 @@ export const CH01_WAKE_PERFORMANCE: PerformanceTimeline = {
 /**
  * 黑场胁迫收尾：趴地 → 撑起坐住 → 起身（8 帧）→ 小白同步飘回头部中线。
  *
- * 第一拍是 `wait`：场景在这 170ms 里把趴姿交叉淡成坐姿（站起序列第 0 帧），
+ * 第一拍是 `wait`：场景在这 200ms 里把趴姿交叉淡成坐姿（站起序列第 0 帧），
  * 时间线自己不驱动贴图，等淡完再开帧序列，避免「还趴着就开始站」。
  * 之后的 `frame-sequence` / `float-actor(parallel)` 与 `CH01_WAKE_PERFORMANCE` 同源同长。
  */
 export const CH01_GETUP_PERFORMANCE: PerformanceTimeline = {
   id: 'getUp',
   steps: [
-    { kind: 'wait', ms: 170, reducedMs: 60 },
+    { kind: 'wait', ms: 200, reducedMs: 60 },
     {
       kind: 'frame-sequence',
       actor: 'zhou',

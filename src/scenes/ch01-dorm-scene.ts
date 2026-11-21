@@ -2273,32 +2273,47 @@ export class Ch01DormScene extends UIScene {
     this.proneTween?.remove();
     this.proneTween = null;
     const display = player.display;
-    // 先钉成坐姿（站起序列第 0 帧），再用交叉淡入把趴姿换掉。
-    player.setSitting(true);
-    if (display) {
-      display.setVisible(true).setAlpha(this.reduced ? 1 : 0);
-      if (!this.reduced) {
-        this.tweens.add({ targets: display, alpha: 1, duration: 170, ease: 'Sine.easeInOut' });
-      }
+    /**
+     * 趴 → 坐不是一瞬间的「换图」：先把趴姿顶起来一点（撑地的动作），
+     * 再在尘土 + 一记很轻的震屏里交叉淡到坐姿，读起来才是「撑起身子」。
+     */
+    const brace = this.reduced ? 0 : 90;
+    const fade = this.reduced ? 0 : 200;
+    if (prone && brace > 0) {
+      this.tweens.add({ targets: prone, y: prone.y - 5, duration: brace, ease: 'Sine.easeOut' });
     }
-    this.spawnSitDust(player.position);
-    if (prone) {
-      prone.setTint(0xffb4b4);
-      this.tweens.add({
-        targets: prone,
-        alpha: 0,
-        duration: this.reduced ? 0 : 170,
-        onComplete: () => {
-          prone.destroy();
-          if (this.proneSprite === prone) this.proneSprite = null;
-        },
-      });
-    }
+    audioDirector.playSfxAt(PALACE_ASSET_KEYS.sfx.cloth, { volume: 0.26 });
+    if (!this.reduced) this.cameras.main.shake(140, 0.0022);
 
-    this.startPerformance(CH01_GETUP_PERFORMANCE, () => {
-      this.player?.setSitting(false);
-      if (settings.autoAdvance) this.scheduleAutoAdvance();
-    });
+    const beginFade = (): void => {
+      // 先钉成坐姿（站起序列第 0 帧），再用交叉淡入把趴姿换掉。
+      player.setSitting(true);
+      if (display) {
+        display.setVisible(true).setAlpha(this.reduced ? 1 : 0);
+        if (fade > 0) {
+          this.tweens.add({ targets: display, alpha: 1, duration: fade, ease: 'Sine.easeInOut' });
+        }
+      }
+      this.spawnSitDust(player.position);
+      if (prone) {
+        prone.setTint(0xffb4b4);
+        this.tweens.add({
+          targets: prone,
+          alpha: 0,
+          duration: fade,
+          onComplete: () => {
+            prone.destroy();
+            if (this.proneSprite === prone) this.proneSprite = null;
+          },
+        });
+      }
+      this.startPerformance(CH01_GETUP_PERFORMANCE, () => {
+        this.player?.setSitting(false);
+        if (settings.autoAdvance) this.scheduleAutoAdvance();
+      });
+    };
+    if (brace > 0) this.time.delayedCall(brace, beginFade);
+    else beginFade();
   }
 
   /** 梦域这一段先在金殿里演完（走位/台词），再由宫殿场景自己切战斗。 */
