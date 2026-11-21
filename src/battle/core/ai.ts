@@ -75,7 +75,10 @@ function skillIntent(
     facing,
     hitSlots,
     hitsPlayer: hitSlots.includes(playerSlot),
-    text: `${skill.name} · 命中 ${formatSlots(hitSlots)}`,
+    aoe: skill.hit === 'all-slots',
+    text: skill.hit === 'all-slots'
+      ? `${skill.name} · 全站位（无法走位躲避）`
+      : `${skill.name} · 命中 ${formatSlots(hitSlots)}`,
   };
 }
 
@@ -87,6 +90,9 @@ export function formatIntent(intent: EnemyIntent | null): string {
   if (!intent) return '——';
   if (intent.kind === 'turn') {
     return `转向 · 面朝${facingLabel(intent.facing)}`;
+  }
+  if (intent.aoe) {
+    return `${intent.skillName} · 全站位（无法走位躲避）`;
   }
   return `${intent.skillName} · 命中 ${formatSlots(intent.hitSlots)}`;
 }

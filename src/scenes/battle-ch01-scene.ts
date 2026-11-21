@@ -160,6 +160,8 @@ export class BattleCh01Scene extends UIScene {
 
   private enemyNameText: Phaser.GameObjects.Text | null = null;
   private enemyHpText: Phaser.GameObjects.Text | null = null;
+  /** 全站位技能的常驻红标（不转向也能命中背后，必须让玩家一眼看懂）。 */
+  private aoeLabel: Phaser.GameObjects.Text | null = null;
   private railPlayerText: Phaser.GameObjects.Text | null = null;
   private railEnemyText: Phaser.GameObjects.Text | null = null;
   private railOrderText: Phaser.GameObjects.Text | null = null;
@@ -346,6 +348,7 @@ export class BattleCh01Scene extends UIScene {
     this.gaugeGraphics = null;
     this.enemyNameText = null;
     this.enemyHpText = null;
+    this.aoeLabel = null;
     this.railPlayerText = null;
     this.railEnemyText = null;
     this.railOrderText = null;
@@ -540,6 +543,20 @@ export class BattleCh01Scene extends UIScene {
       depth: LAYERS.effects + 20,
       stroke: 3,
     });
+    this.aoeLabel = makeSceneText(
+      this,
+      this.layout.monster.x,
+      this.layout.monster.y + 38,
+      '全站位 · 无法走位躲避',
+      {
+        size: 18,
+        color: DANGER,
+        depth: LAYERS.effects + 26,
+        stroke: 5,
+        bold: true,
+      },
+    );
+    this.aoeLabel.setVisible(false);
   }
 
   private playerArt(): BattleActorArt {
@@ -1039,12 +1056,23 @@ export class BattleCh01Scene extends UIScene {
 
     if (isQuake) {
       this.playSfx(BATTLE_ASSET_KEYS.sfx.quake, 0.95);
+      // 全站位是「砸地」而不是「转身攻击」：身体下砸 + 两圈冲击波盖住整个战场。
+      enemy?.nudge(0, 24, 160);
       impactRing(this, this.layout.monster.x, this.layout.monster.y - 28, {
         color: DANGER,
         radius: 240,
         ms: 460,
         reduced: this.reduced,
         depth: LAYERS.effects,
+      });
+      this.time.delayedCall(this.reduced ? 40 : 90, () => {
+        impactRing(this, this.layout.monster.x, this.layout.monster.y - 28, {
+          color: DANGER,
+          radius: 380,
+          ms: 520,
+          reduced: this.reduced,
+          depth: LAYERS.effects - 4,
+        });
       });
       screenRumble(this, { ms: 300, intensity: 0.009, reduced: this.reduced });
     } else {
@@ -1179,6 +1207,10 @@ export class BattleCh01Scene extends UIScene {
     if (this.enemyHpText) {
       this.enemyHpText.setText(`HP ${enemy.hp}/${enemy.maxHp}`);
     }
+    if (this.aoeLabel) {
+      const aoe = this.state.intent?.kind === 'skill' && this.state.intent.aoe;
+      this.aoeLabel.setVisible(aoe === true);
+    }
     if (this.railPlayerText) {
       this.railPlayerText.setText(`${player.name}  SPD ${player.spd}  HP ${player.hp}/${player.maxHp}`);
     }
@@ -1215,9 +1247,13 @@ export class BattleCh01Scene extends UIScene {
   private computeHint(): string {
     if (this.state.phase === 'defeat') return '你倒下了。';
     if (this.state.phase === 'victory') return '它散成了齑粉。';
-    if (this.moveMode) return '点一个站位落脚；再按「取消移动」回到指令。';
+    const aoe = this.state.intent?.kind === 'skill' && this.state.intent.aoe;
+    const aoeTail = aoe ? ' 它下一招是全站位，防御可减半。' : '';
+    if (this.moveMode) {
+      return `点一个站位落脚${aoe ? '；全站位招式走位躲不掉，考虑防御' : '；再按「取消移动」回到指令'}。`;
+    }
     if (!playerCanAttack(this.setup)) {
-      return '你还没有「解」——只能移动或防御。先看清它下一招打哪边。';
+      return `你还没有「解」——只能移动或防御。${aoe ? '它下一招是全站位，防御可减半。' : '先看清它下一招打哪边。'}`;
     }
     if (this.state.activeId !== this.state.player.id) return '等待它行动……';
     const skillId = this.setup.player.skills[0];
@@ -1225,9 +1261,9 @@ export class BattleCh01Scene extends UIScene {
     const preview = previewPlayerAttack(this.state, this.setup, skillId);
     if (!preview) return '选择行动。';
     if (preview.backstab) {
-      return '解离突刺 · 背袭 ×1.5，命中后留在原地。';
+      return `解离突刺 · 背袭 ×1.5，命中后留在原地。${aoeTail}`;
     }
-    return `解离突刺 · 正面命中后闪现到${slotLabel(preview.to)}（它对面）。`;
+    return `解离突刺 · 正面命中后闪现到${slotLabel(preview.to)}（它对面）。${aoeTail}`;
   }
 
   private computeAttackLabel(): string {
@@ -1340,6 +1376,16 @@ export class BattleCh01Scene extends UIScene {
       108,
       GOLD,
     );
+
+    if (intent?.kind === 'skill' && intent.aoe) {
+      // 全站位：一圈盖住整个战场，明确「不是背后偷袭，是震荡」。
+      graphics.fillStyle(DANGER, 0.045);
+      graphics.fillEllipse(this.layout.monster.x, this.layout.monster.y + 4, 680, 430);
+      graphics.lineStyle(4, DANGER, 0.5);
+      graphics.strokeEllipse(this.layout.monster.x, this.layout.monster.y + 4, 680, 430);
+      graphics.lineStyle(2, DANGER, 0.22);
+      graphics.strokeEllipse(this.layout.monster.x, this.layout.monster.y + 4, 710, 460);
+    }
 
     const hitSet = new Set<SlotId>(
       intent?.kind === 'skill' ? intent.hitSlots : [],
@@ -1711,6 +1757,7 @@ export class BattleCh01Scene extends UIScene {
     this.highlightGraphics = null;
     this.enemyNameText = null;
     this.enemyHpText = null;
+    this.aoeLabel = null;
     this.railPlayerText = null;
     this.railEnemyText = null;
     this.railOrderText = null;

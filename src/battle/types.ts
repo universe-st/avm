@@ -150,6 +150,8 @@ export type EnemyIntent =
       readonly hitSlots: readonly SlotId[];
       /** 玩家当前站位是否在覆盖范围内（HUD 危险提示）。 */
       readonly hitsPlayer: boolean;
+      /** 全站位技能（核心脉冲/灶台震地）：不靠转向也能命中背后，HUD 必须写「全站位」。 */
+      readonly aoe: boolean;
       readonly text: string;
     };
 

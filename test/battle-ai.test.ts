@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CH01_FIRST_BATTLE } from '../src/battle/data/ch01-first';
 import { CH01_KITCHEN_BATTLE } from '../src/battle/data/ch01-kitchen';
 import { createBattle } from '../src/battle/core/battle';
-import { planEnemyIntent } from '../src/battle/core/ai';
+import { formatIntent, planEnemyIntent } from '../src/battle/core/ai';
 import { hitSlotsFor } from '../src/battle/core/slots';
 import type { BattleState } from '../src/battle/types';
 
@@ -24,6 +24,7 @@ describe('enemy AI intent', () => {
       skillId: 'miner.thrust',
       facing: 'left',
       hitsPlayer: true,
+      aoe: false,
     });
     if (intent.kind === 'skill') {
       expect([...intent.hitSlots].sort()).toEqual(
@@ -39,9 +40,11 @@ describe('enemy AI intent', () => {
       kind: 'skill',
       skillId: 'miner.quake',
       hitsPlayer: true,
+      aoe: true,
     });
     if (intent.kind === 'skill') {
       expect(intent.hitSlots).toHaveLength(6);
+      expect(intent.hitSlots).toContain('right');
     }
   });
 
@@ -79,6 +82,14 @@ describe('enemy AI intent', () => {
       CH01_KITCHEN_BATTLE,
     );
     expect(behind).toMatchObject({ kind: 'skill', skillId: 'cook.quake' });
+  });
+
+  it('marks all-slot skills as AOE in the intent text, not a six-slot list', () => {
+    const intent = planEnemyIntent(atSlot('right'), CH01_FIRST_BATTLE);
+    const text = formatIntent(intent);
+    expect(text).toContain('全站位');
+    expect(text).toContain('无法走位躲避');
+    expect(text).not.toContain('命中 右/右上');
   });
 
   it('uses the same hit-slot helper as the skills themselves', () => {
