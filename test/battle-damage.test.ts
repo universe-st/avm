@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { computeDamage, formatDamagePreview } from '../src/battle/core/damage';
 import { CH01_KITCHEN_BATTLE } from '../src/battle/data/ch01-kitchen';
 import {
-  applyBattleAction,
   createBattle,
   previewPlayerAttack,
   startNextTurn,
@@ -48,13 +47,9 @@ describe('battle damage', () => {
     });
   });
 
-  it('previews backstab +50% without teleporting after moving behind', () => {
-    let state = startNextTurn(createBattle(CH01_KITCHEN_BATTLE)).state;
-    state = applyBattleAction(
-      state,
-      { kind: 'move', slot: 'right' },
-      CH01_KITCHEN_BATTLE,
-    ).state;
+  it('previews backstab +50% without teleporting when already behind', () => {
+    const active = startNextTurn(createBattle(CH01_KITCHEN_BATTLE)).state;
+    const state = { ...active, player: { ...active.player, slot: 'right' as const } };
     const preview = previewPlayerAttack(state, CH01_KITCHEN_BATTLE, 'player.jielitusi');
     expect(preview).toMatchObject({
       zone: 'back',

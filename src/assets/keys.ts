@@ -588,6 +588,14 @@ export const BATTLE_ASSET_KEYS = {
     /** 御膳房战斗舞台（本地从 kitchen.webp 合成）。 */
     kitchenHall: 'img.battle.ch01.kitchen_hall',
   },
+  monsterAttacks: {
+    minerSweep: 'img.char.battle.miner_attack_sweep',
+    minerThrust: 'img.char.battle.miner_attack_thrust',
+    minerQuake: 'img.char.battle.miner_attack_quake',
+    cookSweep: 'img.char.battle.cook_attack_sweep',
+    cookOil: 'img.char.battle.cook_attack_oil',
+    cookQuake: 'img.char.battle.cook_attack_quake',
+  },
   sfx: {
     slash: 'audio.sfx.battle_slash',
     hit: 'audio.sfx.battle_hit',
@@ -639,3 +647,79 @@ export const BATTLE_MINER_ART = {
 export const BATTLE_COOK_ART = {
   scaleFactor: 0.86,
 } as const;
+
+/** 怪物技能帧动画的元数据（左向；右向由场景 flip）。 */
+export interface BattleAttackSheetMeta {
+  readonly key: string;
+  readonly frameCount: number;
+  readonly frameWidth: number;
+  readonly frameHeight: number;
+  readonly frameMs: number;
+  readonly hitFrame: number;
+  /** 帧内内容中心 x / 帧宽；宽帧（突刺）要设，播放时临时改 origin。 */
+  readonly originX?: number;
+}
+
+export const BATTLE_MINER_ATTACKS: Readonly<Record<string, BattleAttackSheetMeta>> = {
+  'miner.sweep': {
+    key: BATTLE_ASSET_KEYS.monsterAttacks.minerSweep,
+    frameCount: 12,
+    frameWidth: 272,
+    frameHeight: 400,
+    frameMs: 55,
+    // 最大前伸帧（0 起）；横扫是降级动作，命中取前伸峰值。
+    hitFrame: 2,
+    // 横扫时身体中心偏右（钻臂向左伸出）；originX 让脚底中心对齐静态图。
+    originX: 0.6165,
+  },
+  'miner.thrust': {
+    key: BATTLE_ASSET_KEYS.monsterAttacks.minerThrust,
+    frameCount: 12,
+    frameWidth: 336,
+    frameHeight: 400,
+    frameMs: 55,
+    hitFrame: 7,
+    originX: 0.6373,
+  },
+  'miner.quake': {
+    key: BATTLE_ASSET_KEYS.monsterAttacks.minerQuake,
+    frameCount: 12,
+    frameWidth: 272,
+    frameHeight: 400,
+    frameMs: 55,
+    // 第一次触地帧（0 起）；quake 为半蹲砸地，最低是蹲姿不是整体缩小。
+    hitFrame: 5,
+    originX: 0.6735,
+  },
+};
+
+export const BATTLE_COOK_ATTACKS: Readonly<Record<string, BattleAttackSheetMeta>> = {
+  // 御厨动作幅度大（菜刀/热油），10×400 帧才能在不裁切的前提下保住 371 高。
+  'cook.sweep': {
+    key: BATTLE_ASSET_KEYS.monsterAttacks.cookSweep,
+    frameCount: 10,
+    frameWidth: 400,
+    frameHeight: 400,
+    frameMs: 55,
+    hitFrame: 5,
+    originX: 0.5377,
+  },
+  'cook.oil': {
+    key: BATTLE_ASSET_KEYS.monsterAttacks.cookOil,
+    frameCount: 10,
+    frameWidth: 400,
+    frameHeight: 400,
+    frameMs: 55,
+    hitFrame: 5,
+    originX: 0.6895,
+  },
+  'cook.quake': {
+    key: BATTLE_ASSET_KEYS.monsterAttacks.cookQuake,
+    frameCount: 10,
+    frameWidth: 400,
+    frameHeight: 400,
+    frameMs: 55,
+    hitFrame: 5,
+    originX: 0.2869,
+  },
+};

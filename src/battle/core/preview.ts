@@ -21,6 +21,14 @@ export function buildPreviewState(
   if (phase === 'opening') return createBattle(setup, seed);
 
   if (phase === 'mid') {
+    if (setup.player.skills.length > 0) {
+      // 御膳房预览：玩家已经绕到右侧背面，直接展示背袭；不再用「一步跨到对面」的旧移动。
+      const behind: BattleSetup = {
+        ...setup,
+        player: { ...setup.player, slot: 'right' },
+      };
+      return startNextTurn(createBattle(behind, seed)).state;
+    }
     return driveToPlayerTurn(setup, seed);
   }
 
@@ -29,14 +37,15 @@ export function buildPreviewState(
       // 第一场没有「解」，不可能赢；预览回退到中局，别给一个假胜利。
       return driveToPlayerTurn(setup, seed);
     }
-    let moved = false;
-    return drive(setup, seed, () => {
-      if (!moved) {
-        moved = true;
-        return { kind: 'move', slot: 'right' };
-      }
-      return { kind: 'attack', skillId: setup.player.skills[0]! };
-    });
+    // 从右侧背面开局，直接展示背袭三刀；移动限制由正式流程/测试覆盖。
+    const behind: BattleSetup = {
+      ...setup,
+      player: { ...setup.player, slot: 'right' },
+    };
+    return drive(behind, seed, () => ({
+      kind: 'attack',
+      skillId: setup.player.skills[0]!,
+    }));
   }
 
   return drive(setup, seed, () => ({ kind: 'guard' }));

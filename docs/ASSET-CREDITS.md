@@ -806,3 +806,27 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
 - 来源：**本地合成，无 AI 任务**。`tools/compose-kitchen-battle-plate.py` 从 `public/assets/img/map/ch01/kitchen.webp`（实测 1536×3072 / 48px per tile）裁传膳廊/门洞区域 → 720×1280 → 压暗 + 聚光锥 + 暗角 + 底部前景压边；纯 Pillow、确定性、不改原图。
 - 构图：门洞落在画布 x=360、下沿 y=111；敌人位 (360,700)、玩家位 (152,1000)；亮度 mean 49.7 / 中央 81.9 / 左右 22–23 / 底部 10.1（与金殿 `miner_hall.webp` 的 56.9 / 85.3 / 39 / 20 同量级）。
 - 为什么不用 AI 生成：源图就是本作的俯视 tilemap，裁切/打光能保证与探索层同一套地砖与色调；重画一张会变成「另一个御膳房」。
+
+### 15.6 怪物技能攻击帧（2026-11-22）
+
+- 目的：怪物不再用程序化 nudge/斩击弧冒充攻击；**每个技能一条左向 strip**，右侧三方位在运行时用 `flipX` 镜像。帧元数据在 `src/assets/keys.ts` 的 `BATTLE_MINER_ATTACKS` / `BATTLE_COOK_ATTACKS`。
+- 共同要求：单人、全身、纯绿背景、镜头固定；按并集 bbox 等比缩放到人物高 371、底边 394；**身体中心不在帧中心，必须用 `originX`**（帧内身体中心 / 帧宽），镜像时 `BattleActor` 用 `1-originX`，否则身体会横跳。
+- **矿工·清除单元**（3 条，12 帧，`frameMs 55`，源图 `miner_left.png` 272×400）：
+  | 技能 | 文件 | jobId | 帧尺寸 | hitFrame | originX | 说明 |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | 铁臂横扫 | `miner_attack_sweep.webp` | `smwr0iluef50f9c` | 272×400 | 2 | 0.6165 | 降级：读作前伸→回拉→落下，不是干净横扫黑弧；最大前伸帧作命中 |
+  | 钻头突进 | `miner_attack_thrust.webp` | `smwqzzwlh3a18e3` | 336×400 | 7 | 0.6373 | 336 宽保 355 高（96%）；峰值 314 是蹲姿不是整体缩小；12×336=4032<4096 |
+  | 核心脉冲 | `miner_attack_quake.webp` | `smwr0ilul796142` | 272×400 | 5 | 0.6735 | 降级：半蹲砸地成立，最低 301（81%）是蹲姿；举拳不过头顶/远手被挡 |
+  - 联络表 `assets-src/character/battle/miner-attack-contact.png`；脚本 `tools/make-miner-attack-sheets.py`；三条做了绿幕偏色增益对齐（manifest `colorMatch`）。
+- **御厨·幻影**（3 条，10 帧，`frameMs 55`，源图 `cook_left.png` 224×400）：动作幅度大（菜刀/热油），12×320 会丢部件/压到 79%，改用 **10×400×400 = 4000×400**（<4096）：
+  | 技能 | 文件 | 帧尺寸 | hitFrame | originX | 说明 |
+  | --- | --- | --- | --- | --- | --- |
+  | 菜刀横扫 | `cook_attack_sweep.webp` | 400×400 | 5 | 0.5377 | 10 帧；身体高 359.9（97.3%）；刀弧从最左抡到最右，动作编排偏弱但无裁切 |
+  | 热油泼洒 | `cook_attack_oil.webp` | 400×400 | 5 | 0.6895 | 10 帧；身体高 362.7（97.7%）；油花比头高 30px，不能再高 |
+  | 灶台震地 | `cook_attack_quake.webp` | 400×400 | 5 | 0.2869 | 10 帧；身体高 371；提膝→深蹲，踩地那一下读不出来（编排降级） |
+  - 联络表 `assets-src/character/battle/cook-attack-contact.png`；manifest `cook-attack-manifest.json`；脚本 `tools/make-cook-attack.py`。
+  - jobId：横扫 `smwqzz4kz4fff06`、泼油 `smwqzz4l9f3653c`、震地 `smwqzzb39535c3e`（同一批视频重建的 10 帧；旧 12×320 版本已弃用）。
+  - 切边检查：10 帧最外圈 1px 全部 alpha=0，刀/勺/手/脚轮廓完整；`originX` 按身体锚点逐条写，不能统一 0.28。
+  - 降级：sweep/oil 的身体高度只有 97% 左右（刀弧/油花太宽，400 帧已到上限）；扫/震地的动作编排偏弱，若要重做需重跑视频。
+- **兜底**：`battle-ch01-scene` 在 strip 缺失/加载失败时退回程序化 `nudge + slashArc`，不阻断回合；`test/battle-assets.test.ts` 守住 sheet 宽度 <4096、帧数/帧宽/`originX`。
+- 复核：上架前按火山方舟/游戏素材大师条款复核。

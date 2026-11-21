@@ -14,7 +14,9 @@ import { bgmManager } from '../audio/bgm-manager';
 import {
   BATTLE_ASSET_KEYS,
   BATTLE_COOK_ART,
+  BATTLE_COOK_ATTACKS,
   BATTLE_MINER_ART,
+  BATTLE_MINER_ATTACKS,
   BATTLE_PLAYER_ART,
   KITCHEN_CAST,
   castDir,
@@ -41,6 +43,7 @@ import {
   FACING_ANGLES,
   SLOT_LABELS,
   SLOT_ORDER,
+  adjacentSlots,
   facingLabel,
   slotLabel,
 } from '../battle/core/slots';
@@ -164,8 +167,9 @@ export class BattleCh01Scene extends UIScene {
   private aoeLabel: Phaser.GameObjects.Text | null = null;
   private railPlayerText: Phaser.GameObjects.Text | null = null;
   private railEnemyText: Phaser.GameObjects.Text | null = null;
-  private railOrderText: Phaser.GameObjects.Text | null = null;
   private railIntentText: Phaser.GameObjects.Text | null = null;
+  private orderGraphics: Phaser.GameObjects.Graphics | null = null;
+  private readonly orderChips: Phaser.GameObjects.Text[] = [];
   private readonly slotLabels = new Map<SlotId, Phaser.GameObjects.Text>();
   private readonly slotZones = new Map<SlotId, Phaser.GameObjects.Zone>();
   private readonly fx: Phaser.GameObjects.GameObject[] = [];
@@ -351,8 +355,9 @@ export class BattleCh01Scene extends UIScene {
     this.aoeLabel = null;
     this.railPlayerText = null;
     this.railEnemyText = null;
-    this.railOrderText = null;
     this.railIntentText = null;
+    this.orderGraphics = null;
+    this.orderChips.length = 0;
     this.slotLabels.clear();
     this.slotZones.clear();
     for (const object of this.fx) object.destroy();
@@ -493,8 +498,18 @@ export class BattleCh01Scene extends UIScene {
     this.gaugeGraphics = this.add.graphics().setDepth(LAYERS.effects + 12);
 
     const railTop = this.layout.railTop;
-    this.railPlayerText = makeSceneText(this, 24, railTop + 6, '', {
+    makeSceneText(this, 24, railTop + 4, '行动条', {
       size: 18,
+      color: GOLD,
+      align: 'left',
+      originX: 0,
+      originY: 0,
+      depth: LAYERS.effects,
+      stroke: 4,
+      bold: true,
+    });
+    this.railPlayerText = makeSceneText(this, 110, railTop + 4, '', {
+      size: 17,
       color: PAPER,
       align: 'left',
       originX: 0,
@@ -502,8 +517,8 @@ export class BattleCh01Scene extends UIScene {
       depth: LAYERS.effects,
       stroke: 4,
     });
-    this.railEnemyText = makeSceneText(this, 372, railTop + 6, '', {
-      size: 18,
+    this.railEnemyText = makeSceneText(this, 400, railTop + 4, '', {
+      size: 17,
       color: DANGER,
       align: 'left',
       originX: 0,
@@ -511,8 +526,8 @@ export class BattleCh01Scene extends UIScene {
       depth: LAYERS.effects,
       stroke: 4,
     });
-    this.railOrderText = makeSceneText(this, 24, railTop + 46, '', {
-      size: 16,
+    makeSceneText(this, 24, railTop + 48, '接下来', {
+      size: 14,
       color: MUTED,
       align: 'left',
       originX: 0,
@@ -520,8 +535,20 @@ export class BattleCh01Scene extends UIScene {
       depth: LAYERS.effects,
       stroke: 3,
     });
-    this.railIntentText = makeSceneText(this, 24, railTop + 66, '', {
-      size: 17,
+    this.orderGraphics = this.add.graphics().setDepth(LAYERS.effects + 13);
+    for (let index = 0; index < 6; index += 1) {
+      const chip = makeSceneText(this, 0, 0, '', {
+        size: 16,
+        color: PAPER,
+        depth: LAYERS.effects + 14,
+        stroke: 3,
+        bold: true,
+      });
+      chip.setVisible(false);
+      this.orderChips.push(chip);
+    }
+    this.railIntentText = makeSceneText(this, 24, railTop + 78, '', {
+      size: 16,
       color: GOLD,
       align: 'left',
       originX: 0,
@@ -592,6 +619,7 @@ export class BattleCh01Scene extends UIScene {
         idleKey: dirs[this.state.enemy.facing ?? 'left'],
         dirKeys: dirs,
         facing: this.state.enemy.facing ?? 'left',
+        attacks: BATTLE_COOK_ATTACKS,
         displayScale: scaleForFacing(this.state.enemy.facing ?? 'left'),
         figureHeight: 371,
         scaleForFacing,
@@ -614,6 +642,7 @@ export class BattleCh01Scene extends UIScene {
       idleKey: BATTLE_MINER_ART.dirs.down,
       dirKeys: BATTLE_MINER_ART.dirs,
       facing: this.state.enemy.facing ?? 'left',
+      attacks: BATTLE_MINER_ATTACKS,
       displayScale: BATTLE_MINER_ART.displayScale,
       figureHeight: BATTLE_MINER_ART.figureHeight,
       shadowWidth: 168,
@@ -763,7 +792,8 @@ export class BattleCh01Scene extends UIScene {
   private onSlotPointer(slot: SlotId): void {
     if (!this.moveMode || this.busy || this.ended) return;
     if (this.state.activeId !== this.state.player.id) return;
-    if (slot === this.state.player.slot) return;
+    const from = this.state.player.slot ?? this.setup.player.slot;
+    if (slot === from || !adjacentSlots(from).includes(slot)) return;
     this.setMoveMode(false);
     this.playerAction({ kind: 'move', slot });
   }
@@ -774,10 +804,13 @@ export class BattleCh01Scene extends UIScene {
       !this.ended &&
       this.state.activeId === this.state.player.id &&
       this.state.phase === 'player';
+    const from = this.state.player.slot ?? this.setup.player.slot;
+    const targets = new Set<SlotId>(adjacentSlots(from));
     for (const slot of SLOT_ORDER) {
       const zone = this.slotZones.get(slot);
       if (!zone?.input) continue;
-      zone.input.enabled = this.moveMode && playerTurn && slot !== this.state.player.slot;
+      // 一次只能走环上相邻的一格；对面只能靠解离突刺的闪现。
+      zone.input.enabled = this.moveMode && playerTurn && targets.has(slot);
     }
   }
 
@@ -1044,6 +1077,64 @@ export class BattleCh01Scene extends UIScene {
     this.time.delayedCall(this.reduced ? 140 : 380, next);
   }
 
+  private enemyStrikeStrip(
+    skillId: string,
+  ): (typeof BATTLE_MINER_ATTACKS)[string] | undefined {
+    const attacks = this.setup.enemy.art === 'cook' ? BATTLE_COOK_ATTACKS : BATTLE_MINER_ATTACKS;
+    return attacks[skillId];
+  }
+
+  private playEnemyImpactFx(isQuake: boolean): void {
+    if (!isQuake) return;
+    impactRing(this, this.layout.monster.x, this.layout.monster.y - 28, {
+      color: DANGER,
+      radius: 240,
+      ms: 460,
+      reduced: this.reduced,
+      depth: LAYERS.effects,
+    });
+    this.time.delayedCall(this.reduced ? 40 : 90, () => {
+      impactRing(this, this.layout.monster.x, this.layout.monster.y - 28, {
+        color: DANGER,
+        radius: 380,
+        ms: 520,
+        reduced: this.reduced,
+        depth: LAYERS.effects - 4,
+      });
+    });
+    screenRumble(this, { ms: 300, intensity: 0.009, reduced: this.reduced });
+  }
+
+  private resolveEnemyHit(
+    event: Extract<BattleEvent, { kind: 'enemy-skill' }>,
+    playerPoint: { readonly x: number; readonly y: number },
+  ): void {
+    if (!this.lifecycle.isLive(this.runId)) return;
+    if (event.hit) {
+      this.playerActor?.flash(0xffffff, 90);
+      this.floatNumber(
+        `-${event.amount}`,
+        playerPoint.x,
+        playerPoint.y - 170,
+        DANGER,
+        this.state.player.guarding ? '防御减半' : event.skillName,
+      );
+      hitBurst(this, playerPoint.x, playerPoint.y - 96, {
+        color: DANGER,
+        reduced: this.reduced,
+        seed: this.seed + this.state.seq,
+        depth: LAYERS.effects + 8,
+      });
+      this.playSfx(
+        this.state.player.guarding ? BATTLE_ASSET_KEYS.sfx.guard : BATTLE_ASSET_KEYS.sfx.hit,
+        0.85,
+      );
+      screenRumble(this, { ms: 160, intensity: 0.006, reduced: this.reduced });
+    } else {
+      this.floatLabel('打空', playerPoint.x, playerPoint.y - 150, MUTED);
+    }
+  }
+
   private animateEnemySkill(
     event: Extract<BattleEvent, { kind: 'enemy-skill' }>,
     next: () => void,
@@ -1053,28 +1144,31 @@ export class BattleCh01Scene extends UIScene {
     const angle = FACING_ANGLES[facing];
     const isQuake = event.skillId.endsWith('quake');
     const playerPoint = this.layout.slots[this.state.player.slot ?? 'left'];
+    const strip = this.enemyStrikeStrip(event.skillId);
 
+    if (enemy && strip && this.textures.exists(strip.key)) {
+      // 有技能帧动画：动作交给 strip，命中帧再结算/播放冲击。
+      this.playSfx(isQuake ? BATTLE_ASSET_KEYS.sfx.quake : BATTLE_ASSET_KEYS.sfx.sweep, isQuake ? 0.95 : 0.85);
+      enemy.playStrike(
+        strip,
+        { reduced: this.reduced },
+        () => {
+          if (!this.lifecycle.isLive(this.runId)) return;
+          this.playEnemyImpactFx(isQuake);
+          this.resolveEnemyHit(event, playerPoint);
+        },
+        () => {
+          if (this.lifecycle.isLive(this.runId)) next();
+        },
+        isRightFacing(facing),
+      );
+      return;
+    }
+
+    // 素材缺失/加载失败时的旧程序化 fallback：不阻塞战斗。
     if (isQuake) {
       this.playSfx(BATTLE_ASSET_KEYS.sfx.quake, 0.95);
-      // 全站位是「砸地」而不是「转身攻击」：身体下砸 + 两圈冲击波盖住整个战场。
-      enemy?.nudge(0, 24, 160);
-      impactRing(this, this.layout.monster.x, this.layout.monster.y - 28, {
-        color: DANGER,
-        radius: 240,
-        ms: 460,
-        reduced: this.reduced,
-        depth: LAYERS.effects,
-      });
-      this.time.delayedCall(this.reduced ? 40 : 90, () => {
-        impactRing(this, this.layout.monster.x, this.layout.monster.y - 28, {
-          color: DANGER,
-          radius: 380,
-          ms: 520,
-          reduced: this.reduced,
-          depth: LAYERS.effects - 4,
-        });
-      });
-      screenRumble(this, { ms: 300, intensity: 0.009, reduced: this.reduced });
+      this.playEnemyImpactFx(true);
     } else {
       this.playSfx(BATTLE_ASSET_KEYS.sfx.sweep, 0.85);
       const dx = Math.cos((angle * Math.PI) / 180) * 42;
@@ -1089,32 +1183,7 @@ export class BattleCh01Scene extends UIScene {
     }
 
     this.time.delayedCall(this.reduced ? 90 : isQuake ? 260 : 180, () => {
-      if (!this.lifecycle.isLive(this.runId)) return;
-      if (event.hit) {
-        this.playerActor?.flash(0xffffff, 90);
-        this.floatNumber(
-          `-${event.amount}`,
-          playerPoint.x,
-          playerPoint.y - 170,
-          DANGER,
-          this.state.player.guarding ? '防御减半' : event.skillName,
-        );
-        hitBurst(this, playerPoint.x, playerPoint.y - 96, {
-          color: DANGER,
-          reduced: this.reduced,
-          seed: this.seed + this.state.seq,
-          depth: LAYERS.effects + 8,
-        });
-        this.playSfx(
-          this.state.player.guarding
-            ? BATTLE_ASSET_KEYS.sfx.guard
-            : BATTLE_ASSET_KEYS.sfx.hit,
-          0.85,
-        );
-        screenRumble(this, { ms: 160, intensity: 0.006, reduced: this.reduced });
-      } else {
-        this.floatLabel('打空', playerPoint.x, playerPoint.y - 150, MUTED);
-      }
+      this.resolveEnemyHit(event, playerPoint);
     });
 
     this.time.delayedCall(this.reduced ? 180 : isQuake ? 780 : 580, next);
@@ -1212,16 +1281,10 @@ export class BattleCh01Scene extends UIScene {
       this.aoeLabel.setVisible(aoe === true);
     }
     if (this.railPlayerText) {
-      this.railPlayerText.setText(`${player.name}  SPD ${player.spd}  HP ${player.hp}/${player.maxHp}`);
+      this.railPlayerText.setText(`${player.name}  SPD ${player.spd}`);
     }
     if (this.railEnemyText) {
-      this.railEnemyText.setText(`${enemy.name}  SPD ${enemy.spd}  HP ${enemy.hp}/${enemy.maxHp}`);
-    }
-    if (this.railOrderText) {
-      const order = previewOrder(this.state, 6)
-        .map((id) => (id === player.id ? '你' : '它'))
-        .join(' → ');
-      this.railOrderText.setText(`接下来：${order}`);
+      this.railEnemyText.setText(`${enemy.name}  SPD ${enemy.spd}`);
     }
     if (this.railIntentText) {
       const script = this.setup.script;
@@ -1240,6 +1303,7 @@ export class BattleCh01Scene extends UIScene {
 
     this.drawBars();
     this.drawGauges();
+    this.drawActionBar();
     this.drawHighlights();
     this.updateSlotInteractivity();
   }
@@ -1250,7 +1314,7 @@ export class BattleCh01Scene extends UIScene {
     const aoe = this.state.intent?.kind === 'skill' && this.state.intent.aoe;
     const aoeTail = aoe ? ' 它下一招是全站位，防御可减半。' : '';
     if (this.moveMode) {
-      return `点一个站位落脚${aoe ? '；全站位招式走位躲不掉，考虑防御' : '；再按「取消移动」回到指令'}。`;
+      return `只能走到相邻站位（点亮的格子）${aoe ? '；全站位招式走位躲不掉，考虑防御' : '；再按「取消移动」回到指令'}。`;
     }
     if (!playerCanAttack(this.setup)) {
       return `你还没有「解」——只能移动或防御。${aoe ? '它下一招是全站位，防御可减半。' : '先看清它下一招打哪边。'}`;
@@ -1322,7 +1386,7 @@ export class BattleCh01Scene extends UIScene {
     const graphics = this.gaugeGraphics;
     if (!graphics) return;
     graphics.clear();
-    const top = this.layout.railTop + 30;
+    const top = this.layout.railTop + 28;
     this.drawGauge(graphics, 24, top, 300, 10, this.state.player.gauge / 1000, GOLD);
     this.drawGauge(graphics, 372, top, 300, 10, this.state.enemy.gauge / 1000, DANGER);
   }
@@ -1352,6 +1416,42 @@ export class BattleCh01Scene extends UIScene {
     }
     graphics.lineStyle(1, 0x3a3428, 0.8);
     graphics.strokeRect(x, y, width, height);
+  }
+
+  private drawActionBar(): void {
+    const graphics = this.orderGraphics;
+    if (!graphics) return;
+    graphics.clear();
+    const order = previewOrder(this.state, 6);
+    const playerId = this.state.player.id;
+    const enemyInitial = this.state.enemy.name.includes('御厨') ? '厨' : '矿';
+    const y = this.layout.railTop + 60;
+    for (let index = 0; index < this.orderChips.length; index += 1) {
+      const chip = this.orderChips[index];
+      if (!chip) continue;
+      const id = order[index];
+      if (!id) {
+        chip.setVisible(false);
+        continue;
+      }
+      const isPlayer = id === playerId;
+      const color = isPlayer ? GOLD : DANGER;
+      const x = 96 + index * 52;
+      const current = index === 0;
+      graphics.fillStyle(INK, 0.72);
+      graphics.fillCircle(x, y, 17);
+      graphics.fillStyle(color, current ? 0.98 : 0.58);
+      graphics.fillCircle(x, y, 14);
+      if (current) {
+        graphics.lineStyle(2, PAPER, 0.95);
+        graphics.strokeCircle(x, y, 17);
+      }
+      chip
+        .setPosition(x, y)
+        .setText(isPlayer ? '周' : enemyInitial)
+        .setAlpha(current ? 1 : 0.78)
+        .setVisible(true);
+    }
   }
 
   private drawHighlights(): void {
@@ -1390,26 +1490,30 @@ export class BattleCh01Scene extends UIScene {
     const hitSet = new Set<SlotId>(
       intent?.kind === 'skill' ? intent.hitSlots : [],
     );
+    const moveTargets = new Set<SlotId>(adjacentSlots(playerSlot));
     for (const slot of SLOT_ORDER) {
       const point = this.layout.slots[slot];
       const isPlayer = slot === playerSlot;
       const danger = hitSet.has(slot);
+      const selectable = this.moveMode && moveTargets.has(slot);
       // 玩家站在「下一击会打到的格」时：红描边 + 金填充，不能只用金色盖掉危险。
       const stroke = danger ? DANGER : GOLD;
-      const alpha = isPlayer ? 0.95 : danger ? 0.8 : this.moveMode ? 0.5 : 0.22;
+      const alpha = isPlayer ? 0.95 : danger ? 0.8 : selectable ? 0.85 : this.moveMode ? 0.16 : 0.22;
       drawSlotRing(graphics, point, {
         color: stroke,
         fillColor: isPlayer ? GOLD : DANGER,
         alpha,
-        fillAlpha: isPlayer ? 0.12 : danger ? 0.08 : 0,
-        lineWidth: isPlayer || danger ? 3 : 2,
+        fillAlpha: isPlayer ? 0.12 : danger ? 0.08 : selectable ? 0.07 : 0,
+        lineWidth: isPlayer || danger || selectable ? 3 : 2,
       });
       const label = this.slotLabels.get(slot);
       if (label) {
         label.setColor(
           `#${(danger ? DANGER : isPlayer ? GOLD : MUTED).toString(16).padStart(6, '0')}`,
         );
-        label.setAlpha(isPlayer ? 1 : danger ? 0.95 : this.moveMode ? 0.8 : 0.55);
+        label.setAlpha(
+          isPlayer ? 1 : danger ? 0.95 : selectable ? 1 : this.moveMode ? 0.32 : 0.55,
+        );
       }
     }
 
@@ -1760,8 +1864,9 @@ export class BattleCh01Scene extends UIScene {
     this.aoeLabel = null;
     this.railPlayerText = null;
     this.railEnemyText = null;
-    this.railOrderText = null;
     this.railIntentText = null;
+    this.orderGraphics = null;
+    this.orderChips.length = 0;
     this.slotLabels.clear();
     this.slotZones.clear();
   }
@@ -1769,4 +1874,8 @@ export class BattleCh01Scene extends UIScene {
 
 function nextStep(run: (index: number) => void, index: number): () => void {
   return () => run(index);
+}
+
+function isRightFacing(facing: Facing8): boolean {
+  return facing === 'right' || facing === 'upRight' || facing === 'downRight';
 }

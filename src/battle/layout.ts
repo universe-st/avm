@@ -20,7 +20,7 @@ export const BATTLE_LAYOUT = {
   /** 页眉（地点/章节/回合/菜单）预留高度。 */
   headerHeight: 118,
   /** 页眉下方「跑条 + 接下来」条预留高度。 */
-  railHeight: 64,
+  railHeight: 104,
   /** 页眉/跑条与战场之间的呼吸间距。 */
   fieldGap: 10,
   /** 底部指令面板（含安全区 padding）。 */

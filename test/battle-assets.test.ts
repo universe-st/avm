@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import {
   BATTLE_ASSET_KEYS,
   BATTLE_MINER_ART,
+  BATTLE_COOK_ATTACKS,
+  BATTLE_MINER_ATTACKS,
   BATTLE_PLAYER_ART,
   KITCHEN_CAST,
 } from '../src/assets/keys';
@@ -84,6 +86,35 @@ describe('battle v2 assets', () => {
     }
     expect(Object.keys(BATTLE_MINER_ART.dirs)).toHaveLength(8);
     expect(BATTLE_MINER_ART.figureHeight).toBe(371);
+  });
+
+  it('ships one left-facing 12-frame sheet per miner skill, under 4096', () => {
+    const battle: BundleId[] = ['battle.ch01'];
+    for (const [skillId, meta] of Object.entries(BATTLE_MINER_ATTACKS)) {
+      const size = webpSize(read(battle, meta.key));
+      expect(size, skillId).toEqual({
+        width: meta.frameWidth * meta.frameCount,
+        height: 400,
+      });
+      expect(size.width, skillId).toBeLessThan(4096);
+      expect(meta.originX, skillId).toBeGreaterThan(0);
+      expect(meta.originX, skillId).toBeLessThan(1);
+    }
+  });
+
+  it('ships one left-facing 10-frame sheet per cook skill, under 4096', () => {
+    const kitchen: BundleId[] = ['battle.kitchen'];
+    for (const [skillId, meta] of Object.entries(BATTLE_COOK_ATTACKS)) {
+      const size = webpSize(read(kitchen, meta.key));
+      expect(size, skillId).toEqual({
+        width: meta.frameWidth * meta.frameCount,
+        height: 400,
+      });
+      expect(size.width, skillId).toBeLessThan(4096);
+      expect(meta.frameCount, skillId).toBe(10);
+      expect(meta.originX, skillId).toBeGreaterThan(0);
+      expect(meta.originX, skillId).toBeLessThan(1);
+    }
   });
 
   it('ships the kitchen battle plate and the cook facings used by the phantom', () => {

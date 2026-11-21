@@ -1,0 +1,877 @@
+{
+  "character": "矿工·清除单元（miner / clearing unit）",
+  "direction": "left（游戏内右向由代码镜像）",
+  "frameCount": 12,
+  "frameHeight": 400,
+  "frameMs": 55,
+  "baseline": {
+    "figureHeight": 371,
+    "bottom": 394,
+    "anchorX": 136,
+    "reference": "public/assets/img/character/battle/miner/miner_left.png"
+  },
+  "firstFramePlate": ".evidence/character/battle/miner_left_green.png",
+  "discardedJobs": [
+    {
+      "skill": "sweep",
+      "sequenceJobId": "smwqzzwl7f2a580",
+      "reason": "模型把躯干转向镜头/右侧（源视频中段正面露胸），成品像原地转身；并集宽 708 只能压到 256 高"
+    },
+    {
+      "skill": "quake",
+      "sequenceJobId": "smwqzzwlq184974",
+      "reason": "起手转背、双臂画成漂浮断块，砸下后整个人趴跪撑地（最低 207 高），读作倒地"
+    }
+  ],
+  "generatedAt": "2026-11-22T07:24:35+08:00",
+  "animations": [
+    {
+      "skill": "sweep",
+      "label": "铁臂横扫",
+      "sequenceJobId": "smwr0iluef50f9c",
+      "file": "public/assets/img/character/battle/miner_attack_sweep.webp",
+      "frames": 12,
+      "frameWidth": 272,
+      "frameHeight": 400,
+      "sheet": [
+        3264,
+        400
+      ],
+      "frameMs": 55,
+      "hitFrame": 2,
+      "originX": 0.6165,
+      "originXMirrored": 0.3835,
+      "bodyCenterX": 167.69,
+      "placement": {
+        "unionBox": [
+          112,
+          259,
+          582,
+          929
+        ],
+        "unionW": 470,
+        "unionH": 670,
+        "scale": 0.55373,
+        "scaledW": 260,
+        "scaledH": 371,
+        "drawX": 6,
+        "drawY": 23,
+        "widthLimited": false
+      },
+      "alphaBbox": {
+        "bottomRange": [
+          394,
+          394
+        ],
+        "contentWidthRange": [
+          160,
+          237
+        ],
+        "figureHeightRange": [
+          359,
+          371
+        ],
+        "centerXRange": [
+          124.5,
+          170.5
+        ],
+        "touchesEdge": []
+      },
+      "note": "动作语义降级：v2 保证了正侧朝左、脚不跨步、无裁切，但手臂是「前伸→回拉→落下」，不是干净的左→右横扫黑弧；峰值前伸在 f02，hitFrame 取 2。并集宽 470px，帧宽 272 要保 371 高只能把内容居中，故 originX=0.6165。",
+      "colorMatch": {
+        "reference": "public/assets/img/character/battle/miner/miner_left.png",
+        "gains": [
+          1.1842,
+          1.08,
+          1.2051
+        ]
+      },
+      "cells": [
+        {
+          "index": 0,
+          "source": "f00.png",
+          "bbox": [
+            88,
+            23,
+            248,
+            394
+          ],
+          "h": 371,
+          "bottom": 394,
+          "cx": 168.0,
+          "w": 160,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 1,
+          "source": "f01.png",
+          "bbox": [
+            82,
+            24,
+            246,
+            394
+          ],
+          "h": 370,
+          "bottom": 394,
+          "cx": 164.0,
+          "w": 164,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 2,
+          "source": "f02.png",
+          "bbox": [
+            6,
+            34,
+            243,
+            394
+          ],
+          "h": 360,
+          "bottom": 394,
+          "cx": 124.5,
+          "w": 237,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 3,
+          "source": "f03.png",
+          "bbox": [
+            50,
+            35,
+            244,
+            394
+          ],
+          "h": 359,
+          "bottom": 394,
+          "cx": 147.0,
+          "w": 194,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 4,
+          "source": "f04.png",
+          "bbox": [
+            47,
+            35,
+            243,
+            394
+          ],
+          "h": 359,
+          "bottom": 394,
+          "cx": 145.0,
+          "w": 196,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 5,
+          "source": "f05.png",
+          "bbox": [
+            72,
+            28,
+            250,
+            394
+          ],
+          "h": 366,
+          "bottom": 394,
+          "cx": 161.0,
+          "w": 178,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 6,
+          "source": "f06.png",
+          "bbox": [
+            75,
+            27,
+            266,
+            394
+          ],
+          "h": 367,
+          "bottom": 394,
+          "cx": 170.5,
+          "w": 191,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 7,
+          "source": "f07.png",
+          "bbox": [
+            74,
+            27,
+            263,
+            394
+          ],
+          "h": 367,
+          "bottom": 394,
+          "cx": 168.5,
+          "w": 189,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 8,
+          "source": "f08.png",
+          "bbox": [
+            72,
+            27,
+            249,
+            394
+          ],
+          "h": 367,
+          "bottom": 394,
+          "cx": 160.5,
+          "w": 177,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 9,
+          "source": "f09.png",
+          "bbox": [
+            45,
+            25,
+            246,
+            394
+          ],
+          "h": 369,
+          "bottom": 394,
+          "cx": 145.5,
+          "w": 201,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 10,
+          "source": "f10.png",
+          "bbox": [
+            81,
+            23,
+            248,
+            394
+          ],
+          "h": 371,
+          "bottom": 394,
+          "cx": 164.5,
+          "w": 167,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 11,
+          "source": "f11.png",
+          "bbox": [
+            88,
+            23,
+            248,
+            394
+          ],
+          "h": 371,
+          "bottom": 394,
+          "cx": 168.0,
+          "w": 160,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        }
+      ]
+    },
+    {
+      "skill": "thrust",
+      "label": "钻头突进",
+      "sequenceJobId": "smwqzzwlh3a18e3",
+      "file": "public/assets/img/character/battle/miner_attack_thrust.webp",
+      "frames": 12,
+      "frameWidth": 336,
+      "frameHeight": 400,
+      "sheet": [
+        4032,
+        400
+      ],
+      "frameMs": 55,
+      "hitFrame": 7,
+      "originX": 0.6373,
+      "originXMirrored": 0.3627,
+      "bodyCenterX": 214.12,
+      "placement": {
+        "unionBox": [
+          2,
+          259,
+          632,
+          931
+        ],
+        "unionW": 630,
+        "unionH": 672,
+        "scale": 0.53016,
+        "scaledW": 334,
+        "scaledH": 356,
+        "drawX": 1,
+        "drawY": 38,
+        "widthLimited": true
+      },
+      "alphaBbox": {
+        "bottomRange": [
+          393,
+          394
+        ],
+        "contentWidthRange": [
+          153,
+          300
+        ],
+        "figureHeightRange": [
+          314,
+          355
+        ],
+        "centerXRange": [
+          152.0,
+          226.5
+        ],
+        "touchesEdge": []
+      },
+      "note": "钻头前伸到体前约 60% 身高，并集宽 630px；272 帧只能压到 288（78%），故改 336×400（12×336=4032<4096），起手 355、突刺峰值 314（蹲姿/压低重心，不是整段缩小）。内容居中后身体中心在 214px，originX=0.6373。",
+      "colorMatch": {
+        "reference": "public/assets/img/character/battle/miner/miner_left.png",
+        "gains": [
+          1.1842,
+          1.0588,
+          1.2051
+        ]
+      },
+      "cells": [
+        {
+          "index": 0,
+          "source": "f00.png",
+          "bbox": [
+            138,
+            38,
+            291,
+            393
+          ],
+          "h": 355,
+          "bottom": 393,
+          "cx": 214.5,
+          "w": 153,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 1,
+          "source": "f01.png",
+          "bbox": [
+            124,
+            41,
+            289,
+            393
+          ],
+          "h": 352,
+          "bottom": 393,
+          "cx": 206.5,
+          "w": 165,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 2,
+          "source": "f02.png",
+          "bbox": [
+            74,
+            53,
+            288,
+            393
+          ],
+          "h": 340,
+          "bottom": 393,
+          "cx": 181.0,
+          "w": 214,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 3,
+          "source": "f03.png",
+          "bbox": [
+            104,
+            61,
+            312,
+            393
+          ],
+          "h": 332,
+          "bottom": 393,
+          "cx": 208.0,
+          "w": 208,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 4,
+          "source": "f04.png",
+          "bbox": [
+            105,
+            64,
+            312,
+            393
+          ],
+          "h": 329,
+          "bottom": 393,
+          "cx": 208.5,
+          "w": 207,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 5,
+          "source": "f05.png",
+          "bbox": [
+            107,
+            64,
+            321,
+            393
+          ],
+          "h": 329,
+          "bottom": 393,
+          "cx": 214.0,
+          "w": 214,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 6,
+          "source": "f06.png",
+          "bbox": [
+            118,
+            64,
+            335,
+            394
+          ],
+          "h": 330,
+          "bottom": 394,
+          "cx": 226.5,
+          "w": 217,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 7,
+          "source": "f07.png",
+          "bbox": [
+            35,
+            78,
+            302,
+            393
+          ],
+          "h": 315,
+          "bottom": 393,
+          "cx": 168.5,
+          "w": 267,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 8,
+          "source": "f08.png",
+          "bbox": [
+            15,
+            79,
+            302,
+            393
+          ],
+          "h": 314,
+          "bottom": 393,
+          "cx": 158.5,
+          "w": 287,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 9,
+          "source": "f09.png",
+          "bbox": [
+            2,
+            79,
+            302,
+            393
+          ],
+          "h": 314,
+          "bottom": 393,
+          "cx": 152.0,
+          "w": 300,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 10,
+          "source": "f10.png",
+          "bbox": [
+            66,
+            57,
+            287,
+            394
+          ],
+          "h": 337,
+          "bottom": 394,
+          "cx": 176.5,
+          "w": 221,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 11,
+          "source": "f11.png",
+          "bbox": [
+            135,
+            38,
+            290,
+            393
+          ],
+          "h": 355,
+          "bottom": 393,
+          "cx": 212.5,
+          "w": 155,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        }
+      ]
+    },
+    {
+      "skill": "quake",
+      "label": "核心脉冲",
+      "sequenceJobId": "smwr0ilul796142",
+      "file": "public/assets/img/character/battle/miner_attack_quake.webp",
+      "frames": 12,
+      "frameWidth": 272,
+      "frameHeight": 400,
+      "sheet": [
+        3264,
+        400
+      ],
+      "frameMs": 55,
+      "hitFrame": 5,
+      "originX": 0.6735,
+      "originXMirrored": 0.3265,
+      "bodyCenterX": 183.19,
+      "placement": {
+        "unionBox": [
+          84,
+          259,
+          554,
+          929
+        ],
+        "unionW": 470,
+        "unionH": 670,
+        "scale": 0.55373,
+        "scaledW": 260,
+        "scaledH": 371,
+        "drawX": 6,
+        "drawY": 23,
+        "widthLimited": false
+      },
+      "alphaBbox": {
+        "bottomRange": [
+          394,
+          394
+        ],
+        "contentWidthRange": [
+          160,
+          246
+        ],
+        "figureHeightRange": [
+          301,
+          371
+        ],
+        "centerXRange": [
+          127.0,
+          183.0
+        ],
+        "touchesEdge": []
+      },
+      "note": "砸地读作「举拳→半蹲砸下」，但举拳只到头顶附近、远侧手被身体挡住，命中取第一次触地的 f05；下蹲最深 f05/f07=301（81%），是蹲姿不是整体缩放。originX=0.6735。",
+      "colorMatch": {
+        "reference": "public/assets/img/character/battle/miner/miner_left.png",
+        "gains": [
+          1.1688,
+          1.102,
+          1.2208
+        ]
+      },
+      "cells": [
+        {
+          "index": 0,
+          "source": "f00.png",
+          "bbox": [
+            103,
+            23,
+            263,
+            394
+          ],
+          "h": 371,
+          "bottom": 394,
+          "cx": 183.0,
+          "w": 160,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 1,
+          "source": "f01.png",
+          "bbox": [
+            103,
+            23,
+            263,
+            394
+          ],
+          "h": 371,
+          "bottom": 394,
+          "cx": 183.0,
+          "w": 160,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 2,
+          "source": "f02.png",
+          "bbox": [
+            33,
+            26,
+            262,
+            394
+          ],
+          "h": 368,
+          "bottom": 394,
+          "cx": 147.5,
+          "w": 229,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 3,
+          "source": "f03.png",
+          "bbox": [
+            59,
+            24,
+            266,
+            394
+          ],
+          "h": 370,
+          "bottom": 394,
+          "cx": 162.5,
+          "w": 207,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 4,
+          "source": "f04.png",
+          "bbox": [
+            6,
+            75,
+            252,
+            394
+          ],
+          "h": 319,
+          "bottom": 394,
+          "cx": 129.0,
+          "w": 246,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 5,
+          "source": "f05.png",
+          "bbox": [
+            22,
+            93,
+            245,
+            394
+          ],
+          "h": 301,
+          "bottom": 394,
+          "cx": 133.5,
+          "w": 223,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 6,
+          "source": "f06.png",
+          "bbox": [
+            6,
+            81,
+            251,
+            394
+          ],
+          "h": 313,
+          "bottom": 394,
+          "cx": 128.5,
+          "w": 245,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 7,
+          "source": "f07.png",
+          "bbox": [
+            12,
+            93,
+            244,
+            394
+          ],
+          "h": 301,
+          "bottom": 394,
+          "cx": 128.0,
+          "w": 232,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 8,
+          "source": "f08.png",
+          "bbox": [
+            8,
+            84,
+            246,
+            394
+          ],
+          "h": 310,
+          "bottom": 394,
+          "cx": 127.0,
+          "w": 238,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 9,
+          "source": "f09.png",
+          "bbox": [
+            64,
+            37,
+            257,
+            394
+          ],
+          "h": 357,
+          "bottom": 394,
+          "cx": 160.5,
+          "w": 193,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 10,
+          "source": "f10.png",
+          "bbox": [
+            103,
+            23,
+            263,
+            394
+          ],
+          "h": 371,
+          "bottom": 394,
+          "cx": 183.0,
+          "w": 160,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 11,
+          "source": "f11.png",
+          "bbox": [
+            103,
+            23,
+            263,
+            394
+          ],
+          "h": 371,
+          "bottom": 394,
+          "cx": 183.0,
+          "w": 160,
+          "touchRight": false,
+          "touchLeft": false,
+          "touchTop": false,
+          "touchBottom": false
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "首帧 = miner_left.png 合成到纯绿 #00FF00（人物占画面高约 62%，四周留绿）。",
+    "对齐：12 帧并集 bbox 统一缩放，底边 394；并集整体在帧内居中，帧间相对位移原样保留（不逐帧居中，否则突刺/横扫会变成原地摆拍）。身体中心因此不在帧中心，靠 originX 定位。",
+    "**每条都要按 originX 设 sprite 原点**（身体中心不在帧中心：内容居中后手臂前伸把身体推到右侧）；镜像成右向时用 originXMirrored = 1 - originX，否则身体会横向跳。",
+    "并集宽超过帧宽-2 时整段等比缩小（figureHeightRange 会低于 371），绝不横向裁剪手脚/钻头。",
+    "配色：绿幕视频把铁甲染绿，整段统一通道增益对齐 miner_left.png（逐帧对齐会闪）。",
+    "hitFrame 由逐帧看联络表判定，0 起。"
+  ]
+}

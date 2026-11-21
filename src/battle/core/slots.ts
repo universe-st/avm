@@ -168,3 +168,25 @@ export function facingLabel(facing: Facing8): string {
 export function formatSlots(slots: readonly SlotId[]): string {
   return slots.map(slotLabel).join('/');
 }
+
+/**
+ * 环上相邻的站位（一次移动只能走一格）。
+ *
+ * `SLOT_ORDER` 本身就是环的顺时针顺序：
+ * right → upperRight → upperLeft → left → lowerLeft → lowerRight → right。
+ * 所以相邻 = 前后各一个；对面（left↔right、upperLeft↔lowerRight 等）不可一步走到，
+ * 只有解离突刺的闪现可以跨到镜相对位。
+ */
+export function adjacentSlots(slot: SlotId): SlotId[] {
+  const index = SLOT_ORDER.indexOf(slot);
+  if (index < 0) return [];
+  const count = SLOT_ORDER.length;
+  return [
+    SLOT_ORDER[(index + 1) % count]!,
+    SLOT_ORDER[(index + count - 1) % count]!,
+  ];
+}
+
+export function isAdjacentSlot(from: SlotId, to: SlotId): boolean {
+  return adjacentSlots(from).includes(to);
+}

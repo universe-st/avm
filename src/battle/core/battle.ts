@@ -17,6 +17,7 @@ import { planNextActor } from './gauge';
 import { getSkill, resolveSkill } from '../data/skills';
 import {
   facingLabel,
+  isAdjacentSlot,
   isBackstabSlot,
   mirrorSlot,
   slotLabel,
@@ -203,7 +204,8 @@ function applyPlayerAction(
 ): BattleActionResult {
   if (action.kind === 'move') {
     const from = state.player.slot ?? setup.player.slot;
-    if (action.slot === from) {
+    // 一次只能移动到环上相邻的一格；对面要靠解离突刺的闪现，不能直接走。
+    if (action.slot === from || !isAdjacentSlot(from, action.slot)) {
       return { state, events: [] };
     }
     const text = `你闪到${slotLabel(action.slot)}。`;

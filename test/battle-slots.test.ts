@@ -3,6 +3,7 @@ import type { Facing8, SlotId } from '../src/battle/types';
 import {
   SLOT_FACING,
   SLOT_ORDER,
+  adjacentSlots,
   formatSlots,
   hitSlotsFor,
   isBackstabSlot,
@@ -80,6 +81,17 @@ describe('battle slots / zones', () => {
     expect(hitSlotsFor('upRight', 'front-arc')).toHaveLength(4);
     expect(hitSlotsFor('upRight', 'all-slots')).toHaveLength(6);
     expect(slotsInZones('upRight', ['back']).sort()).toEqual(['left', 'lowerLeft'].sort());
+  });
+
+  it('moves only to ring-adjacent slots, never straight across', () => {
+    expect([...adjacentSlots('left')].sort()).toEqual(['lowerLeft', 'upperLeft'].sort());
+    expect([...adjacentSlots('upperLeft')].sort()).toEqual(['left', 'upperRight'].sort());
+    expect([...adjacentSlots('right')].sort()).toEqual(['lowerRight', 'upperRight'].sort());
+    for (const slot of SLOTS) {
+      expect(adjacentSlots(slot)).toHaveLength(2);
+      expect(adjacentSlots(slot)).not.toContain(slot);
+      expect(adjacentSlots(slot)).not.toContain(mirrorSlot(slot));
+    }
   });
 
   it('formats slot labels for the HUD', () => {

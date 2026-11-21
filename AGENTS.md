@@ -132,6 +132,9 @@ pnpm android:release
 - **`battleCh01` 与 `battleKitchen` 两个模块共用同一个场景 key**（`battle-ch01`），资源闭包不同：前者 `battle.ch01`（矿工 8 向 + 金殿舞台），后者 `battle.kitchen`（御膳房舞台 + 依赖 `ch01.kitchen` 取厨子八向）。别把两个包合并，否则第一场会被迫加载 14 MB 御膳房素材。
 - **战斗贴图宽度**：解离突刺 12 帧 × 320 = 3840，已接近手机 GPU 4096 上限；矿工八向是 272×400 单张。加帧/加宽前先跑 `test/battle-assets.test.ts`（宽度 <4096）。
 - **1200×648 的设计高只有 1100**：`planBattleLayout` 会把 `radiusY` 压到约 129；上排角色的头离跑条只有 10px。所以玩家血条不画在头顶（底部指令区和跑条里已有 HP），别再加回去。
+- **玩家一次只能走到环上相邻的一格**：`adjacentSlots()`（`src/battle/core/slots.ts`）是唯一判定；left↔right、upperLeft↔lowerRight 这类对面只能靠解离突刺的闪现。舞台预览/测试不要再用「一步 move 到对面」的旧写法；UI 只点亮相邻两格。
+- **行动条必须真的画出来**：顶部原生 rail 有「行动条」标题、双方 SPD/分段 gauge、「接下来」6 个 chip（周/矿/厨，当前行动者白描边）和意图行；`railHeight=104`、`fieldTop=232`。不要退化成「接下来：你→它」一行文字。
+- **怪物技能攻击动画按技能分条**：每个技能一条**左向** 12 帧 strip（`BATTLE_MINER_ATTACKS` / `BATTLE_COOK_ATTACKS`），右侧三方位由 `playStrike` 的 `flip` 镜像；宽帧（如突刺）在 meta 里写 `originX`，播放时临时改原点，播完恢复 0.5。缺图自动退回程序化 nudge/斩击弧，不能阻断回合。
 - **意图是锁定的**：怪物行动结束后按当时站位锁定 `state.intent`，玩家移动不改它；这样才能「读招→躲开→看它打空」。不要在玩家移动后重算意图。
 - **清除协议计数按怪物行动数**（含转向），不是玩家回合数；别改成按玩家回合数，否则玩家可以靠绕背无限拖。
 - **全站位技能不是「没转身就背刺」**：核心脉冲/灶台震地是 AOE，怪物不转向也能命中背后（设计上用来惩罚站桩背刺）。HUD 必须写「全站位（无法走位躲避）」+ 全 arena 红环 + 砸地双冲击波；意图文案不要列 6 个站位（2026-11-22 用户报「怪没转身却打背后」就是因为它只列了 6 格）。纯逻辑里它是 `SkillHit: 'all-slots'`，`EnemyIntent.aoe=true`；`test/battle-ai.test.ts` 会断言 AOE 文案与 `aoe` 标记。

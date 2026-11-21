@@ -123,20 +123,48 @@ describe('kitchen battle: 解离突刺', () => {
     });
   });
 
-  it('dodges a committed front attack by moving behind (it misses)', () => {
-    let state = startNextTurn(createBattle(CH01_KITCHEN_BATTLE)).state;
-    state = applyBattleAction(
+  it('rejects moving straight across the arena', () => {
+    const state = startNextTurn(createBattle(CH01_KITCHEN_BATTLE)).state;
+    const result = applyBattleAction(
       state,
       { kind: 'move', slot: 'right' },
+      CH01_KITCHEN_BATTLE,
+    );
+    expect(result.state).toBe(state);
+    expect(result.events).toEqual([]);
+  });
+
+  it('needs two adjacent moves to get behind; the second committed attack misses', () => {
+    let state = startNextTurn(createBattle(CH01_KITCHEN_BATTLE)).state;
+    // 第一动：左 → 左上（相邻）。热油泼洒是正面技能，仍然打中。
+    state = applyBattleAction(
+      state,
+      { kind: 'move', slot: 'upperLeft' },
       CH01_KITCHEN_BATTLE,
     ).state;
     state = startNextTurn(state).state;
     expect(state.activeId).toBe(state.enemy.id);
 
-    const result = applyBattleAction(state, { kind: 'enemy-act' }, CH01_KITCHEN_BATTLE);
-    const hit = result.events.find((event) => event.kind === 'enemy-skill');
-    expect(hit).toMatchObject({ hit: false, amount: 0 });
-    expect(result.state.player.hp).toBe(CH01_KITCHEN_BATTLE.player.hp);
+    const first = applyBattleAction(state, { kind: 'enemy-act' }, CH01_KITCHEN_BATTLE);
+    const firstHit = first.events.find((event) => event.kind === 'enemy-skill');
+    expect(firstHit).toMatchObject({ hit: true });
+    const hpAfterFirst = first.state.player.hp;
+
+    // 第二动：左上 → 右上（相邻）。怪物锁定的突进只打正面，打空。
+    state = startNextTurn(first.state).state;
+    expect(state.activeId).toBe(state.player.id);
+    state = applyBattleAction(
+      state,
+      { kind: 'move', slot: 'upperRight' },
+      CH01_KITCHEN_BATTLE,
+    ).state;
+    state = startNextTurn(state).state;
+    expect(state.activeId).toBe(state.enemy.id);
+
+    const second = applyBattleAction(state, { kind: 'enemy-act' }, CH01_KITCHEN_BATTLE);
+    const secondHit = second.events.find((event) => event.kind === 'enemy-skill');
+    expect(secondHit).toMatchObject({ hit: false, amount: 0 });
+    expect(second.state.player.hp).toBe(hpAfterFirst);
   });
 
   it('halves incoming damage while guarding', () => {
@@ -152,15 +180,15 @@ describe('kitchen battle: 解离突刺', () => {
     expect(result.state.player.hp).toBe(CH01_KITCHEN_BATTLE.player.hp - 7);
   });
 
-  it('wins in three attacks: one front blink, then two backstabs', () => {
-    let moved = false;
-    const result = drive(CH01_KITCHEN_BATTLE, () => {
-      if (!moved) {
-        moved = true;
-        return { kind: 'move', slot: 'right' };
-      }
-      return { kind: 'attack', skillId: 'player.jielitusi' };
-    });
+  it('wins in three attacks from the back: 24, 24, 16', () => {
+    const fromRight: BattleSetup = {
+      ...CH01_KITCHEN_BATTLE,
+      player: { ...CH01_KITCHEN_BATTLE.player, slot: 'right' },
+    };
+    const result = drive(fromRight, () => ({
+      kind: 'attack',
+      skillId: 'player.jielitusi',
+    }));
 
     expect(result.state.phase).toBe('victory');
     expect(result.state.enemy.hp).toBe(0);
@@ -181,19 +209,33 @@ describe('kitchen battle: 解离突刺', () => {
     // 怪物确实转身过一次，而且转向也算一次行动。
     const turn = result.events.find((event) => event.kind === 'enemy-turn');
     expect(turn).toBeDefined();
-    expect(result.state.enemyActions).toBeGreaterThanOrEqual(3);
+    expect(result.state.enemyActions).toBeGreaterThanOrEqual(2);
+  });
+
+  it('can win from the default left start using only adjacent moves', () => {
+    const result = drive(CH01_KITCHEN_BATTLE, (state) => {
+      if (state.player.slot === 'left') {
+        return { kind: 'move', slot: 'upperLeft' };
+      }
+      if (state.player.slot === 'upperLeft') {
+        return { kind: 'move', slot: 'upperRight' };
+      }
+      return { kind: 'attack', skillId: 'player.jielitusi' };
+    });
+    expect(result.state.phase).toBe('victory');
+    expect(result.state.enemy.hp).toBe(0);
   });
 
   it('is deterministic for the same action sequence', () => {
     const run = (): string => {
-      let moved = false;
-      const result = drive(CH01_KITCHEN_BATTLE, () => {
-        if (!moved) {
-          moved = true;
-          return { kind: 'move', slot: 'right' };
-        }
-        return { kind: 'attack', skillId: 'player.jielitusi' };
-      });
+      const fromRight: BattleSetup = {
+        ...CH01_KITCHEN_BATTLE,
+        player: { ...CH01_KITCHEN_BATTLE.player, slot: 'right' },
+      };
+      const result = drive(fromRight, () => ({
+        kind: 'attack',
+        skillId: 'player.jielitusi',
+      }));
       return JSON.stringify({
         phase: result.state.phase,
         player: result.state.player,

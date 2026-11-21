@@ -1,0 +1,894 @@
+{
+  "character": "御厨·幻影（cook）",
+  "facing": "left（游戏内右向由代码镜像；镜像时按 originX 翻转，脚底/身体位置不变）",
+  "canvas": {
+    "frameCount": 10,
+    "frameWidth": 400,
+    "frameHeight": 400,
+    "frameMs": 55,
+    "sheetWidth": 4000
+  },
+  "baseline": {
+    "source": "public/assets/img/character/ch01/kitchen/cook/cook_left.png",
+    "figureHeight": 371,
+    "bottom": 394,
+    "sourceCenterX": 112,
+    "feetCenterX": 102
+  },
+  "scaling": {
+    "rule": "人物高（首帧站定姿势的 alpha bbox 高）→ 371；刀举过头/油花高过头时，内容整体挤进 400×400（底边 394、左右各 1px），实在装不下才整体缩小",
+    "firstFrame": {
+      "source": "public/assets/img/character/ch01/kitchen/cook/cook_left.png",
+      "note": "三条动画共用同一张 cook_left.png 合成到纯绿 #00FF00 的 3:4 画布（1080×1440，人物高 780 / 脚底 1160），由 `first-frame` 子命令生成，不进仓库",
+      "generator": "python3 tools/make-cook-attack.py first-frame --skill <sweep|oil|quake> --out <png>"
+    }
+  },
+  "contact": "assets-src/character/battle/cook-attack-contact.png",
+  "animations": [
+    {
+      "skill": "sweep",
+      "label": "菜刀横扫",
+      "jobId": "smwqzz4kz4fff06",
+      "file": "public/assets/img/character/battle/cook_attack_sweep.webp",
+      "frames": 10,
+      "frameCount": 10,
+      "frameWidth": 400,
+      "frameHeight": 400,
+      "frameMs": 55,
+      "hitFrame": 5,
+      "originX": 0.53768,
+      "anchorX": 215.1,
+      "sheet": [
+        4000,
+        400
+      ],
+      "placement": {
+        "unionBox": [
+          53,
+          274,
+          700,
+          876
+        ],
+        "unionW": 647,
+        "unionH": 602,
+        "scale": 0.61515,
+        "scaledW": 398,
+        "scaledH": 370,
+        "drawX": 1,
+        "drawY": 24,
+        "anchorX": 215.1,
+        "originX": 0.53768,
+        "widthLimited": true,
+        "scaleLimit": "width",
+        "bodyHeight": 359.9,
+        "removedNoise": [
+          {
+            "frame": "f00.png",
+            "dropped": 2,
+            "droppedArea": 5
+          },
+          {
+            "frame": "f01.png",
+            "dropped": 2,
+            "droppedArea": 3
+          },
+          {
+            "frame": "f02.png",
+            "dropped": 2,
+            "droppedArea": 4
+          },
+          {
+            "frame": "f03.png",
+            "dropped": 1,
+            "droppedArea": 3
+          },
+          {
+            "frame": "f04.png",
+            "dropped": 3,
+            "droppedArea": 4
+          },
+          {
+            "frame": "f05.png",
+            "dropped": 13,
+            "droppedArea": 33
+          },
+          {
+            "frame": "f06.png",
+            "dropped": 1,
+            "droppedArea": 2
+          },
+          {
+            "frame": "f07.png",
+            "dropped": 18,
+            "droppedArea": 83
+          },
+          {
+            "frame": "f08.png",
+            "dropped": 4,
+            "droppedArea": 6
+          },
+          {
+            "frame": "f09.png",
+            "dropped": 2,
+            "droppedArea": 3
+          }
+        ]
+      },
+      "measured": {
+        "bodyHeight": 359.9,
+        "figureHMin": 333,
+        "figureHMax": 370,
+        "bottomMin": 390,
+        "bottomMax": 394,
+        "widthMin": 196,
+        "widthMax": 305,
+        "centerXMin": 153.5,
+        "centerXMax": 276.0,
+        "centerXDrift": 122.5,
+        "feetCxMin": 215.1,
+        "feetCxMax": 226.8,
+        "touchEdges": []
+      },
+      "cells": [
+        {
+          "index": 0,
+          "source": "f00.png",
+          "bbox": [
+            78,
+            31,
+            306,
+            391
+          ],
+          "h": 360,
+          "w": 228,
+          "bottom": 391,
+          "cx": 192.0,
+          "feetCx": 215.1,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 1,
+          "source": "f01.png",
+          "bbox": [
+            1,
+            41,
+            306,
+            390
+          ],
+          "h": 349,
+          "w": 305,
+          "bottom": 390,
+          "cx": 153.5,
+          "feetCx": 218.5,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 2,
+          "source": "f02.png",
+          "bbox": [
+            81,
+            28,
+            317,
+            394
+          ],
+          "h": 366,
+          "w": 236,
+          "bottom": 394,
+          "cx": 199.0,
+          "feetCx": 226.8,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 3,
+          "source": "f03.png",
+          "bbox": [
+            94,
+            24,
+            321,
+            394
+          ],
+          "h": 370,
+          "w": 227,
+          "bottom": 394,
+          "cx": 207.5,
+          "feetCx": 226.5,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 4,
+          "source": "f04.png",
+          "bbox": [
+            75,
+            33,
+            330,
+            394
+          ],
+          "h": 361,
+          "w": 255,
+          "bottom": 394,
+          "cx": 202.5,
+          "feetCx": 226.5,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 5,
+          "source": "f05.png",
+          "bbox": [
+            142,
+            61,
+            338,
+            394
+          ],
+          "h": 333,
+          "w": 196,
+          "bottom": 394,
+          "cx": 240.0,
+          "feetCx": 225.8,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 6,
+          "source": "f06.png",
+          "bbox": [
+            153,
+            56,
+            399,
+            394
+          ],
+          "h": 338,
+          "w": 246,
+          "bottom": 394,
+          "cx": 276.0,
+          "feetCx": 224.4,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 7,
+          "source": "f07.png",
+          "bbox": [
+            153,
+            55,
+            399,
+            394
+          ],
+          "h": 339,
+          "w": 246,
+          "bottom": 394,
+          "cx": 276.0,
+          "feetCx": 224.4,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 8,
+          "source": "f08.png",
+          "bbox": [
+            153,
+            55,
+            399,
+            394
+          ],
+          "h": 339,
+          "w": 246,
+          "bottom": 394,
+          "cx": 276.0,
+          "feetCx": 224.5,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 9,
+          "source": "f09.png",
+          "bbox": [
+            153,
+            55,
+            399,
+            394
+          ],
+          "h": 339,
+          "w": 246,
+          "bottom": 394,
+          "cx": 276.0,
+          "feetCx": 224.0,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        }
+      ],
+      "generatedAt": "2026-11-22T07:41:38+08:00"
+    },
+    {
+      "skill": "oil",
+      "label": "热油泼洒",
+      "jobId": "smwqzz4l9f3653c",
+      "file": "public/assets/img/character/battle/cook_attack_oil.webp",
+      "frames": 10,
+      "frameCount": 10,
+      "frameWidth": 400,
+      "frameHeight": 400,
+      "frameMs": 55,
+      "hitFrame": 5,
+      "originX": 0.68948,
+      "anchorX": 275.8,
+      "sheet": [
+        4000,
+        400
+      ],
+      "placement": {
+        "unionBox": [
+          2,
+          236,
+          590,
+          871
+        ],
+        "unionW": 588,
+        "unionH": 635,
+        "scale": 0.6189,
+        "scaledW": 364,
+        "scaledH": 393,
+        "drawX": 1,
+        "drawY": 1,
+        "anchorX": 275.8,
+        "originX": 0.68948,
+        "widthLimited": false,
+        "scaleLimit": "height",
+        "bodyHeight": 362.7,
+        "removedNoise": [
+          {
+            "frame": "f00.png",
+            "dropped": 1,
+            "droppedArea": 1
+          },
+          {
+            "frame": "f01.png",
+            "dropped": 5,
+            "droppedArea": 15
+          },
+          {
+            "frame": "f02.png",
+            "dropped": 1,
+            "droppedArea": 3
+          },
+          {
+            "frame": "f03.png",
+            "dropped": 11,
+            "droppedArea": 25
+          },
+          {
+            "frame": "f04.png",
+            "dropped": 2,
+            "droppedArea": 4
+          },
+          {
+            "frame": "f05.png",
+            "dropped": 2,
+            "droppedArea": 4
+          },
+          {
+            "frame": "f06.png",
+            "dropped": 8,
+            "droppedArea": 34
+          },
+          {
+            "frame": "f07.png",
+            "dropped": 6,
+            "droppedArea": 18
+          },
+          {
+            "frame": "f08.png",
+            "dropped": 2,
+            "droppedArea": 3
+          },
+          {
+            "frame": "f09.png",
+            "dropped": 1,
+            "droppedArea": 2
+          }
+        ]
+      },
+      "measured": {
+        "bodyHeight": 362.7,
+        "figureHMin": 333,
+        "figureHMax": 393,
+        "bottomMin": 394,
+        "bottomMax": 394,
+        "widthMin": 156,
+        "widthMax": 351,
+        "centerXMin": 176.0,
+        "centerXMax": 287.0,
+        "centerXDrift": 111.0,
+        "feetCxMin": 274.2,
+        "feetCxMax": 275.8,
+        "touchEdges": []
+      },
+      "cells": [
+        {
+          "index": 0,
+          "source": "f00.png",
+          "bbox": [
+            209,
+            31,
+            365,
+            394
+          ],
+          "h": 363,
+          "w": 156,
+          "bottom": 394,
+          "cx": 287.0,
+          "feetCx": 275.8,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 1,
+          "source": "f01.png",
+          "bbox": [
+            111,
+            54,
+            360,
+            394
+          ],
+          "h": 340,
+          "w": 249,
+          "bottom": 394,
+          "cx": 235.5,
+          "feetCx": 274.2,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 2,
+          "source": "f02.png",
+          "bbox": [
+            101,
+            57,
+            362,
+            394
+          ],
+          "h": 337,
+          "w": 261,
+          "bottom": 394,
+          "cx": 231.5,
+          "feetCx": 274.2,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 3,
+          "source": "f03.png",
+          "bbox": [
+            101,
+            57,
+            361,
+            394
+          ],
+          "h": 337,
+          "w": 260,
+          "bottom": 394,
+          "cx": 231.0,
+          "feetCx": 274.2,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 4,
+          "source": "f04.png",
+          "bbox": [
+            107,
+            61,
+            362,
+            394
+          ],
+          "h": 333,
+          "w": 255,
+          "bottom": 394,
+          "cx": 234.5,
+          "feetCx": 274.2,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 5,
+          "source": "f05.png",
+          "bbox": [
+            1,
+            55,
+            351,
+            394
+          ],
+          "h": 339,
+          "w": 350,
+          "bottom": 394,
+          "cx": 176.0,
+          "feetCx": 274.2,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 6,
+          "source": "f06.png",
+          "bbox": [
+            1,
+            1,
+            352,
+            394
+          ],
+          "h": 393,
+          "w": 351,
+          "bottom": 394,
+          "cx": 176.5,
+          "feetCx": 274.2,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 7,
+          "source": "f07.png",
+          "bbox": [
+            1,
+            57,
+            352,
+            394
+          ],
+          "h": 337,
+          "w": 351,
+          "bottom": 394,
+          "cx": 176.5,
+          "feetCx": 274.2,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 8,
+          "source": "f08.png",
+          "bbox": [
+            37,
+            52,
+            352,
+            394
+          ],
+          "h": 342,
+          "w": 315,
+          "bottom": 394,
+          "cx": 194.5,
+          "feetCx": 274.2,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 9,
+          "source": "f09.png",
+          "bbox": [
+            106,
+            34,
+            351,
+            394
+          ],
+          "h": 360,
+          "w": 245,
+          "bottom": 394,
+          "cx": 228.5,
+          "feetCx": 275.8,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        }
+      ],
+      "generatedAt": "2026-11-22T07:41:45+08:00"
+    },
+    {
+      "skill": "quake",
+      "label": "灶台震地",
+      "jobId": "smwqzzb39535c3e",
+      "file": "public/assets/img/character/battle/cook_attack_quake.webp",
+      "frames": 10,
+      "frameCount": 10,
+      "frameWidth": 400,
+      "frameHeight": 400,
+      "frameMs": 55,
+      "hitFrame": 5,
+      "originX": 0.28691,
+      "anchorX": 114.8,
+      "sheet": [
+        4000,
+        400
+      ],
+      "placement": {
+        "unionBox": [
+          206,
+          284,
+          560,
+          871
+        ],
+        "unionW": 354,
+        "unionH": 587,
+        "scale": 0.63203,
+        "scaledW": 224,
+        "scaledH": 371,
+        "drawX": 1,
+        "drawY": 23,
+        "anchorX": 114.8,
+        "originX": 0.28691,
+        "widthLimited": false,
+        "scaleLimit": "figure",
+        "bodyHeight": 371.0,
+        "removedNoise": [
+          {
+            "frame": "f01.png",
+            "dropped": 5,
+            "droppedArea": 25
+          },
+          {
+            "frame": "f03.png",
+            "dropped": 7,
+            "droppedArea": 16
+          },
+          {
+            "frame": "f04.png",
+            "dropped": 7,
+            "droppedArea": 51
+          },
+          {
+            "frame": "f09.png",
+            "dropped": 2,
+            "droppedArea": 7
+          }
+        ]
+      },
+      "measured": {
+        "bodyHeight": 371.0,
+        "figureHMin": 288,
+        "figureHMax": 371,
+        "bottomMin": 394,
+        "bottomMax": 394,
+        "widthMin": 163,
+        "widthMax": 218,
+        "centerXMin": 106.5,
+        "centerXMax": 127.5,
+        "centerXDrift": 21.0,
+        "feetCxMin": 109.9,
+        "feetCxMax": 145.4,
+        "touchEdges": []
+      },
+      "cells": [
+        {
+          "index": 0,
+          "source": "f00.png",
+          "bbox": [
+            46,
+            23,
+            209,
+            394
+          ],
+          "h": 371,
+          "w": 163,
+          "bottom": 394,
+          "cx": 127.5,
+          "feetCx": 114.8,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 1,
+          "source": "f01.png",
+          "bbox": [
+            4,
+            26,
+            209,
+            394
+          ],
+          "h": 368,
+          "w": 205,
+          "bottom": 394,
+          "cx": 106.5,
+          "feetCx": 126.8,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 2,
+          "source": "f02.png",
+          "bbox": [
+            13,
+            29,
+            219,
+            394
+          ],
+          "h": 365,
+          "w": 206,
+          "bottom": 394,
+          "cx": 116.0,
+          "feetCx": 145.4,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 3,
+          "source": "f03.png",
+          "bbox": [
+            13,
+            28,
+            225,
+            394
+          ],
+          "h": 366,
+          "w": 212,
+          "bottom": 394,
+          "cx": 119.0,
+          "feetCx": 145.4,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 4,
+          "source": "f04.png",
+          "bbox": [
+            12,
+            55,
+            212,
+            394
+          ],
+          "h": 339,
+          "w": 200,
+          "bottom": 394,
+          "cx": 112.0,
+          "feetCx": 109.9,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 5,
+          "source": "f05.png",
+          "bbox": [
+            2,
+            100,
+            215,
+            394
+          ],
+          "h": 294,
+          "w": 213,
+          "bottom": 394,
+          "cx": 108.5,
+          "feetCx": 111.9,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 6,
+          "source": "f06.png",
+          "bbox": [
+            1,
+            106,
+            219,
+            394
+          ],
+          "h": 288,
+          "w": 218,
+          "bottom": 394,
+          "cx": 110.0,
+          "feetCx": 112.2,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 7,
+          "source": "f07.png",
+          "bbox": [
+            1,
+            106,
+            219,
+            394
+          ],
+          "h": 288,
+          "w": 218,
+          "bottom": 394,
+          "cx": 110.0,
+          "feetCx": 111.9,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 8,
+          "source": "f08.png",
+          "bbox": [
+            30,
+            41,
+            200,
+            394
+          ],
+          "h": 353,
+          "w": 170,
+          "bottom": 394,
+          "cx": 115.0,
+          "feetCx": 113.2,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        },
+        {
+          "index": 9,
+          "source": "f09.png",
+          "bbox": [
+            45,
+            23,
+            209,
+            394
+          ],
+          "h": 371,
+          "w": 164,
+          "bottom": 394,
+          "cx": 127.0,
+          "feetCx": 114.8,
+          "touchLeft": false,
+          "touchRight": false,
+          "touchTop": false,
+          "touchBottom": false
+        }
+      ],
+      "generatedAt": "2026-11-22T07:41:52+08:00"
+    }
+  ],
+  "generatedAt": "2026-11-22T07:44:33+08:00"
+}

@@ -22,12 +22,16 @@ export interface BattleStrikeStrip {
   readonly hitFrame: number;
   /** 命中后冻结帧时钟的毫秒数（打击感）；0 = 不冻结。 */
   readonly hitFreezeMs?: number;
+  /** 帧内内容中心 x / 帧宽；宽帧（突刺）要设，否则脚底中心会横跳。省略 0.5。 */
+  readonly originX?: number;
 }
 
 export interface BattleActorArt {
   readonly idleKey: string;
   readonly guardKey?: string;
   readonly attack?: BattleStrikeStrip;
+  /** 怪物每个技能一条左向帧动画，右键位由 playStrike 的 flip 参数镜像。 */
+  readonly attacks?: Readonly<Record<string, BattleStrikeStrip>>;
   readonly dirKeys?: Readonly<Record<Facing8, string>>;
   readonly facing?: Facing8;
   readonly displayScale: number;
@@ -195,7 +199,21 @@ export class BattleActor {
     onHit: () => void,
     onDone: () => void,
   ): void {
-    const strip = this.art.attack;
+    this.playStrike(this.art.attack, options, onHit, onDone, this.mirror);
+  }
+
+  /**
+   * 播任意一条帧动画（玩家突刺 / 怪物技能）。
+   *
+   * `flip` 只作用于这条 strip；播完恢复 `this.mirror`，不会把 8 向静态图翻转。
+   */
+  playStrike(
+    strip: BattleStrikeStrip | undefined,
+    options: { readonly reduced: boolean },
+    onHit: () => void,
+    onDone: () => void,
+    flip = false,
+  ): void {
     this.stopAttackTimer();
     if (!strip || options.reduced || !this.scene.textures.exists(strip.key)) {
       onHit();
@@ -205,8 +223,11 @@ export class BattleActor {
 
     this.ensureAttackFrames(strip);
     this.sprite.setTexture(strip.key, 0);
+    // 镜像时 origin 也要镜像：setFlipX 是绕 origin 翻，1-originX 才能让身体中心不横跳。
+    const originX = strip.originX ?? 0.5;
+    this.sprite.setOrigin(flip ? 1 - originX : originX, 0.985);
     this.sprite.setScale(this.baseScale);
-    this.sprite.setFlipX(this.mirror);
+    this.sprite.setFlipX(flip);
     this.attackElapsed = 0;
     this.attackFrame = 0;
     this.attackHit = false;
@@ -363,7 +384,9 @@ export class BattleActor {
 
   private finishAttack(): void {
     this.attackFrame = -1;
+    this.sprite.setOrigin(0.5, 0.985);
     this.sprite.setScale(this.baseScale);
+    this.sprite.setFlipX(this.mirror);
     this.setPose(this.pose);
   }
 
