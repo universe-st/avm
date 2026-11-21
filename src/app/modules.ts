@@ -12,7 +12,8 @@ export type ModuleId =
   | 'ch01Dorm'
   | 'ch01Kitchen'
   | 'ch01Palace'
-  | 'battleCh01';
+  | 'battleCh01'
+  | 'battleKitchen';
 
 export interface GameModule {
   readonly id: ModuleId;
@@ -95,7 +96,17 @@ export const MODULES: Record<ModuleId, GameModule> = {
     id: 'battleCh01',
     kind: 'battle',
     sceneKey: SCENE_KEYS.battleCh01,
-    requires: ['core', 'battle.common', 'battle.ch01', 'cutscene.ch01palace'],
+    // 战斗 v2：玩家战斗素材在 battle.common，矿工八向/金殿舞台在 battle.ch01。
+    // 不再依赖 cutscene.ch01palace —— 战斗舞台有自己的 720×1280 图，过场立绘不进战斗。
+    requires: ['core', 'battle.common', 'battle.ch01', 'ch01.bgm'],
     gate: { title: '正在进入梦域金殿' },
+  },
+  battleKitchen: {
+    id: 'battleKitchen',
+    kind: 'battle',
+    // 与 battleCh01 共用同一个战斗场景；只是资源闭包不同（御厨八向来自 ch01.kitchen）。
+    sceneKey: SCENE_KEYS.battleCh01,
+    requires: ['core', 'battle.common', 'battle.kitchen', 'ch01.bgm'],
+    gate: { title: '正在进入御膳房 · 遭遇' },
   },
 };

@@ -63,6 +63,18 @@ export const BGM_TRACKS = {
     fadeInMs: 700,
     fadeOutMs: 500,
   },
+  /**
+   * 第一章战斗曲《刺王杀驾》。
+   *
+   * 金殿剧情战与御膳房遭遇战共用：节奏轻快激动的中国古风战斗曲。
+   * 金殿过场在裂皮那一刻仍用《清除协议》铺恐怖，进战斗后由 BGM 管理器交叉淡化过来。
+   */
+  ch01Battle: {
+    key: 'audio.bgm.ch01_battle',
+    label: '第一章战斗《刺王杀驾》',
+    fadeInMs: 900,
+    fadeOutMs: 700,
+  },
 } as const satisfies Record<string, BgmTrack>;
 
 export type BgmId = keyof typeof BGM_TRACKS;
@@ -115,7 +127,7 @@ export const SCENE_BGM: Readonly<Record<ContentSceneKey, SceneBinding>> = {
   // 金殿过场前半段是荒诞早朝，配诙谐宫廷古风；太监裂皮翻脸那一刻由剧本 cue 硬切
   // 到《清除协议》，随后进战斗是同一首，实例与进度连续。
   [SCENE_KEYS.ch01Palace]: sceneTrack('ch01Palace'),
-  [SCENE_KEYS.battleCh01]: sceneTrack('ch01Dream'),
+  [SCENE_KEYS.battleCh01]: sceneTrack('ch01Battle'),
   // CG 预览 / 战斗沙盒是调试入口，从标题点进去时不打断标题曲。
   [SCENE_KEYS.cgStage]: SCENE_HOLD,
   [SCENE_KEYS.battleSandbox]: SCENE_HOLD,

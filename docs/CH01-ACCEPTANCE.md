@@ -5,7 +5,7 @@
 - 文案真值：`src/story/ch01-dorm.ts`
 - 流程真值：`src/story/ch01-flow.ts`
 - 地图：`src/map/rooms/ch01-dorm.ts`（11×15，单房间，无地毯）
-- 战斗：`src/battle/data/ch01-first.ts`、`src/battle/core/scripted-battle.ts`
+- 战斗：`src/battle/data/ch01-first.ts`、`src/battle/core/battle.ts`（v2 六站位跑条制；规则见 `docs/DESIGN-BATTLE.md`）
 
 ## 1. 构建与自动检查
 
@@ -23,7 +23,7 @@
 - `ch01-flow`：手机在郑卿之前只提示、郑卿→手机→梦→战斗、战败返回、预览 phase、可选交互。
 - `map-room`：11×15 行宽、唯一出生点、家具碰撞、交互点可达、BFS。
 - `map-collision`：撞墙、滑墙、拐角不切、中央地板可走。
-- `scripted-battle`：每次攻击恰好 1 伤害、防御减半、2³ 种行动序列全部战败、清除协议、无胜利分支。
+- `battle-*`：六站位区域/背袭全表、跑条序列、伤害公式、AI 意图锁定、第一场协议必败、第二场三刀胜利、布局安全区、战斗素材尺寸（`test/battle-assets.test.ts`，7 项）。
 - `render-layers`：原生层顺序、角色脚底排序、UI_ROOT_DEPTH 高于所有原生层、chapter key 分组与 bundle 登记一致。
 
 ## 2. 正常流程验收（Web，390×844）
@@ -35,9 +35,11 @@
    - 面板固定 300 高、字号 34；**一句放得下 5 行 × 约 14 字 ≈ 68 字**，超出由 `DialoguePlayer` 按标点分页，点一下翻下一页（页内先补全再翻页）。
 5. 手机：小白登场（白色兜帽精灵），说明沉睡症/意识能量/因泰里；目标变「听听这个外星小东西怎么说」。
 6. 问清因泰里：周全「意识能量？萃取？什么玩意儿？」→ 小白解释人类意识具备能量、这个沉睡个体的意识能量正被窃取 →「是谁干的？」→「因泰里文明。」→「因……泰里？什么意思。」→「……难以解释。我带你看看，就理解了。」→ 旁白「它伸手一指，你的眼前闪过一道白光。你试图尖叫出声，却感到一阵头晕目眩。」→ 周全「什么……情况……」。随后白闪 → 梦域金殿战斗。
-7. 战斗：
-   - 敌方 HP 120；每次攻击显示「1」，120→119→118→117。
-   - 敌方每次 30 伤害；第 3 回合玩家 HP 0，出现「剧情战 · 战败」。
+7. 战斗（v2）：
+   - 怪物居中、周全默认在左；6 个站位环可见；双方跑条（矿工 SPD 20 > 周全 14），怪物先手。
+   - 没有「解」：攻击按钮禁用（显示「攻击 · 无「解」」），只能移动/防御。
+   - 怪物意图提前公示（横扫/突进/震地/转向），受击格提前染红；移动可躲开只打正面的招式。
+   - 第 4 次怪物行动后「清除协议」强制战败，出现「剧情战 · 战败」；HP 0 也战败。
    - 「醒来」→ 寝室，目标「听小白说完」。进场景时周全坐在地上、小白浮在他右膝旁；
      第一句旁白打完 → **起身**：`zhou_stand_up` 8 帧（520ms），**同一刻**小白同步飘到
      与周全头部齐平（头部可见轮廓的中线，约脚底上方 190px），起身站直的同时它正好停住；
@@ -55,11 +57,15 @@
 /?stage=scene.ch01.dorm&phase=opening|explore|after|complete&hud=0
 /?stage=scene.ch01.dorm&phase=explore&debug=1&hud=0
 /?stage=battle.ch01.first&phase=opening|mid|defeat&hud=0
+/?stage=battle.ch01.kitchen&phase=opening|mid|victory|defeat&hud=0
 ```
 
 - `phase=explore` 跳过章节卡与开场对话，直接自由探索。
 - `phase=after` 从战后「从宫殿逃出之后」第一段（醒来与编号之争）开始；`phase=complete` 直接结束卡。
 - `battle.ch01.first&phase=defeat` 直接显示剧情战败覆盖层；预览显示「重开战斗 / 返回标题」。
+- `battle.ch01.first` 的 `victory` 会回退 `mid`（那场不能赢）；`battle.ch01.kitchen` 的 `victory` 是真胜利卡。
+- 八向：`&skip=1&facing=up|upRight|right|downRight|down|downLeft|left|upLeft`（`phase=mid` 会模拟回合、怪物可能转向）。
+- DEV：`__avmBattle()` 读当前战斗状态（seq/enemyActions/HP/slot/facing/intent）。
 - 未知 phase 回退 opening 并 `console.warn`，不白屏。
 - 预览模式不写存档/进度；同 seed 同画面（seed 只影响金殿尘埃/光点）。
 
@@ -77,8 +83,9 @@
 | [角色 90% 缩放](images/ch01-q-player-scale-90.png) | `spriteScale 0.682 → 0.6138`、`headOffset 258 → 232`；对比图左 0.682 / 右 0.6138 |
 | [开局坐姿](images/ch01-sitting-390x844.png) | 周全坐在书桌前；先放呼噜声、不播 BGM |
 | [心情气泡](images/ch01-emotion-390x844.png) | 表情气泡在头顶，然后才开始打字 |
-| [战斗 390×844](images/ch01-battle-390x844.png) | 金殿背景、矿工、HP、攻击/防御 |
-| [战败 390×844](images/ch01-battle-defeat-390x844.png) | 剧情战败覆盖层（必败） |
+| [战斗 v2 390×844](images/ch01-battle-v2-390x844.png) | 六站位、跑条、意图、攻击禁用 |
+| [背袭 390×844](images/ch01-battle-backstab-390x844.png) | 御膳房：背后站位、攻击预览 24 |
+| [解离突刺 390×844](images/ch01-battle-kitchen-390x844.png) | 御膳房舞台、命中（-16）、光刃补全 |
 | [结束卡 390×844](images/ch01-end-390x844.png) | 第一节完、重看/返回 |
 | [寝室 1200×648](images/ch01-dorm-1200x648.png) | 横屏居留边 |
 | [战斗 1200×648](images/ch01-battle-1200x648.png) | 横屏战败覆盖层 |

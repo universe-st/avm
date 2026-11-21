@@ -137,15 +137,47 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     id: CH01_FIRST_BATTLE_ID,
     kind: 'battle',
     sceneKey: SCENE_KEYS.battleCh01,
-    title: '战斗 · 初次接触',
+    title: '战斗 · 初次接触（六站位）',
     status: 'ready',
-    requires: ['core', 'battle.common', 'battle.ch01', 'cutscene.ch01palace'],
+    requires: ['core', 'battle.common', 'battle.ch01', 'ch01.bgm'],
     description:
-      '第一章剧情战：1v1 矿工，主角伤害固定 1，最多 3 回合必败。phase=opening|mid|defeat。',
-    tags: ['ch01', 'scripted'],
+      '第一章剧情战 v2：矿工居中、周全默认在左，6 个站位；双方跑条（怪 SPD 20 > 周全 14）。' +
+      '周全没有「解」，攻击禁用，只能移动/防御；第 4 次怪物行动执行清除协议必败。' +
+      'phase=opening|mid|victory|defeat（本场 victory 会回退 mid）。',
+    tags: ['ch01', 'scripted', 'positions'],
     options: [
       { name: 'seed', description: '确定性种子（默认 1）', example: '7' },
-      { name: 'phase', description: 'opening / mid / defeat', example: 'defeat' },
+      {
+        name: 'phase',
+        description: 'opening / mid / victory / defeat',
+        example: 'mid',
+      },
+      {
+        name: 'facing',
+        description: '预览怪物初始朝向：up/upRight/right/downRight/down/downLeft/left/upLeft',
+        example: 'upRight',
+      },
+    ],
+  },
+  {
+    id: 'battle.ch01.kitchen',
+    kind: 'battle',
+    sceneKey: SCENE_KEYS.battleCh01,
+    title: '战斗 · 御膳房遭遇',
+    status: 'ready',
+    requires: ['core', 'battle.common', 'battle.kitchen', 'ch01.bgm'],
+    description:
+      '有「解」之后的第一场完整战斗：解离突刺正面命中后闪现到怪物对侧，背袭 +50%；' +
+      '御厨幻影会横扫/热油/灶台震地并转身。phase=opening|mid|victory|defeat；facing 可用于验收厨子朝向。',
+    tags: ['ch01', 'encounter', 'positions'],
+    options: [
+      { name: 'seed', description: '确定性种子（默认 1）', example: '7' },
+      { name: 'phase', description: 'opening / mid / victory / defeat', example: 'victory' },
+      {
+        name: 'facing',
+        description: '预览怪物初始朝向：up/upRight/right/downRight/down/downLeft/left/upLeft',
+        example: 'left',
+      },
     ],
   },
   {

@@ -1,0 +1,314 @@
+{
+  "frameCount": 12,
+  "frameWidth": 320,
+  "frameHeight": 400,
+  "frameMs": 55,
+  "displayScale": 0.458,
+  "hitFrame": 6,
+  "file": "public/assets/img/character/battle/zhou_attack_right.webp",
+  "frames": 12,
+  "sheet": [
+    3840,
+    400
+  ],
+  "frameSize": [
+    320,
+    400
+  ],
+  "baseline": {
+    "figureHeight": 371,
+    "bottom": 394,
+    "centerX": 160,
+    "frameWidth": 320,
+    "frameHeight": 400
+  },
+  "placement": {
+    "unionBox": [
+      130,
+      323,
+      810,
+      981
+    ],
+    "unionW": 680,
+    "unionH": 658,
+    "scale": 0.56383,
+    "scaledW": 383,
+    "scaledH": 371,
+    "drawX": 28,
+    "drawY": 23,
+    "widthLimited": false
+  },
+  "measured": {
+    "figureHMin": 348,
+    "figureHMax": 366,
+    "bottomMin": 389,
+    "bottomMax": 394,
+    "widthMin": 138,
+    "widthMax": 292,
+    "centerXMin": 159.0,
+    "centerXMax": 204.5,
+    "centerXDrift": 45.5
+  },
+  "cells": [
+    {
+      "index": 0,
+      "source": "f00.png",
+      "bbox": [
+        91,
+        23,
+        229,
+        389
+      ],
+      "h": 366,
+      "bottom": 389,
+      "cx": 160.0,
+      "w": 138,
+      "touchRight": false,
+      "touchLeft": false,
+      "touchTop": false,
+      "touchBottom": false
+    },
+    {
+      "index": 1,
+      "source": "f01.png",
+      "bbox": [
+        92,
+        28,
+        245,
+        389
+      ],
+      "h": 361,
+      "bottom": 389,
+      "cx": 168.5,
+      "w": 153,
+      "touchRight": false,
+      "touchLeft": false,
+      "touchTop": false,
+      "touchBottom": false
+    },
+    {
+      "index": 2,
+      "source": "f02.png",
+      "bbox": [
+        92,
+        26,
+        317,
+        389
+      ],
+      "h": 363,
+      "bottom": 389,
+      "cx": 204.5,
+      "w": 225,
+      "touchRight": false,
+      "touchLeft": false,
+      "touchTop": false,
+      "touchBottom": false
+    },
+    {
+      "index": 3,
+      "source": "f03.png",
+      "bbox": [
+        82,
+        36,
+        320,
+        392
+      ],
+      "h": 356,
+      "bottom": 392,
+      "cx": 201.0,
+      "w": 238,
+      "touchRight": true,
+      "touchLeft": false,
+      "touchTop": false,
+      "touchBottom": false
+    },
+    {
+      "index": 4,
+      "source": "f04.png",
+      "bbox": [
+        77,
+        42,
+        320,
+        394
+      ],
+      "h": 352,
+      "bottom": 394,
+      "cx": 198.5,
+      "w": 243,
+      "touchRight": true,
+      "touchLeft": false,
+      "touchTop": false,
+      "touchBottom": false
+    },
+    {
+      "index": 5,
+      "source": "f05.png",
+      "bbox": [
+        78,
+        42,
+        320,
+        394
+      ],
+      "h": 352,
+      "bottom": 394,
+      "cx": 199.0,
+      "w": 242,
+      "touchRight": true,
+      "touchLeft": false,
+      "touchTop": false,
+      "touchBottom": false
+    },
+    {
+      "index": 6,
+      "source": "f06.png",
+      "bbox": [
+        78,
+        42,
+        320,
+        394
+      ],
+      "h": 352,
+      "bottom": 394,
+      "cx": 199.0,
+      "w": 242,
+      "touchRight": true,
+      "touchLeft": false,
+      "touchTop": false,
+      "touchBottom": false
+    },
+    {
+      "index": 7,
+      "source": "f07.png",
+      "bbox": [
+        28,
+        45,
+        320,
+        393
+      ],
+      "h": 348,
+      "bottom": 393,
+      "cx": 174.0,
+      "w": 292,
+      "touchRight": true,
+      "touchLeft": false,
+      "touchTop": false,
+      "touchBottom": false
+    },
+    {
+      "index": 8,
+      "source": "f08.png",
+      "bbox": [
+        28,
+        45,
+        320,
+        393
+      ],
+      "h": 348,
+      "bottom": 393,
+      "cx": 174.0,
+      "w": 292,
+      "touchRight": true,
+      "touchLeft": false,
+      "touchTop": false,
+      "touchBottom": false
+    },
+    {
+      "index": 9,
+      "source": "f09.png",
+      "bbox": [
+        28,
+        45,
+        320,
+        393
+      ],
+      "h": 348,
+      "bottom": 393,
+      "cx": 174.0,
+      "w": 292,
+      "touchRight": true,
+      "touchLeft": false,
+      "touchTop": false,
+      "touchBottom": false
+    },
+    {
+      "index": 10,
+      "source": "f10.png",
+      "bbox": [
+        29,
+        43,
+        320,
+        393
+      ],
+      "h": 350,
+      "bottom": 393,
+      "cx": 174.5,
+      "w": 291,
+      "touchRight": true,
+      "touchLeft": false,
+      "touchTop": false,
+      "touchBottom": false
+    },
+    {
+      "index": 11,
+      "source": "f11.png",
+      "bbox": [
+        88,
+        24,
+        230,
+        389
+      ],
+      "h": 365,
+      "bottom": 389,
+      "cx": 159.0,
+      "w": 142,
+      "touchRight": false,
+      "touchLeft": false,
+      "touchTop": false,
+      "touchBottom": false
+    }
+  ],
+  "generatedAt": "2026-11-21T23:20:34+08:00",
+  "sourceJob": "smwqix8dbf55680",
+  "sourceFrames": "/Users/kuangshensheng/.dsh/game-material-master/sequence-jobs/smwqix8dbf55680/frames",
+  "status": "final",
+  "key": "img.char.battle.zhou_attack_right",
+  "generator": "tools/make-battle-player-art.py",
+  "strikeFrames": [
+    7,
+    8,
+    9,
+    10
+  ],
+  "imageJobs": {
+    "idleRight": "imwqigacx6120c5/img-00",
+    "guardRight": "imwqim3yy61b04f/img-01"
+  },
+  "sequenceJob": "smwqix8dbf55680",
+  "sourceVideo": "/Users/kuangshensheng/.dsh/game-material-master/sequence-jobs/smwqix8dbf55680/videos/output.mp4",
+  "screenshots": {
+    "contact": "assets-src/character/battle/zhou-attack-contact.png",
+    "discardedTake1Video": "/Users/kuangshensheng/.dsh/game-material-master/sequence-jobs/smwqinpjw8402e7/videos/output.mp4"
+  },
+  "degradations": [
+    "源视频第 63–96 帧把光刃推出了自己画幅（视频右缘被切）；成品第 7–10 帧（突刺）可见刃长只剩约 24px（人物 371 高时），第 3–6 帧光刃同样在 320 帧右缘截断。起手/蓄力第 0–2 帧光刃完整。",
+    "第 2 帧上方一条脱离人物的细光条（模型光效残影）已按连通域剔除，不参与并集 bbox，也不出现在成品里。",
+    "第 1 次生成的视频被模型改成 3:4 重新构图（脚/刃出画），已弃用；第 2 次为首帧加 3:4 留白后的重试。"
+  ],
+  "spec": {
+    "requestedFrameWidth": 160,
+    "deliveredFrameWidth": 320,
+    "reason": "160 宽放不下突刺：并集 680×658，按 371 高归一需要 383px 宽；160 宽只能把人物压到 154px（见 .evidence/battle-probe/final160）。320 是 12 帧 × 4096 上限内的最大可用宽度（3840）。"
+  },
+  "review": {
+    "thrustDirection": "right",
+    "feetStable": "同一次 drawY=23：脚底 389–394（起手/收势 389，突刺最低 393–394），无逐帧下沉",
+    "secondCharacter": false,
+    "clipping": "第 3–10 帧光刃被 320 帧右缘截断（源视频第 63–96 帧光刃已出画）；起手/蓄力第 0–2 帧完整",
+    "contactSheet": "assets-src/character/battle/zhou-attack-contact.png"
+  },
+  "alternative": {
+    "noClipVariant": "并集全塞进 320 宽 = 图高只有 308（83%），若要刃不裁且与 idle 齐高，只能加宽帧或重跑视频",
+    "recommendedFix": "第 3 次生成：首帧 16:9 宽画幅、原地刺（不前跨步）、光刃约一条小臂，这样 320 宽可同时装下完整身体与完整刃"
+  },
+  "hitFrameNote": "实际突刺起势在成品第 7 帧（0 起）；keys.ts 写的是 6，若火花要落在伸臂瞬间建议改 7（差 55ms）"
+}

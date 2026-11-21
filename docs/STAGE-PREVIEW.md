@@ -347,9 +347,17 @@ CG 构图要求见 `docs/ART-STYLE.md`：主体放中心 4:5 安全区；查看�
 
 未实现对应 phase 时，退回 `opening` 并在控制台 warning；不要白屏。
 
-### 9.3 当前状态
+### 9.3 当前状态（战斗 v2）
 
-目录里的 `battle.sandbox` 只是**契约自检页**：显示 seed、敌人列表、回合数、资源门禁和返回标题，不是战斗玩法。真实战斗接入后新增 `battle.*` 条目，把沙盒保留作回归入口。
+真实战斗已接入：`battle.ch01.first`（金殿剧情战）与 `battle.ch01.kitchen`（御膳房遭遇战）。两者共用场景 `battle-ch01`，但模块/资源闭包不同（`battleCh01` vs `battleKitchen`）。
+
+- phase：`opening | mid | victory | defeat`；金殿的 `victory` 会回退 `mid` 并 warning（那场不能赢）。
+- `facing=up|upRight|right|downRight|down|downLeft|left|upLeft`：覆盖怪物初始朝向，用来逐个验收八向图。**请和 `skip=1` 一起用**：`phase=mid` 会模拟回合，怪物可能已经转向，看到的就不是你指定的朝向。
+- `skip=1`：跳过开场卡，直接进玩家回合（`/battle.ch01.kitchen&skip=1`）。
+- DEV 后门：`__avmBattle()` 返回 `{phase, activeId, seq, enemyActions, playerHp, enemyHp, slot, facing, intent, gauges, log}`；点一下前后各读一次，直接断言 seq/enemyActions/HP 的变化，不靠截图猜。
+- 规则真值：`docs/DESIGN-BATTLE.md`；单测 `test/battle-*.test.ts`。
+
+`battle.sandbox` 仍保留为**契约自检页**（seed/敌人列表/回合数/资源门禁/返回标题），不是战斗玩法。
 
 ![战斗沙盒](images/stage-preview-battle-390x844.png)
 
@@ -366,7 +374,8 @@ CG 构图要求见 `docs/ART-STYLE.md`：主体放中心 4:5 安全区；查看�
 | `scene.ch01.open` | 场景 | 第一章开场动画（12.8s 竖屏 CG，播完或跳过进寝室） |
 | `scene.placeholder` | 场景 | 序章占位页（仅预览；正常流程不再进入） |
 | `scene.ch01.dorm` | 场景 | 第一章 · 第一节 寝室；phase=opening/explore/after/dark/complete，debug=1 显示碰撞（`dark` 从战后黑场胁迫那一拍开始） |
-| `battle.ch01.first` | 战斗 | 第一章剧情战；phase=opening/mid/defeat；主角伤害固定 1、必败 |
+| `battle.ch01.first` | 战斗 | 第一章剧情战 v2（六站位/跑条）；phase=opening/mid/defeat（victory 回退 mid）；没有「解」、攻击禁用、第 4 次怪物行动清除协议必败；`facing=` 预览八向 |
+| `battle.ch01.kitchen` | 战斗 | 御膳房遭遇战 v2；phase=opening/mid/victory/defeat；解离突刺正面 16 → 闪现到对侧、背袭 24 留原地；`facing=` 预览厨子八向 |
 | `cg.ch01.phone` | CG | 第一章 · 手机白光 |
 | `cg.ch01.xiaobai` | CG | 第一章 · 小白登场 |
 | `cg.ch01.wake` | CG | 第一章 · 醒来 |
@@ -391,6 +400,9 @@ open http://localhost:5173/
 open 'http://localhost:5173/?stage=scene.prologue'
 open 'http://localhost:5173/?stage=scene.ch01.dorm&phase=explore&hud=0'
 open 'http://localhost:5173/?stage=battle.ch01.first&phase=defeat&hud=0'
+open 'http://localhost:5173/?stage=battle.ch01.kitchen&phase=mid&hud=0'
+open 'http://localhost:5173/?stage=battle.ch01.kitchen&phase=victory&hud=0'
+open 'http://localhost:5173/?stage=battle.ch01.first&phase=opening&facing=upRight&hud=0'
 # 3) 干净 CG 截图
 open 'http://localhost:5173/?stage=cg.prologue.disaster&hud=0'
 # 4) CG 连播跳到第 4 张
@@ -430,7 +442,10 @@ await __AVM__.stages.hud(false)
 | ![返回标题](images/stage-preview-title-return-390x844.png) | 预览结束回到正常标题，HUD 自动消失 |
 | ![横屏](images/stage-preview-battle-1200x648.png) | 1200×648 留边；HUD 不盖游戏主体 |
 | ![第一章寝室](images/ch01-dorm-390x844.png) | `scene.ch01.dorm&phase=explore`，390×844 |
-| ![第一章剧情战](images/ch01-battle-defeat-390x844.png) | `battle.ch01.first&phase=defeat`，390×844 |
+| ![第一章剧情战](images/ch01-battle-defeat-390x844.png) | `battle.ch01.first&phase=defeat`，390×844（v1 旧图；v2 截图见 `ch01-battle-v2-390x844.png`） |
+| ![战斗 v2 · 玩家回合](images/ch01-battle-v2-390x844.png) | `battle.ch01.first&phase=mid`：六站位、跑条、意图、攻击禁用 |
+| ![战斗 v2 · 背袭](images/ch01-battle-backstab-390x844.png) | `battle.ch01.kitchen&phase=mid`：背后站位、攻击预览 24、背袭提示 |
+| ![战斗 v2 · 解离突刺](images/ch01-battle-kitchen-390x844.png) | `battle.ch01.kitchen&skip=1`：解离突刺命中（-16）+ 光刃 |
 
 ---
 
@@ -509,6 +524,7 @@ pnpm check   # typecheck + vitest + assets:check
 
 - v1.0（2026-10-24）：首个版本；10 个舞台、URL/控制台/代码三个入口、DOM HUD、CG 查看器、战斗契约沙盒、3 个专项测试文件、文档与截图。
 - v1.1（2026-10-25）：新增 `scene.ch01.dorm`、`battle.ch01.first` 与 3 张第一章 CG；开幕完成/跳过改为进入第一章寝室；目录 15 项。
+- v1.3（2026-11-21）：战斗 v2（六站位跑条制）接入 `battle.ch01.first` 与新增 `battle.ch01.kitchen`；phase 扩为 opening/mid/victory/defeat，新增 `facing` / `skip` 参数与 `__avmBattle()` 调试快照。
 - v1.2（2026-11-01）：标题页左下角加游戏内测试入口（清单直接由 `STAGE_CATALOG` 生成）；
   御膳房接入正式流程（寝室结束卡 →「进入第二节」，新增 `kitchen.explore` / `kitchen.done` 检查点）；
   御膳房舞台条目去掉「P1 白盒」标记。

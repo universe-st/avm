@@ -15,6 +15,7 @@ export type SaveContextModule =
   | SaveModule
   | 'ch01Palace'
   | 'battleCh01'
+  | 'battleKitchen'
   | 'title'
   | 'other';
 

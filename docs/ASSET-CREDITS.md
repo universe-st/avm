@@ -731,3 +731,78 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
   3. 尺寸：站立高 228 设计 px，趴下的人**长度**应≈228；第一版缩到宽 150 导致「趴着比站着小一圈」，现在缩到 225、画布改 250×400。
   4. 裁 alpha bbox → 等比缩到长 225 → 合成到 250×400 画布（底边 392、水平居中）→ PNG
 - 复核：上架前按火山方舟商用条款复核，商店页注明「AI 生成美术」
+
+## 15. 战斗系统 v2（六站位跑条制，2026-11-21）
+
+> 规则与验收见 [`DESIGN-BATTLE.md`](DESIGN-BATTLE.md)；资源登记见 [`RESOURCE-SPEC.md`](RESOURCE-SPEC.md)。
+> 本节只记「素材从哪来、怎么后期、有什么已知缺陷」。
+
+### 15.1 战斗 BGM《刺王杀驾》
+
+- 文件：`public/assets/audio/bgm/ch01_battle.mp3`（89.22s，128 kbps / 44.1 kHz 立体声，-16.4 LUFS，峰值 -4.6 dBFS）
+- 来源：游戏素材大师 · 音乐生成（Suno `chirp-v6`，纯音乐）；任务 **`amwqibc97a8b76d`**
+- 方向：中国古风战斗、节奏轻快激动、约 112 BPM（实测 115.6 BPM）；战鼓/梆子 + 琵琶/古筝/二胡/唢呐/铜锣；刺客夜闯宫城、以下犯上；可循环
+- 后期：选 1 首 → 截循环段 **74.74–163.96s**（89.22s；`-ss` 必须在 `-i` 前，输出侧 seek 只解出 14.4s）→ 首 0.3s / 尾 0.6s 淡化 → `loudnorm I=-16 TP=-1.5` → MP3 128 kbps
+- 试听/编辑入口：[音乐任务 amwqibc97a8b76d](http://localhost/?dsh-gmm=1&module=music&job=amwqibc97a8b76d&stage=generate)
+- 复核：上架前按谱乐 AI / Suno 条款复核，商店页注明「AI 生成音乐」
+
+### 15.2 战斗音效（10 条，Seed-Audio，auto 审核）
+
+输出 `public/assets/audio/sfx/battle_*.mp3`，统一 24 kHz 单声道 96 kbps。全部 **峰值 ≤ -2.3 dBFS，无削波**；短音（<400ms）EBU R128 门限窗口测不出 I，改用峰值归一 -3.0 dBFS。
+
+| 文件 | jobId | 最终时长 | 峰值 | 备注 |
+| --- | --- | --- | --- | --- |
+| `battle_slash.mp3` | `fmwqibrau92afdb` | 0.45s | -2.3 dBFS | 突刺破风 |
+| `battle_hit.mp3` | `fmwqibrb0a71a39` | 0.36s | -3.4 dBFS | 普通命中 |
+| `battle_backstab.mp3` | `fmwqibrb4067d3d` | 0.60s | -2.5 dBFS | 背袭暴击 |
+| `battle_guard.mp3` | `fmwqibrba6d469f` | 0.38s | -3.5 dBFS | 格挡 |
+| `battle_blink.mp3` | `fmwqic0m51192ec` | 0.34s | -3.4 dBFS | 闪现（已掐 60ms 静音） |
+| `battle_turn.mp3` | `fmwqic0mb6cb4b5` | 0.68s | -2.5 dBFS | 机械转向；-23 LUFS（TP 受限） |
+| `battle_sweep.mp3` | `fmwqic0mh3b9c5a` | 0.80s | -2.4 dBFS | 铁臂横扫；-21.3 LUFS |
+| `battle_quake.mp3` | `fmwqic0mn673422` | 0.92s | -2.5 dBFS | 核心脉冲；叠中频副本后 120–4k 占 70.6% |
+| `battle_protocol.mp3` | `fmwqic0msf2bacc` | 1.27s | -4.3 dBFS | 0.7s 警报 + 0.6s 合拢；拼段后中频已占 79.9%，不叠中频 |
+| `battle_victory.mp3` | `fmwqic0mxb76584` | 1.32s | -3.2 dBFS | 锣 + 金属双击；**没有琵琶上行，可用但待补** |
+
+- 原始 take 留档 `assets-src/audio/battle-v2/battle_*_source.wav`；后期脚本 `.evidence/audio/build-sfx.sh`；记录 `.evidence/audio/battle-v2-audio.md`。
+- 低频重的攥紧/震地类按 §4.2 的经验叠 200–4 kHz 中频副本，否则手机外放听不见。
+- 待补：`battle_victory` 与提示词不符（缺琵琶拨弦上行）；若后续重生成，只换这一条，运行时代码不用改。
+
+### 15.3 周全战斗姿态与解离突刺
+
+- 文件：
+  - `public/assets/img/character/battle/zhou_idle_right.png`（160×400，人物高 371 / 底边 394 / 中心 79 / 宽 139）
+  - `public/assets/img/character/battle/zhou_guard_right.png`（160×400，同基准，宽 134）
+  - `public/assets/img/character/battle/zhou_attack_right.webp`（**3840×400 = 12 帧 × 320×400**，frameMs 55，displayScale 0.458，hitFrame 7）
+  - `assets-src/character/battle/battle-attack-manifest.json`（逐帧 bbox / 生成记录 / 降级说明）
+- 来源：游戏素材大师
+  - 起手式：image job **`imwqigacx6120c5`**（取 img-00），参考 `zhou_q_right.png` / `zhou_idle_right.png`
+  - 格挡：image job **`imwqim3yy61b04f`**（取 img-01）；第一版 `imwqih3aze39ec3` 大步跨姿在 160 宽下只能压到 288–298 高，弃用
+  - 突刺：sequence job **`smwqix8dbf55680`**（v2，唯一一次按规则重试）；v1 `smwqinpjw8402e7` 被模型改成 3:4 构图（脚/刃出画），弃用
+- 后期：`tools/make-battle-player-art.py`（复用 `make-zhou-sit-standup.py` 的自适应绿度键 + 投影剔除）；绿幕源图 `assets-src/character/battle/zhou_*_green.png`；联络表 `assets-src/character/battle/zhou-attack-contact.png`
+- **为什么 320 宽不是 160**：突刺并集 bbox 680×658，按 371 高归一需要 383px 宽；160 宽只能把人物压到 154px（实测 144–191），所以改 320；12×320=3840 < 4096 手机纹理上限。
+- **已知缺陷（光刃被裁）**：源视频第 63–96 帧把光刃推出了自己的画幅，成品第 3–10 帧刃尖在 320 帧右缘被截断（第 7–10 帧只剩约 24px）。运行时的补救是场景里的 `bladeTrail()`：命中帧从手部向目标补一条冷白光刃（320ms 淡出），把「断刃」接成「光」。这是**表现层补丁**，不是素材修好。
+  - 若要根治：第 3 次生成用 16:9 首帧 + 原地刺、不向前跨步 + 小臂长短刃；需要另一次计费，当前未做。
+  - 不要靠加宽帧数解决：12×400=4800 > 4096，真机会黑块。
+- 复核：上架前按火山方舟/游戏素材大师条款复核，商店页注明「AI 生成美术」
+
+### 15.4 矿工战斗八向
+
+- 文件：`public/assets/img/character/battle/miner/miner_<dir>.png`（8 张，共 988 KB；各 **272×400**，人物高 371 / 底边 394 / 水平中心 136）
+- 来源：
+  - 身份源图：image job **`imwqibha9d1ad44`**（2048×2048 ×2，取 img-00；参考 `miner.png` + `portrait_miner.png`）
+  - sprite 项目 **`pmwqina2vb1c38d`**（“矿工·清除单元 战斗八向”，imageMode=turn，auto 审核）
+  - 转圈视频 task **`01a1fe90-90fd-7c17-9545-2a70ac0db03c`**（MiniMax，succeeded，direction=ccw；只跑一次）
+- 截帧下标（32 帧一套，按头宽曲线 + 红眼重心校准，不按等分）：`down=0`、`down_left=5`、`left=10`、`up_left=12`、`up=15`、`up_right=19`、`right=22`、`down_right=25`
+  - 判据：背面红眼像素为 0；四斜头宽 = 正面的 0.70–0.77；正侧 0.60
+- 出帧：`.dsh/skills/avm-8dir-sprite/scripts/make-static-sprite.py --frame-size 272x400 --pattern miner_{dir}.png`
+- **为什么 272 宽**：钻井臂外伸，240 宽会把 front/back/down_left 压到 343/336/368 高（八向高度差 8–10%，转身会一缩一胀）；272 宽八向全部 371。
+- 联络表：`assets-src/character/battle/miner-directions.png`；入库成品图 `docs/images/ch01-miner-directions-8.png`
+- 源图绿不是纯 #00FF00（≈RGB 25,248,20），上传前把背景连通区（绿度>150）归一为纯绿，人物像素未动；四角已验纯绿、单人、脚底余量 107px。
+- 复核：上架前按火山方舟/游戏素材大师条款复核，商店页注明「AI 生成美术」
+
+### 15.5 御膳房战斗舞台
+
+- 文件：`public/assets/img/battle/ch01/kitchen_hall.webp`（720×1280，109.5 KB ≤ 400 KB）
+- 来源：**本地合成，无 AI 任务**。`tools/compose-kitchen-battle-plate.py` 从 `public/assets/img/map/ch01/kitchen.webp`（实测 1536×3072 / 48px per tile）裁传膳廊/门洞区域 → 720×1280 → 压暗 + 聚光锥 + 暗角 + 底部前景压边；纯 Pillow、确定性、不改原图。
+- 构图：门洞落在画布 x=360、下沿 y=111；敌人位 (360,700)、玩家位 (152,1000)；亮度 mean 49.7 / 中央 81.9 / 左右 22–23 / 底部 10.1（与金殿 `miner_hall.webp` 的 56.9 / 85.3 / 39 / 20 同量级）。
+- 为什么不用 AI 生成：源图就是本作的俯视 tilemap，裁切/打光能保证与探索层同一套地砖与色调；重画一张会变成「另一个御膳房」。

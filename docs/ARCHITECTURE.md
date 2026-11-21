@@ -62,11 +62,12 @@ Ch01DormScene（UIScene，第一章第一节）
   ├─ 移动/碰撞：map/core/collision.ts（分轴、滑墙、脚底盒）
   └─ 找手机 → 白闪 → enterModule(this, 'battleCh01', { encounterId, seed, preview })
 
-BattleCh01Scene（UIScene，第一章剧情战）
-  ├─ 背景：梦域金殿 WebP；角色：周全 / 矿工 sprite；HP 条
-  ├─ 纯逻辑：battle/core/scripted-battle.ts（攻击固定 1、3 回合必败）
-  ├─ Compose：回合、HP、攻击/防御、日志、战败覆盖层
-  └─ 战败 → enterModule(this, 'ch01Dorm', { resume: 'afterBattle' })
+BattleCh01Scene（UIScene，第一章两场战斗共用）
+  ├─ 战场：721×1280 舞台图 + 6 站位环 + 怪物居中；battle-actor 画玩家/矿工/厨子
+  ├─ 纯逻辑：battle/core/{slots,gauge,damage,ai,battle,preview}.ts（六站位跑条制）
+  ├─ Compose：顶栏、HP/SPD、攻击/移动/防御、提示/日志、战败/胜利覆盖层
+  ├─ 金殿战败 → enterModule(this, 'ch01Dorm', { resume: 'afterBattle' })
+  └─ 御膳房胜利/战败 → enterModule(this, 'ch01Kitchen', { retry, cleared })
 
 PlaceholderScene（UIScene）
   ├─ 仅作舞台预览占位；正常流程不再进入
@@ -83,8 +84,8 @@ PlaceholderScene（UIScene）
 
 > 渲染层级/模块归属的完整契约见 [RENDER-LAYERS.md](RENDER-LAYERS.md)：原生层 background → props → markers → characters → effects → cinematic → cg → debug，Compose UI 永远在最上面。
 
-- **纯逻辑**：`src/story/ch01-dorm.ts`（全部台词/目标）、`ch01-flow.ts`（章节状态机）、`src/story/dialogue-player.ts`（逐字对话）、`src/map/core/`（房间校验/碰撞）、`src/battle/core/scripted-battle.ts`（剧情战）。都不 import Phaser，单测覆盖。
-- **表现**：`Ch01DormRoomView` 画地图，`PlayerActor` 画角色，`CgOverlay` 画 CG，`ui/ch01-hud.ts` / `ui/ch01-modals.ts` 画 Compose HUD/模态；`Ch01DormScene` 只编排流程/输入/碰撞。`BattleCh01Scene` 同样把 HUD/模态拆到 `ui/battle-ch01-*.ts`，只消费战斗事件。
+- **纯逻辑**：`src/story/ch01-dorm.ts`（全部台词/目标）、`ch01-flow.ts`（章节状态机）、`src/story/dialogue-player.ts`（逐字对话）、`src/map/core/`（房间校验/碰撞）、`src/battle/core/`（六站位/跑条/方向/伤害/AI/预览）。都不 import Phaser，单测覆盖。
+- **表现**：`Ch01DormRoomView` 画地图，`PlayerActor` 画角色，`CgOverlay` 画 CG，`ui/ch01-hud.ts` / `ui/ch01-modals.ts` 画 Compose HUD/模态；`Ch01DormScene` 只编排流程/输入/碰撞。`BattleCh01Scene` 把战场/角色/跑条放原生层、指令区放 `ui/battle-hud.ts`，只消费 `BattleEvent`；表现细节在 `ui/battle-fx.ts` / `actors/battle-actor.ts`。
 - **房间**：11×15 ASCII 碰撞 + 由「游戏素材大师」零件拼成的预烘焙图；换家具时优先改零件/拼图脚本，不在场景里摆 `this.add.*`。
 - **确定性**：战斗判定无随机；预览 seed 只影响背景尘埃/光点，同 seed 同画面。
 

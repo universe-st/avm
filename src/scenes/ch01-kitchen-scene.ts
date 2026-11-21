@@ -856,7 +856,9 @@ export class Ch01KitchenScene extends UIScene {
     this.alertText.value = '';
     this.cameras.main.flash(this.reduced ? 80 : 180, 120, 20, 20);
     audioDirector.playSfxAt(CH01_KITCHEN_ASSET_KEYS.audio.alert, { volume: 0.7 });
-    void enterModule(this, 'battleCh01', {
+    // 御膳房战斗有自己的一套资源闭包（御厨八向来自 ch01.kitchen），
+    // 和金殿那场分开模块，避免第一场被迫加载整包御膳房素材。
+    void enterModule(this, 'battleKitchen', {
       encounterId: CH01_KITCHEN_BATTLE_ID,
       returnTo: 'kitchen',
       resumeAt: this.gateOpen ? 'gate' : 'explore',

@@ -15,7 +15,7 @@ describe('bundle closure', () => {
     const ids = expandBundleIds(['battle.ch01']);
     expect(ids).toContain('ui');
     expect(ids).toContain('battle.common');
-    expect(ids).toContain('ch.01');
+    expect(ids).toContain('ch01.bgm');
     expect(ids.at(-1)).toBe('battle.ch01');
     expect(new Set(ids).size).toBe(ids.length);
   });
@@ -48,7 +48,7 @@ describe('scene release plan', () => {
   });
 
   it('keeps the dependency closure of the next scene', () => {
-    const loaded = expandBundleIds(['core', 'ui', 'ch.01', 'battle.common', 'battle.ch01']);
+    const loaded = expandBundleIds(['core', 'ui', 'battle.common', 'battle.ch01']);
     const plan = planRelease(loaded, ['core', 'battle.common', 'battle.ch01']);
     expect(plan).toEqual({ bundles: [], assets: [] });
   });

@@ -1,7 +1,11 @@
 {
   "assets/.DS_Store": {
     "bytes": 6148,
-    "mtimeMs": 1795234463874
+    "mtimeMs": 1795256798492
+  },
+  "assets/audio/bgm/ch01_battle.mp3": {
+    "bytes": 1428733,
+    "mtimeMs": 1795272540086
   },
   "assets/audio/bgm/ch01_crisis.mp3": {
     "bytes": 1345036,
@@ -26,6 +30,46 @@
   "assets/audio/bgm/title.mp3": {
     "bytes": 1409089,
     "mtimeMs": 1792843174325
+  },
+  "assets/audio/sfx/battle_backstab.mp3": {
+    "bytes": 8109,
+    "mtimeMs": 1795272014601
+  },
+  "assets/audio/sfx/battle_blink.mp3": {
+    "bytes": 5229,
+    "mtimeMs": 1795272721758
+  },
+  "assets/audio/sfx/battle_guard.mp3": {
+    "bytes": 5517,
+    "mtimeMs": 1795272014745
+  },
+  "assets/audio/sfx/battle_hit.mp3": {
+    "bytes": 5229,
+    "mtimeMs": 1795272014473
+  },
+  "assets/audio/sfx/battle_protocol.mp3": {
+    "bytes": 16173,
+    "mtimeMs": 1795272105019
+  },
+  "assets/audio/sfx/battle_quake.mp3": {
+    "bytes": 12141,
+    "mtimeMs": 1795272342709
+  },
+  "assets/audio/sfx/battle_slash.mp3": {
+    "bytes": 6381,
+    "mtimeMs": 1795272014328
+  },
+  "assets/audio/sfx/battle_sweep.mp3": {
+    "bytes": 10701,
+    "mtimeMs": 1795272015161
+  },
+  "assets/audio/sfx/battle_turn.mp3": {
+    "bytes": 9261,
+    "mtimeMs": 1795272015018
+  },
+  "assets/audio/sfx/battle_victory.mp3": {
+    "bytes": 16749,
+    "mtimeMs": 1795272721892
   },
   "assets/audio/sfx/ch01_ambience_day.mp3": {
     "bytes": 361197,
@@ -203,6 +247,10 @@
     "bytes": 1454,
     "mtimeMs": 1793527488411
   },
+  "assets/img/battle/ch01/kitchen_hall.webp": {
+    "bytes": 112112,
+    "mtimeMs": 1795273705522
+  },
   "assets/img/battle/ch01/miner_hall.webp": {
     "bytes": 69108,
     "mtimeMs": 1793528194382
@@ -226,6 +274,50 @@
   "assets/img/ch00/bg.png": {
     "bytes": 20708,
     "mtimeMs": 1792839029269
+  },
+  "assets/img/character/battle/miner/miner_down.png": {
+    "bytes": 154093,
+    "mtimeMs": 1795273195056
+  },
+  "assets/img/character/battle/miner/miner_down_left.png": {
+    "bytes": 138252,
+    "mtimeMs": 1795273195179
+  },
+  "assets/img/character/battle/miner/miner_down_right.png": {
+    "bytes": 129484,
+    "mtimeMs": 1795273195211
+  },
+  "assets/img/character/battle/miner/miner_left.png": {
+    "bytes": 95607,
+    "mtimeMs": 1795273195120
+  },
+  "assets/img/character/battle/miner/miner_right.png": {
+    "bytes": 89831,
+    "mtimeMs": 1795273195146
+  },
+  "assets/img/character/battle/miner/miner_up.png": {
+    "bytes": 146038,
+    "mtimeMs": 1795273195092
+  },
+  "assets/img/character/battle/miner/miner_up_left.png": {
+    "bytes": 117912,
+    "mtimeMs": 1795273195243
+  },
+  "assets/img/character/battle/miner/miner_up_right.png": {
+    "bytes": 127435,
+    "mtimeMs": 1795273195277
+  },
+  "assets/img/character/battle/zhou_attack_right.webp": {
+    "bytes": 245070,
+    "mtimeMs": 1795274434595
+  },
+  "assets/img/character/battle/zhou_guard_right.png": {
+    "bytes": 64798,
+    "mtimeMs": 1795272274113
+  },
+  "assets/img/character/battle/zhou_idle_right.png": {
+    "bytes": 71740,
+    "mtimeMs": 1795272084370
   },
   "assets/img/character/ch01/kitchen/cook/cook_down.png": {
     "bytes": 102471,
@@ -636,8 +728,8 @@
     "mtimeMs": 1792892582661
   },
   "assets/img/character/ch01/zhou_prone.png": {
-    "bytes": 18545,
-    "mtimeMs": 1795234463744
+    "bytes": 32557,
+    "mtimeMs": 1795256798074
   },
   "assets/img/character/ch01/zhou_right.png": {
     "bytes": 5414,

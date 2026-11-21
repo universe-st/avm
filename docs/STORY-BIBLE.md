@@ -133,7 +133,7 @@
   - 战斗背景已从旧的 9:16 立绘 `dream_hall.webp` 迁到金殿素材；2026-10-31 进一步改成战斗专用舞台图 `img.battle.ch01.miner_hall`（聚光 + 前景台阶 + 暗角）。
   - **去重（2026-10-31）**：寝室的 `dream` 节点已清空台词，只负责推进战斗；金殿细节由 `PALACE_BEATS` 独占，避免同一段剧情说两遍。小白那句「建议：先活下来。」移进金殿收尾。
 - 文案唯一真值：`src/story/ch01-dorm.ts`；流程状态机：`src/story/ch01-flow.ts`。
-- 战斗数值：`src/battle/data/ch01-first.ts`；纯逻辑：`src/battle/core/scripted-battle.ts`。
+- 战斗数值：`src/battle/data/ch01-first.ts` / `ch01-kitchen.ts`；纯逻辑：`src/battle/core/battle.ts`（v2 六站位跑条制，规则见 `docs/DESIGN-BATTLE.md`）。
 - 房间：`src/map/rooms/ch01-dorm.ts`（33×54，单房间；2026-10-31 重组后中段走廊有地毯与两处行李箱，行李箱占格已同步封碰撞）。
 
 ### 8.3 第一章第二节《御膳房》游戏化补充（2026-10-31，设计稿）

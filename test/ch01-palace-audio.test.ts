@@ -61,14 +61,14 @@ describe('金殿过场音频', () => {
     expect(beatActions.some((action) => action.kind === 'bgm')).toBe(true);
   });
 
-  it('金殿过场绑诙谐宫廷曲，战斗仍绑《清除协议》', () => {
+  it('金殿过场绑诙谐宫廷曲，战斗绑《刺王杀驾》', () => {
     expect(resolveSceneTrack(SCENE_KEYS.ch01Palace)).toMatchObject({
       kind: 'track',
       id: 'ch01Palace',
     });
     expect(resolveSceneTrack(SCENE_KEYS.battleCh01)).toMatchObject({
       kind: 'track',
-      id: 'ch01Dream',
+      id: 'ch01Battle',
     });
     expect(BGM_TRACKS.ch01Palace.key).toBe(CH01_ASSET_KEYS.audio.palaceBgm);
   });

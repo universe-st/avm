@@ -9,7 +9,9 @@ M1a。已交付：M0.9 的全部内容 + 第一章第一节《寝室》（单房
 检查点 `dorm.*` / `ch01.complete` / `kitchen.explore` / `kitchen.done`，标题「继续游戏」可直达御膳房。
 标题左下角有**游戏内测试入口**（见 `docs/STAGE-PREVIEW.md` §13），APK 里也能跳任意场景。
 
-尚未接入：完整战斗系统、第三节。没有计划不要继续扩章节。
+**战斗系统 v2（六站位跑条制）已接入第一章两场**：金殿剧情战（`battle.ch01.first`，没有「解」、只能移动/防御、第 4 次怪物行动清除协议必败）与御膳房遭遇战（`battle.ch01.kitchen`，解离突刺 / 背袭 / 闪现）。规则见 `docs/DESIGN-BATTLE.md`，入口/验收见 `docs/STAGE-PREVIEW.md`。
+
+尚未接入：多人小队/多敌人、EP/核心暴露/Boss、第三节。没有计划不要继续扩章节。
 
 正式存档（3 槽 localStorage）已接入：自由活动判定、字段清单、损坏兜底与 BGM 恢复见
 `docs/SAVE-SYSTEM.md`；右上角「菜单」图标在 `src/ui/hud-kit.ts`，存读档 UI 在 `src/ui/game-menu.ts`。
@@ -73,7 +75,13 @@ pnpm android:release
 - 改 UI：`pnpm dev`，用浏览器在 **390×844** 与 **1200×648** 两个视口各看一眼；检查控制台 0 error。
 - 改开幕/过场：完整走一遍「开始 → 全部 cue → 点击继续 → 第一章寝室」，再测「跳过」「返回键」和 `prefers-reduced-motion`；`?stage=scene.prologue` 直接进开幕。
 - 改第一章/地图：`?stage=scene.ch01.dorm&phase=explore&hud=0`；验移动/碰撞/交互/目标/对话/返回标题；`debug=1` 看碰撞格。
-- 改剧情战：`?stage=battle.ch01.first&phase=opening|mid|defeat&hud=0`；验攻击固定 1、3 回合必败、战败回寝室、预览可重开/返回。
+- 改战斗（v2）：
+  - 金殿剧情战：`?stage=battle.ch01.first&phase=opening|mid|defeat&hud=0`（`victory` 会回退 mid）；验攻击禁用、怪物先手、第 4 次怪物行动后清除协议必败、战败回寝室、预览可重开/返回。
+  - 御膳房遭遇战：`?stage=battle.ch01.kitchen&phase=opening|mid|victory|defeat&hud=0`；验解离突刺正面 16 → 闪现到对侧、背袭 24 留原地、三刀胜利回御膳房（不写 `dorm.after`）。
+  - 8 向美术：`&facing=up|upRight|right|downRight|down|downLeft|left|upLeft`。
+  - DEV 后门：`__avmBattle()` 读 `{phase, activeId, seq, enemyActions, playerHp, enemyHp, slot, facing, intent, gauges, log}`；别靠截图猜回合数。
+  - `?stage=...&skip=1` 跳过开场卡直接玩家回合；`hud=0` 关预览 HUD。
+  - 改战斗数据/判定必须同时跑 `test/battle-*.test.ts`；意图锁定、背袭角度表、跑条序列都有纯逻辑护栏。
 - 改战后黑场胁迫（小白压制周全）：`?stage=scene.ch01.dorm&phase=dark&hud=0` 从「呃……」那一拍直接开始；
   验六拍顺序、黑屏收尾、跳过（结尾卡背后不留黑屏/心跳/小白放大）、`prefers-reduced-motion`。
 - 改舞台目录/预览：`pnpm check`；按 `docs/STAGE-PREVIEW.md` §10 验「URL / 控制台 / HUD 目录 / 未知 id 回退 / hud=0」；新增场景/CG/战斗必须能单点打开、带 seed 重开、返回标题。
@@ -118,6 +126,15 @@ pnpm android:release
 - sprite 转圈的斜向 pick 要按实际帧校准：西北/东北容易取到正侧或正背；抽不准就直接用 `direct` 逐张生成，验收时看 8 方向图而不是只看四向。
 - 坐姿图如果自带椅子，必须用 `sittingOffsetY` 把椅子脚对齐地面，并在坐着时隐藏独立椅子；表情气泡用 `headPoint` 定位，别用脚底坐标。
 - 角色贴图的**不透明底边不一定等于 origin 的脚底线**：`setOrigin(0.5, 400/420)` 把落点钉在画布第 400 行，但跪姿 `zhou_kneel_up` 只画到第 383 行（比落点高 8.5 设计 px），站姿都画到 399。所以脚底阴影不能给所有角色共用一条 `ellipse(x, y+3, 118, 24)`——跪着的周全就是这么悬起来的。金殿现在按贴图 alpha 轮廓查表（`src/scenes/ch01-palace-shadow.ts` + `tools/measure-actor-footprint.py`），换贴图重跑工具、把数抄回表，`test/palace-shadow.test.ts` 会现场解码 PNG 对表。
+
+- **战斗 v2 的判定只在 `src/battle/`**：场景 `battle-ch01-scene.ts` 只消费 `BattleEvent`（动画队列），不得自己算伤害/顺序/命中。新增技能/敌人只加 `data/` 数据；新增行为先加 `core/` 纯函数与单测。
+- **第一场不能赢**：`player.skills=[]` + `script.protocolAfterEnemyActions=4`。改第一场数值时保留「攻击禁用 / 必然战败 / 战败回寝室」三条，否则剧情断。
+- **`battleCh01` 与 `battleKitchen` 两个模块共用同一个场景 key**（`battle-ch01`），资源闭包不同：前者 `battle.ch01`（矿工 8 向 + 金殿舞台），后者 `battle.kitchen`（御膳房舞台 + 依赖 `ch01.kitchen` 取厨子八向）。别把两个包合并，否则第一场会被迫加载 14 MB 御膳房素材。
+- **战斗贴图宽度**：解离突刺 12 帧 × 320 = 3840，已接近手机 GPU 4096 上限；矿工八向是 272×400 单张。加帧/加宽前先跑 `test/battle-assets.test.ts`（宽度 <4096）。
+- **1200×648 的设计高只有 1100**：`planBattleLayout` 会把 `radiusY` 压到约 129；上排角色的头离跑条只有 10px。所以玩家血条不画在头顶（底部指令区和跑条里已有 HP），别再加回去。
+- **意图是锁定的**：怪物行动结束后按当时站位锁定 `state.intent`，玩家移动不改它；这样才能「读招→躲开→看它打空」。不要在玩家移动后重算意图。
+- **清除协议计数按怪物行动数**（含转向），不是玩家回合数；别改成按玩家回合数，否则玩家可以靠绕背无限拖。
+- **解离突刺的 320 宽已经是上限**：12 帧 × 320 = 3840 < 4096；改 400 宽会到 4800，真机纹理创建失败变黑块。源视频在突刺峰值把光刃推到自己画幅外，成品第 3–10 帧刃尖被右缘裁掉；**不要靠加宽帧解决**，表现层用 `ui/battle-fx.ts` 的 `bladeTrail()` 从手部向目标补光刃（命中帧起 320ms）。矿工八向是 272×400，别为了「凑整 240」把钻井臂压矮——八向会一缩一胀。
 
 ## 6. 提交
 

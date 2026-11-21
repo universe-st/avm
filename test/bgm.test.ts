@@ -62,7 +62,7 @@ describe('BGM 场景绑定表', () => {
     expect(resolveSceneTrack(SCENE_KEYS.ch01Dorm)).toEqual(sceneTrack('ch01Dorm'));
     expect(resolveSceneTrack(SCENE_KEYS.ch01Kitchen)).toEqual(sceneTrack('ch01Crisis'));
     expect(resolveSceneTrack(SCENE_KEYS.ch01Palace)).toEqual(sceneTrack('ch01Palace'));
-    expect(resolveSceneTrack(SCENE_KEYS.battleCh01)).toEqual(sceneTrack('ch01Dream'));
+    expect(resolveSceneTrack(SCENE_KEYS.battleCh01)).toEqual(sceneTrack('ch01Battle'));
     expect(resolveSceneTrack(SCENE_KEYS.cgStage)).toEqual(SCENE_HOLD);
     expect(resolveSceneTrack(SCENE_KEYS.battleSandbox)).toEqual(SCENE_HOLD);
   });
@@ -132,7 +132,7 @@ describe('运行时改绑（resolveSceneTrack + overrides）', () => {
     );
     // 模拟「进别的场景再回来」：解析函数每次都会读到同一份 override。
     expect(bindingTrackId(resolveSceneTrack(SCENE_KEYS.ch01Dorm, overrides))).toBe('ch01Dream');
-    expect(bindingTrackId(resolveSceneTrack(SCENE_KEYS.battleCh01, overrides))).toBe('ch01Dream');
+    expect(bindingTrackId(resolveSceneTrack(SCENE_KEYS.battleCh01, overrides))).toBe('ch01Battle');
 
     const restored = withSceneBinding(overrides, SCENE_KEYS.ch01Dorm, null);
     expect(resolveSceneTrack(SCENE_KEYS.ch01Dorm, restored)).toEqual(sceneTrack('ch01Dorm'));

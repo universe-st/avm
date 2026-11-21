@@ -26,14 +26,18 @@ describe('stage catalog', () => {
     for (const id of ids) expect(isStageId(id)).toBe(true);
   });
 
-  it('registers one stage entry per game module with the same kind and resource gate', () => {
+  it('registers a stage entry per game module with the same kind and resource gate', () => {
     for (const module of Object.values(MODULES)) {
+      // 同一个场景宿主可以承载多场战斗（battleCh01 / battleKitchen），
+      // 所以按「kind + sceneKey + requires 集合」匹配，而不是只按 sceneKey 找第一条。
       const match = STAGE_CATALOG.find(
-        (stage) => stage.kind === module.kind && stage.sceneKey === module.sceneKey,
+        (stage) =>
+          stage.kind === module.kind &&
+          stage.sceneKey === module.sceneKey &&
+          sameSet(stage.requires, module.requires),
       );
-      expect(match, `缺少舞台入口：${module.sceneKey}`).toBeDefined();
+      expect(match, `缺少舞台入口：${module.sceneKey} (${module.id})`).toBeDefined();
       if (!match) continue;
-      expect(match.requires).toEqual(module.requires);
       expect(match.status).toBe('ready');
     }
   });
@@ -140,10 +144,12 @@ describe('stage catalog validation', () => {
   it('keeps module gates and catalog gates in sync', () => {
     for (const module of Object.values(MODULES)) {
       const match = STAGE_CATALOG.find(
-        (stage) => stage.kind === module.kind && stage.sceneKey === module.sceneKey,
+        (stage) =>
+          stage.kind === module.kind &&
+          stage.sceneKey === module.sceneKey &&
+          sameSet(stage.requires, module.requires),
       );
-      expect(match).toBeDefined();
-      expect(sameSet(match!.requires, module.requires)).toBe(true);
+      expect(match, module.id).toBeDefined();
     }
   });
 });

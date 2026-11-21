@@ -73,7 +73,8 @@ Phaser 侧只剩「把字段抄出来 / 抄回去」。
 | `ch01Dorm`（寝室） | ❌ | ✅ | ❌ | ❌ | — | ❌ |
 | `ch01Kitchen`（御膳房） | ❌ | ✅ | — | — | ❌ | ❌ |
 | `ch01Palace`（金殿） | ❌（模块级拒绝，与 phase 无关） | | | | | |
-| `battleCh01`（剧情战） | ❌（同上） | | | | | |
+| `battleCh01`（金殿剧情战） | ❌（同上） | | | | | |
+| `battleKitchen`（御膳房遭遇战） | ❌（同上） | | | | | |
 
 再叠加：对话 ✕ / 表演 ✕ / 过场 ✕ / 切场 ✕ / 章节卡 ✕ / 结束 ✕ / 弹窗 ✕ / 预览 ✕。
 
@@ -82,7 +83,7 @@ Phaser 侧只剩「把字段抄出来 / 抄回去」。
 - 寝室：`module:'ch01Dorm'`、`phase: flow.state.phase`、`dialogue/performance/transition/cutscene/card/ended`
   全部取场景当前字段；
 - 御膳房：`module:'ch01Kitchen'`、`phase: this.phase`；
-- 金殿：`module:'ch01Palace'`（保存项恒禁用）；战斗：`module:'battleCh01'`。
+- 金殿：`module:'ch01Palace'`（保存项恒禁用）；金殿战斗：`module:'battleCh01'`；御膳房战斗：`module:'battleKitchen'`。
 
 ## 4. 存档状态清单（逐字段：为什么存、怎么恢复）
 

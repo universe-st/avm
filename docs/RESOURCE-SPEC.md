@@ -34,13 +34,14 @@ interface AssetDef {
 | `cutscene.prologue` | 开幕剧情 5 张配图 + 开幕曲《星夜梦境》 | 6 MB | — | 点击开始 / 进入开幕 |
 | `cutscene.ch01opening` | 开场动画 `ch01-opening.mp4`（720×1280、12.8s、带同轨声音） | 5 MB | — | 开幕结束 / 跳过 → 进开场动画 |
 | `cutscene.ch01phone` | 手机 CG `ch01-phone.mp4`（720×1280、20.2s、三镜、带同轨声音） | 6 MB | — | 进入寝室时随场景加载；「查看手机」时全屏播放 |
-| `cutscene.ch01palace` | 梦域金殿地图 `hall.png`（1056×1728）+ 14 张殿上角色图（200×420）+ 4 张半身立绘（720×900：郑卿 / 楚公公 / 小白 / 周全慌张） | 8 MB | — | 金殿过场 `scene.ch01.palace`；战斗 `battle.ch01.first` 也复用它当背景 |
+| `cutscene.ch01palace` | 梦域金殿地图 `hall.png`（1056×1728）+ 14 张殿上角色图（200×420）+ 4 张半身立绘（720×900：郑卿 / 楚公公 / 小白 / 周全慌张） | 8 MB | — | 金殿过场 `scene.ch01.palace`（战斗 v2 用自己的 `battle.ch01` 舞台图，不再复用殿图） |
 | `cutscene.ch01palace.walk` | 郑卿 / 楚公公 八方向行走 sheet（各 8 张 × 16 帧 × 200×420，WebP） | 12 MB | `cutscene.ch01palace` | 只在金殿过场加载；走位时播帧，停下回静态图 |
 | `cutscene.ch01palace.sfx` | 金殿音效 14 条（环境/脚步/跪地/裂皮/心跳…，mp3 24kHz 单声道，共约 300 KB） | 1 MB | `cutscene.ch01palace` | 过场音效；缺失时静默跳过，不阻断 |
 | `ch.01` | 33×54 寝室整图（重组窗光版）、郑卿睡床 4 帧、周全 Q 版八向/行走、小白/郑卿、沉睡症新闻 CG、呼噜/拳击/手机 SFX、寝室环境音与木地板脚步 A/B；`img.char.ch01.zhou_sit_right`（坐地朝右正式图 160×400）+ `img.char.ch01.zhou_stand_up`（起身 8 帧 × 160×400 横排）+ `img.char.ch01.zhou_idle_right`（正侧面站立 idle 160×400，t39 入库、暂未接场景）；依赖 `ch01.bgm`（寝室曲 + 回忆 cue） | 12 MB | — | 进入第一章 |
-| `ch01.bgm` | 第一章共享 BGM 四首：《午后小憩》`ch01_dorm`（寝室）、《危机来临》`ch01_crisis`（回忆/御膳房）、《清除协议》`ch01_dream`（裂皮之后/剧情战）、《小皇帝的早朝》`ch01_palace`（金殿过场前半），约 5.2 MB | 6 MB | — | `ch.01` / `battle.ch01` 依赖它；`ch01Kitchen` / `ch01Palace` 显式 requires |
-| `battle.common` | 战斗公共资源（本期为空，依赖 `ui`） | 3 MB | — | 进入剧情战 |
-| `battle.ch01` | 战斗专用舞台 `miner_hall.webp`（720×1280）、矿工 sprite、金属 SFX；依赖 `ch.01` 复用周全 sprite、依赖 `ch01.bgm` 取战斗曲 | 5 MB | — | 进入剧情战 |
+| `ch01.bgm` | 第一章共享 BGM 五首：《午后小憩》`ch01_dorm`（寝室）、《危机来临》`ch01_crisis`（回忆/御膳房）、《清除协议》`ch01_dream`（裂皮之后/金殿过场）、《小皇帝的早朝》`ch01_palace`（金殿过场前半）、《刺王杀驾》`ch01_battle`（两场战斗），约 6.7 MB | 8 MB | — | `ch.01` / `battle.ch01` / `battle.kitchen` 依赖它；`ch01Kitchen` / `ch01Palace` 显式 requires |
+| `battle.common` | 战斗 v2 公共：周全起手式/格挡/解离突刺 12 帧横排（320×400）、打击/背袭/格挡/闪现 SFX；依赖 `ui` | 4 MB | — | 两场战斗共用 |
+| `battle.ch01` | 金殿战斗舞台 `miner_hall.webp`、矿工战斗八向（272×400 × 8）、旧单面兜底、矿工技能/协议/胜利 SFX；依赖 `battle.common` + `ch01.bgm` | 6 MB | — | 金殿剧情战 |
+| `battle.kitchen` | 御膳房战斗舞台 `kitchen_hall.webp`（720×1280，本地从 `kitchen.webp` 合成）；依赖 `battle.common` + `ch01.kitchen`（御厨八向）+ `ch01.bgm` | 1.5 MB | — | 御膳房遭遇战 |
 
 后续：`ch.NN`（单章 ≤ 8 MB）、`battle.<id>`（≤ 5 MB）、`cutscene.<id>`（单段 ≤ 8 MB）。
 章节包不得互相依赖；公共资源上移到 `ui` / `battle.common`。
@@ -57,6 +58,16 @@ interface AssetDef {
 - 2026-11-21（黑场收尾趴姿）：`ch.01` 新增 `img.char.ch01.zhou_prone` → `assets/img/character/ch01/zhou_prone.png`
   （250×400 RGBA，人物横躺 225×100、底边 392、水平中心 125；人物长度≈站立高 228，所以画布比站立宽）。
   由游戏素材大师 `image` 模块生成（job `imwpx1zuvb80bfe`，带 `zhou_idle_right` / `zhou_sit_right` 参考图）后抠像 + 去绿边 + 等比缩放合成；见 `docs/ASSET-CREDITS.md` §14。
+- 2026-11-21（战斗系统 v2 素材）：
+  - `battle.common`：`img.char.battle.zhou_idle_right.png`（160×400，图高 371 / 底边 394 / 中心 80）、
+    `zhou_guard_right.png`（同基准）、`zhou_attack_right.webp`（**12 × 320×400 = 3840×400**，< 4096；
+    突刺有横向位移，160 宽会裁掉刀锋/前脚）；`audio.sfx.battle_{slash,hit,backstab,guard,blink}.mp3`。
+  - `battle.ch01`：`img.char.battle.miner_{down,up,left,right,down_left,down_right,up_left,up_right}.png`
+    （各 **272×400**，图高 371 / 底边 394 / 中心 136；272 是为了钻井臂不被裁矮，八向同一基准）；
+    `img.battle.ch01.miner_hall.webp`（沿用）；`audio.sfx.battle_{turn,sweep,quake,protocol,victory}.mp3`。
+  - `battle.kitchen`：`img.battle.ch01.kitchen_hall.webp`（720×1280，109.5 KB；由 `tools/compose-kitchen-battle-plate.py`
+    从 `kitchen.webp` 裁传膳廊区域 + 聚光/暗角，纯 Pillow、确定性）；御厨八向来自 `ch01.kitchen` 的 `cook_*`。
+  - `ch01.bgm`：`audio.bgm.ch01_battle.mp3`（《刺王杀驾》，89.22s，128kbps 立体声，-16.4 LUFS；循环段 74.74–163.96s）。
 - 2026-11-21（战后黑场胁迫段音效）：`ch.01` 新增 4 条 `required:false` 音效 →
   `assets/audio/sfx/ch01_dark_pressure.mp3`（10.55s 无缝循环，127 KB）、
   `ch01_dark_grip.mp3`（1.41s，18 KB）、`ch01_dark_release.mp3`（1.91s，24 KB）、
@@ -114,7 +125,7 @@ enterModule(from, module)
 
 ### 3.2 依赖闭包与常驻包
 
-- `requires: ['battle.ch01']` 自动包含 `battle.common`、`ch.01`、`ui`、`core`，无需在模块里手写依赖。
+- `requires: ['battle.ch01']` 自动包含 `battle.common`、`ch01.bgm`、`ui`、`core`；御膳房战斗走 `['battle.kitchen']`，闭包里带 `ch01.kitchen`。两个战斗模块共用场景 key `battle-ch01`，但资源闭包不同，别合并。
 - `core` / `ui` 标 `persistent: true`：每个加载批次自动带上，切场景时永不释放。
 - 两个 bundle 共享同一个资源 key 时，只要还有一个 bundle 保留，该 key 就不删（`planRelease` 已处理）。
 - 运行时用 Canvas 生成的 UI 纹理（`__avm.scrim.*`、`__avm.cine.vignette` 等）是引擎级装饰，按设计常驻，不进入 bundle 账本；它们不含文件资源，体积极小。

@@ -6,9 +6,13 @@
  * - `char.*`：角色静态图与行走 sheet
  * - `cg.*`：全屏剧情 CG
  * - `battle.*`：战斗背景（场景背景，不是 CG）
+ *
+ * 2026-11-21 战斗系统 v2（六站位跑条制）新增 `BATTLE_ASSET_KEYS` / `BATTLE_*_ART`：
+ * 战斗专用美术与音效集中在文件末尾，别在场景里手写 key。
  * - `audio.*`：BGM / SFX
  * - UI 资源继续用 `img.ui.*`
  */
+import type { Facing8 } from '../battle/types';
 /**
  * 全局逐字提示音（core bundle）。
  *
@@ -543,3 +547,95 @@ export type KitchenCastId = keyof typeof KITCHEN_CAST;
  */
 export const CH01_KITCHEN_FRAME = { width: 192, height: 400 } as const;
 export const CH01_KITCHEN_WALK_FRAME_COUNT = 20;
+
+/**
+ * 战斗系统 v2 的资源 key（六站位跑条制）。
+ *
+ * 美术/音效全部由 `game_material` 生成后再接进来；缺图时场景会退回占位剪影
+ * （`ensureBattlePlaceholderTextures`），所以这些 key 都按 `required:false` 登记，
+ * 避免「一张图没生成完就打不开战斗」。
+ */
+export const BATTLE_ASSET_KEYS = {
+  player: {
+    /** 正侧面朝右的战斗起手式（160×400、图高 371、底边 394）。 */
+    idleRight: 'img.char.battle.zhou_idle_right',
+    /** 双手交叉格挡（同一基准）。 */
+    guardRight: 'img.char.battle.zhou_guard_right',
+    /** 解离突刺 12 帧横排（320×400 × 12 = 3840×400，< 4096 手机纹理上限）。 */
+    attackRight: 'img.char.battle.zhou_attack_right',
+  },
+  miner: {
+    /**
+     * 矿工 8 向（240×400、图高 371、底边 394、中心 120）。
+     * 方向名用 `Facing8`：down/up/left/right/down_left/down_right/up_left/up_right。
+     */
+    dirs: {
+      down: 'img.char.battle.miner_down',
+      up: 'img.char.battle.miner_up',
+      left: 'img.char.battle.miner_left',
+      right: 'img.char.battle.miner_right',
+      downLeft: 'img.char.battle.miner_down_left',
+      downRight: 'img.char.battle.miner_down_right',
+      upLeft: 'img.char.battle.miner_up_left',
+      upRight: 'img.char.battle.miner_up_right',
+    } satisfies Record<Facing8, string>,
+    /** 旧版单面矿工；新 8 向缺图时的兜底。 */
+    fallback: CH01_ASSET_KEYS.characters.miner,
+  },
+  stage: {
+    /** 金殿战斗舞台（已有 720×1280 图）。 */
+    minerHall: CH01_ASSET_KEYS.battle.minerHall,
+    /** 御膳房战斗舞台（本地从 kitchen.webp 合成）。 */
+    kitchenHall: 'img.battle.ch01.kitchen_hall',
+  },
+  sfx: {
+    slash: 'audio.sfx.battle_slash',
+    hit: 'audio.sfx.battle_hit',
+    backstab: 'audio.sfx.battle_backstab',
+    guard: 'audio.sfx.battle_guard',
+    blink: 'audio.sfx.battle_blink',
+    turn: 'audio.sfx.battle_turn',
+    sweep: 'audio.sfx.battle_sweep',
+    quake: 'audio.sfx.battle_quake',
+    protocol: 'audio.sfx.battle_protocol',
+    victory: 'audio.sfx.battle_victory',
+  },
+  bgm: {
+    /** 第一章战斗曲《刺王杀驾》。 */
+    battle: 'audio.bgm.ch01_battle',
+  },
+} as const;
+
+/** 周全战斗素材的帧元数据（与 `make-battle-player-art.py` 的输出一致）。 */
+export const BATTLE_PLAYER_ART = {
+  key: BATTLE_ASSET_KEYS.player.idleRight,
+  guardKey: BATTLE_ASSET_KEYS.player.guardRight,
+  attackKey: BATTLE_ASSET_KEYS.player.attackRight,
+  frameCount: 12,
+  // 突刺有横向位移，160 宽会把刀锋/前脚裁掉；320 宽 × 12 = 3840 < 4096。
+  frameWidth: 320,
+  frameHeight: 400,
+  frameMs: 55,
+  /** 起手式中人物高 371；战斗屏显目标 170 → 170/371 ≈ 0.458。 */
+  displayScale: 0.458,
+  figureHeight: 371,
+  /**
+   * 命中帧：第 6 帧（0 起）。场景在这一帧结算伤害数字/火花，
+   * 不是等整段播完——否则看起来像「人已经收势了才掉血」。
+   */
+  hitFrame: 7,
+} as const;
+
+/** 矿工战斗八向的显示元数据。 */
+export const BATTLE_MINER_ART = {
+  dirs: BATTLE_ASSET_KEYS.miner.dirs,
+  displayScale: 0.7,
+  figureHeight: 371,
+  /** 兜底单面图的显示缩放（128×160 原图放大到约 256 高）。 */
+  fallbackScale: 2,
+} as const;
+
+/** 御厨幻影用 `KITCHEN_CAST.cook` 的八向图；战斗里再缩一点，别顶到上排。 */
+export const BATTLE_COOK_ART = {
+  scaleFactor: 0.86,
+} as const;

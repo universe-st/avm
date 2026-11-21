@@ -13,6 +13,7 @@ export type BundleId =
   | 'ch01.bgm'
   | 'battle.common'
   | 'battle.ch01'
+  | 'battle.kitchen'
   | 'cutscene.ch01opening'
   | 'cutscene.ch01phone'
   | 'cutscene.ch01palace'

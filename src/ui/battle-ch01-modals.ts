@@ -4,21 +4,21 @@ import { Button, Divider, Panel, Row, Text } from '@phaser-mvvm/widgets/compose'
 import { CH01_BATTLE_BANNER } from '../story/ch01-dorm';
 
 /**
- * 战斗相关模态。
+ * 战斗相关模态（v2）。
  *
- * 开场从「普通确认框」改成清除协议终端卡：朱红标题 + 协议编号 + 规则提示，
- * 与金殿过场里的「执行矿场清除协议」是同一件事。
+ * 三张卡都允许由战斗数据覆盖文案：金殿剧情战与御膳房遭遇战的规则/收尾完全不同，
+ * 不能再把「固定 1 伤害」「矿场清除协议」写死在这层 UI 里。
  */
 export function openBattleIntro(
   mvvm: MVVMPlugin,
   callbacks: {
     onClose: () => void;
-    /** 遭遇战自定义开场：标题/目标/规则提示都由战斗数据决定，不再写死金殿那场。 */
     readonly badge?: string;
     readonly title?: string;
     readonly target?: string;
     readonly lines?: readonly string[];
     readonly ruleText?: string;
+    readonly buttonLabel?: string;
   },
 ): ModalHandle {
   let modal: ModalHandle | null = null;
@@ -28,15 +28,22 @@ export function openBattleIntro(
         Text(callbacks.badge ?? 'PROTOCOL / CLEAR', { size: 'xs', tone: 'muted', align: 'center' });
         Text(callbacks.title ?? '矿场清除协议', { size: 'xl', tone: 'danger', align: 'center' });
         Divider({});
-        Text(`目标：${callbacks.target ?? CH01_BATTLE_BANNER.subtitle}`, { size: 'md', align: 'center' });
+        Text(`目标：${callbacks.target ?? CH01_BATTLE_BANNER.subtitle}`, {
+          size: 'md',
+          align: 'center',
+        });
         Text((callbacks.lines ?? CH01_BATTLE_BANNER.intro).join('\n'), {
           size: 'sm',
           tone: 'muted',
           align: 'center',
         });
-        Text(callbacks.ruleText ?? '你的攻击只能造成 1 点伤害。', { size: 'sm', tone: 'primary', align: 'center' });
+        Text(callbacks.ruleText ?? '你只能移动与防御。', {
+          size: 'sm',
+          tone: 'primary',
+          align: 'center',
+        });
         Row({ width: 'fill', justifyContent: 'center' }, () => {
-          Button('迎战', {
+          Button(callbacks.buttonLabel ?? '迎战', {
             variant: 'primary',
             size: 'lg',
             width: 240,
@@ -61,6 +68,10 @@ export function openBattleDefeat(
   mvvm: MVVMPlugin,
   options: {
     readonly preview: boolean;
+    readonly title?: string;
+    readonly lines?: readonly string[];
+    readonly hint?: string;
+    readonly wakeLabel?: string;
     readonly onRestart: () => void;
     readonly onTitle: () => void;
     readonly onWake: () => void;
@@ -71,11 +82,14 @@ export function openBattleDefeat(
   modal = mvvm.modal.open(
     () => {
       Panel({ width: 640, padding: 32, gap: 14, variant: 'surface' }, () => {
-        Text('清除协议 · 执行完毕', { size: 'xs', tone: 'muted', align: 'center' });
-        Text('剧情战 · 战败', { size: 'xl', tone: 'danger', align: 'center' });
+        Text('战斗 · 战败', { size: 'xs', tone: 'muted', align: 'center' });
+        Text(options.title ?? '剧情战 · 战败', { size: 'xl', tone: 'danger', align: 'center' });
         Divider({});
-        Text(CH01_BATTLE_BANNER.defeat.join('\n'), { size: 'md', align: 'center' });
-        Text('这不是游戏结束。你只是被踢出了梦域。', {
+        Text((options.lines ?? CH01_BATTLE_BANNER.defeat).join('\n'), {
+          size: 'md',
+          align: 'center',
+        });
+        Text(options.hint ?? '这不是游戏结束。你只是被踢出了梦域。', {
           size: 'sm',
           tone: 'muted',
           align: 'center',
@@ -101,7 +115,7 @@ export function openBattleDefeat(
               },
             });
           } else {
-            Button('醒来', {
+            Button(options.wakeLabel ?? '醒来', {
               variant: 'primary',
               size: 'lg',
               width: 260,
@@ -125,33 +139,63 @@ export function openBattleDefeat(
 }
 
 /**
- * 遭遇战打赢后的收尾卡。
+ * 打赢后的收尾卡。
  *
- * 御膳房的「被发现 → 打一场」是能赢的短仗，赢完直接回地图继续潜行，
- * 所以这里只给一条主路径（回御膳房），不摆「返回标题」抢注意力。
+ * 御膳房遭遇战打赢 = 回到地图继续潜行；预览里的胜利则给「重开 / 返回标题」，
+ * 不能把验收者扔回一张没打开的地图。
  */
 export function openBattleVictory(
   mvvm: MVVMPlugin,
-  callbacks: { title: string; lines: readonly string[]; preview: boolean; onReturn: () => void; onClose: () => void },
+  callbacks: {
+    title: string;
+    lines: readonly string[];
+    preview: boolean;
+    returnLabel?: string;
+    onReturn: () => void;
+    onRestart: () => void;
+    onTitle: () => void;
+    onClose: () => void;
+  },
 ): ModalHandle {
   let modal: ModalHandle | null = null;
   modal = mvvm.modal.open(
     () => {
       Panel({ width: 640, padding: 32, gap: 14, variant: 'surface' }, () => {
-        Text('遭遇战 · 解决', { size: 'xs', tone: 'muted', align: 'center' });
+        Text('战斗 · 解决', { size: 'xs', tone: 'muted', align: 'center' });
         Text(callbacks.title, { size: 'xl', tone: 'primary', align: 'center' });
         Divider({});
         Text(callbacks.lines.join('\n'), { size: 'md', align: 'center' });
         Row({ width: 'fill', gap: 12, justifyContent: 'center' }, () => {
-          Button('回御膳房', {
-            variant: 'primary',
-            size: 'lg',
-            width: 260,
-            onClick: () => {
-              modal?.close();
-              callbacks.onReturn();
-            },
-          });
+          if (callbacks.preview) {
+            Button('重开战斗', {
+              variant: 'secondary',
+              size: 'md',
+              width: 200,
+              onClick: () => {
+                modal?.close();
+                callbacks.onRestart();
+              },
+            });
+            Button('返回标题', {
+              variant: 'primary',
+              size: 'md',
+              width: 200,
+              onClick: () => {
+                modal?.close();
+                callbacks.onTitle();
+              },
+            });
+          } else {
+            Button(callbacks.returnLabel ?? '回御膳房', {
+              variant: 'primary',
+              size: 'lg',
+              width: 260,
+              onClick: () => {
+                modal?.close();
+                callbacks.onReturn();
+              },
+            });
+          }
         });
       });
     },

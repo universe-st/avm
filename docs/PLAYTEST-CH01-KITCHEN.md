@@ -199,10 +199,10 @@
 
 | 谁发现你 | 结果 |
 | --- | --- |
-| 巡逻（御厨/太监）· 门卫 | 进遭遇战 `battle.ch01.kitchen`（可打赢：御厨幻影 30 血 / 你一刀 12） |
+| 巡逻（御厨/太监）· 门卫 | 进遭遇战 `battle.ch01.kitchen`（v2：御厨幻影 56 血 / 解离突刺正面 16、背袭 24；三刀） |
 | 老麦 / 老肯 | 直接失败重试，文案「老麦回头看了你一眼，笑意散了。」/「老肯认出了你——这张脸不该出现在这儿。」 |
 
-- 遭遇战走 `damageRule: 'use-attack'`；金殿那场仍是 `fixed-one`（固定 1 伤害 + 第 3 回合清除协议必败），两条分支都有单测锁住。
+- 遭遇战走 v2 六站位跑条制（解离突刺/背袭/闪现）；金殿那场没有「解」、攻击禁用、第 4 次怪物行动清除协议必败。两条分支都有 `test/battle-*.test.ts` 锁住。
 - 胜负都回御膳房：赢了带 `cleared: <enemyId>`，该巡逻本次不再生成；输了从 `resumeAt` 检查点重来，不把你踢出梦域。
 - 老麦/老肯的视锥 = 他们自己的朝向 + 100°/2.5 格 + 要有视线，**只在 `phase==='pair'` 生效**（躲藏幕是倒计时，草堆幕由脚本判）。
 - 开场卡文案跟着战斗数据走：`ENCOUNTER / DREAM · 御膳房 · 惊动 · 目标：御厨·幻影 · 你每刀造成 12 点伤害`，抬头改成「梦域 / 御膳房」，不再借用金殿的「矿场清除协议」。
@@ -218,7 +218,7 @@
 ### 15.4 验证
 
 - `pnpm check` 绿：24 files / **198 tests**、214 keys。
-- 实机：`?stage=scene.ch01.kitchen&phase=gate` 门口三人都是新形象；把玩家塞进巡逻视锥 → 切到 `battle-ch01`，`encounterId=battle.ch01.kitchen`、敌方「御厨·幻影 30 血」；被老肯看见 → 失败卡文案正确。
+- 实机：`?stage=scene.ch01.kitchen&phase=gate` 门口三人都是新形象；把玩家塞进巡逻视锥 → 切到 `battle-ch01`（模块 `battleKitchen`），`encounterId=battle.ch01.kitchen`、敌方「御厨·幻影 56 血」；被老肯看见 → 失败卡文案正确。
 - 截图：`cast-gate.png`、`cast-patrol.png`、`cast-follow-mid.png`、`cast-battle2.png`。
 
 ### 15.5 遗留
