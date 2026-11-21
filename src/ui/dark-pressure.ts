@@ -39,6 +39,13 @@ export interface DarkPressureOptions {
   readonly player: PlayerActor;
   readonly xiaobai: Phaser.GameObjects.Image;
   readonly reduced: boolean;
+  /**
+   * 收尾时小白该落回哪里（可选）。返回 null 就用进场时的位置。
+   *
+   * 压迫解除时周全已经趴在地上，小白如果回到「站立头部高度」会悬在半空；
+   * 场景在这里给「趴着的头旁边」的坐标，她再随起身一起飘起来。
+   */
+  readonly releaseSpot?: () => { readonly x: number; readonly y: number } | null;
 }
 
 /** `ch01_dark_heartbeat.mp3` 一组（两记）的时长，见 `scheduleHeartbeat()`。 */
@@ -74,6 +81,7 @@ export class DarkPressureRig {
 
   /** 小白的原始构图：收尾要原样还回去（它是场景的常驻对象，不是这个 rig 建的）。 */
   private readonly xiaobaiBase: { x: number; y: number; scale: number; alpha: number };
+  private readonly releaseSpot: (() => { readonly x: number; readonly y: number } | null) | null;
   /** 周全的原始构图（同理）。 */
   private readonly playerBase: { x: number; y: number; scaleX: number; scaleY: number } | null;
   /** 缚环中心（躯干）：每拍都按玩家当前位置重算，免得站位变化后环套空。 */
@@ -119,6 +127,7 @@ export class DarkPressureRig {
       scale: this.xiaobai.scale,
       alpha: this.xiaobai.alpha,
     };
+    this.releaseSpot = options.releaseSpot ?? null;
     const display = this.player.display;
     this.playerBase =
       display === null
@@ -844,12 +853,16 @@ export class DarkPressureRig {
   private restoreActors(duration: number): void {
     const xiaobai = this.xiaobai;
     const xiaobaiAlpha = this.xiaobaiBase.alpha === 0 ? 1 : this.xiaobaiBase.alpha;
+    // 收尾落点优先用场景给的「趴着的头旁边」（压迫解除时人已经在地上）。
+    const spot = this.releaseSpot?.() ?? null;
+    const targetX = spot?.x ?? this.xiaobaiBase.x;
+    const targetY = spot?.y ?? this.xiaobaiBase.y;
     this.scene.tweens.killTweensOf(xiaobai);
     const display = this.player.display;
     display?.clearTint();
     const base = this.playerBase;
     if (duration <= 0) {
-      xiaobai.setPosition(this.xiaobaiBase.x, this.xiaobaiBase.y);
+      xiaobai.setPosition(targetX, targetY);
       xiaobai.setScale(this.xiaobaiBase.scale);
       xiaobai.setAlpha(xiaobaiAlpha);
       if (display && base) {
@@ -862,8 +875,8 @@ export class DarkPressureRig {
     }
     this.scene.tweens.add({
       targets: xiaobai,
-      x: this.xiaobaiBase.x,
-      y: this.xiaobaiBase.y,
+      x: targetX,
+      y: targetY,
       scale: this.xiaobaiBase.scale,
       alpha: xiaobaiAlpha,
       duration,

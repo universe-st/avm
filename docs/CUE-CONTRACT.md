@@ -223,6 +223,12 @@ private finishDialogue(): void {
 - **快点到黑暗结束**（480ms 还没到）：`settlePronePose()` 先补建趴姿再开始喘；
 - **跳过 / 收尾**：`finishDialogue()` → `clearPronePose()` 取消延时器、销毁贴图、恢复站立；
 - **场景 shutdown / 重开**：`resetState()` / `onShutdown()` 同样清延时器与贴图。
+- **小白落点**：压迫解除时人已经趴下，小白不能回「站立头高」悬在半空——`DarkPressureRig`
+  的 `releaseSpot` 把她落到「趴着的头」右侧（脚底 +100 / 抬高 78），起身时再由
+  `float-actor` 随他飘回站立头高。收尾顺序必须是 `clearPronePose()` → `setBlackout(false)`，
+  否则收尾时趴姿已清、落点判断却还看得见 prone，她会被留在低位。
+- **预览对齐**：`phase=dark` 要把小白摆到正式流程此刻的位置（站立头高、偏右 65px），
+  否则她停在手机/书桌处，收尾会从画面顶部飞下来压过周全的头（用户实测反馈）。
 
 分工（改数值只动前两个文件）：
 

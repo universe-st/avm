@@ -86,6 +86,7 @@ import {
   CH01_STAND_HEAD_CENTER_OFFSET,
   CH01_STAND_UP_SEQUENCE,
   CH01_WAKE_PERFORMANCE,
+  CH01_XIAOBAI_HEAD_OFFSET_PX,
   CH01_XIAOBAI_OFFSET,
   flashInMs,
   flashOutMs,
@@ -1173,6 +1174,16 @@ export class Ch01DormScene extends UIScene {
       this.afterStage = 'closing';
       this.suppressWakeCg = true;
       this.showXiaobai();
+      /**
+       * 预览直接从黑场开始，但**小白的位置要对齐正式流程此刻的位置**：
+       * 正式流程刚经历完起身飘齐，她停在主角头部中线高度、偏右约 65px；
+       * 预览若留在手机/书桌的位置，收尾会从画面顶部飞下来、正好压过周全的头（用户实测反馈）。
+       */
+      if (this.xiaobai && this.player) {
+        const anchorY =
+          this.player.position.y - CH01_STAND_HEAD_CENTER_OFFSET + CH01_XIAOBAI_HEAD_OFFSET_PX;
+        this.xiaobai.setPosition(this.xiaobai.x + 65, anchorY);
+      }
       const start = firstDarkLineIndex(CH01_AFTER_FINALE);
       this.startDialogue(start >= 0 ? CH01_AFTER_FINALE.slice(start) : CH01_AFTER_FINALE);
       return;
@@ -1288,6 +1299,8 @@ export class Ch01DormScene extends UIScene {
         player: this.player,
         xiaobai: this.xiaobai,
         reduced: this.reduced,
+        // 收尾时人已经趴下：小白落到「趴着的头」旁边，而不是悬在站立头高。
+        releaseSpot: () => this.xiaobaiReleaseSpot(),
       });
     }
     this.dark.play(beat);
@@ -1444,9 +1457,10 @@ export class Ch01DormScene extends UIScene {
     this.flushStateCues();
     // 黑屏是表现型（跳过不补演），但「已经黑掉的画面」必须收尾：
     // 否则跳过收尾段会把结束卡/下一节压在黑屏上。
-    this.setBlackout(false);
-    // 跳过/自然收尾都要把趴姿清掉：否则后面结束卡背后还趴着一个人。
+    // 先清趴姿再撤黑屏：`setBlackout(false)` 会让压迫演出收尾（小白落点查 proneSprite），
+    // 顺序反了会把她留在「趴着的头」旁边，而人已经站起来了。
     this.clearPronePose();
+    this.setBlackout(false);
     // 玩家用「跳过」提前结束征召段时，起身表演还没播过；至少把坐姿切回站立，
     // 别让后面的结束卡背后还坐着一个已经「站起来」说过话的人。
     if (this.wakePerformancePending) {
@@ -1538,11 +1552,12 @@ export class Ch01DormScene extends UIScene {
   private applyLineCue(line: DialogueLine): void {
     // 黑屏与一次性音效都是**表现型**：只有这一行真的被看见才执行，跳过不补播。
     // （黑屏的「恢复」另外由 `finishDialogue()` 无条件兜底，见 `setBlackout`。）
+    // 压迫解除这一行：先确保趴姿已建（快点时 480ms 还没到），小白才有力气落到「趴着的头」旁边。
+    if (line.dark === 'release') this.settlePronePose();
     if (line.blackout !== undefined) this.setBlackout(line.blackout);
     if (line.dark !== undefined) this.playDarkBeat(line.dark);
-    // 惨叫拍：过 480ms 把人生生压趴下；黑暗结束后先让他趴着喘气。
+    // 惨叫拍：过 480ms 把人生生压趴下。
     if (line.dark === 'crush') this.scheduleCollapseToProne();
-    if (line.dark === 'release') this.settlePronePose();
     if (line.sfx !== undefined) {
       // 目前只有鼾声一条，音量/音高沿用场景默认；以后要按行控音量再把 cue 改成对象。
       audioDirector.playSfxAt(line.sfx, { volume: 0.55, rate: 0.95 });
@@ -2236,6 +2251,13 @@ export class Ch01DormScene extends UIScene {
       repeat: -1,
       ease: 'Sine.easeInOut',
     });
+  }
+
+  /** 小白在「趴着的头」旁边该悬在哪：头在脚底右侧约 100px，抬高 78px。 */
+  private xiaobaiReleaseSpot(): { x: number; y: number } | null {
+    const player = this.player;
+    if (!player || !this.proneSprite) return null;
+    return { x: player.position.x + 100, y: player.position.y - 78 };
   }
 
   /** 把趴姿原样收掉（跳过 / 收尾 / 重开）：人回到站立，贴图销毁。 */
