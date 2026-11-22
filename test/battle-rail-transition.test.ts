@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { railTransition, type RailSlotMotion } from '../src/battle/core/rail-transition';
+import {
+  railMotionAlpha,
+  railTransition,
+  type RailSlotMotion,
+} from '../src/battle/core/rail-transition';
 
 const P = 'zhou-quan';
 const E = 'miner.clear-unit';
@@ -173,6 +177,30 @@ describe('railTransition（行动条前移）', () => {
       ['A', 0, 0],
       ['B', 1, 1],
     ]);
+  });
+
+  it('alpha 只在 progress=1 才到终值（渐隐/渐现线性铺满全程）', () => {
+    const result = railTransition([P, E, P, E, P, E], [E, P, E, P, E, P]);
+    const enter = motionOf(result.motions, (motion) => motion.enter);
+    const exit = motionOf(result.motions, (motion) => motion.exit);
+
+    for (const motion of [enter, exit]) {
+      expect(railMotionAlpha(motion, 0)).toBe(motion.fromAlpha);
+      expect(railMotionAlpha(motion, 0.26)).toBeCloseTo(
+        motion.fromAlpha + (motion.toAlpha - motion.fromAlpha) * 0.26,
+        6,
+      );
+      // 26% / 99% 都还没落定：不能像旧实现那样前 1/4 就淡完。
+      expect(railMotionAlpha(motion, 0.26)).not.toBe(motion.toAlpha);
+      expect(railMotionAlpha(motion, 0.99)).not.toBe(motion.toAlpha);
+      expect(railMotionAlpha(motion, 1)).toBe(motion.toAlpha);
+    }
+
+    expect(railMotionAlpha(enter, 0.5)).toBeCloseTo(0.5, 6);
+    expect(railMotionAlpha(exit, 0.5)).toBeCloseTo(0.5, 6);
+    // 时钟越界时夹到 0..1，避免 alpha 冲过终值。
+    expect(railMotionAlpha(enter, -1)).toBe(0);
+    expect(railMotionAlpha(enter, 2)).toBe(1);
   });
 
   it('不修改输入序列', () => {

@@ -133,7 +133,7 @@ pnpm android:release
 - **战斗贴图宽度**：解离突刺 12 帧 × 320 = 3840，已接近手机 GPU 4096 上限；矿工八向是 272×400 单张。加帧/加宽前先跑 `test/battle-assets.test.ts`（宽度 <4096）。
 - **1200×648 的设计高只有 1100**：`planBattleLayout` 会把 `radiusY` 压到约 129；上排角色的头离跑条只有 10px。所以玩家血条不画在头顶（底部指令区和跑条里已有 HP），别再加回去。
 - **玩家一次只能走到环上相邻的一格**：`adjacentSlots()`（`src/battle/core/slots.ts`）是唯一判定；left↔right、upperLeft↔lowerRight 这类对面只能靠解离突刺的闪现。舞台预览/测试不要再用「一步 move 到对面」的旧写法；UI 只点亮相邻两格。
-- **行动条必须真的画出来**：顶部原生 rail 有「行动条」标题、双方 SPD **连续量条（禁 3px 断口：轨道底 → 连续填充 → 1px 描边，刻度 ≤1px 且不切断填充）**、「接下来」6 个**头像 chip**（周/矿/厨，按 actor 对位，直径 44、中心距 52，当前行动者 2px 白描边）和意图行；顺序刷新时前移动画只能走 `src/battle/core/rail-transition.ts` 的 `railTransition(prev, next)`（最左滑出渐隐 → 其余整体左移一格 → 末位从右侧 +1 格渐现，190ms ease-out），同一组 order 不重播、一次跨多格只播一轮，`prefers-reduced-motion` 直接落终态；`railHeight=116`、`fieldTop=244`（44px 头像 chip 需要四行空间，别改回 104）。不要退化成「接下来：你→它」一行文字。
+- **行动条必须真的画出来**：顶部原生 rail 有「行动条」标题、双方 SPD **连续量条（禁 3px 断口：轨道底 → 连续填充 → 1px 描边，刻度 ≤1px 且不切断填充）**、「接下来」6 个**头像 chip**（周/矿/厨，按 actor 对位，直径 44、中心距 52，当前行动者 2px 白描边）和意图行；顺序刷新时前移动画只能走 `src/battle/core/rail-transition.ts` 的 `railTransition(prev, next)`（最左滑出渐隐 → 其余整体左移一格 → 末位从右侧 +1 格渐现，190ms；位移 ease-out、alpha 线性铺满全程），同一组 order 不重播、一次跨多格只播一轮，`prefers-reduced-motion` 直接落终态；`railHeight=116`、`fieldTop=244`（44px 头像 chip 需要四行空间，别改回 104）。不要退化成「接下来：你→它」一行文字。
 - **怪物技能攻击动画按技能分条**：每个技能一条**左向** 12 帧 strip（`BATTLE_MINER_ATTACKS` / `BATTLE_COOK_ATTACKS`），右侧三方位由 `playStrike` 的 `flip` 镜像；宽帧（如突刺）在 meta 里写 `originX`，播放时临时改原点，播完恢复 0.5。缺图自动退回程序化 nudge/斩击弧，不能阻断回合。
 - **意图是锁定的**：怪物行动结束后按当时站位锁定 `state.intent`，玩家移动不改它；这样才能「读招→躲开→看它打空」。不要在玩家移动后重算意图。
 - **清除协议计数按怪物行动数**（含转向），不是玩家回合数；别改成按玩家回合数，否则玩家可以靠绕背无限拖。

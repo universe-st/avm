@@ -42,6 +42,7 @@ import {
 import { formatIntent } from '../battle/core/ai';
 import { previewOrder } from '../battle/core/gauge';
 import {
+  railMotionAlpha,
   railTransition,
   type RailSlotMotion,
   type RailTransition,
@@ -149,12 +150,20 @@ const RAIL_CHIP = {
   pitch: 52,
   /** 第一个 chip 的中心 x（「接下来」三个字右侧 8px）。 */
   firstX: 96,
-  /** chip 中心相对 railTop 的 y；白描边下沿与意图行之间留 2px（railHeight=116）。 */
-  yOffset: 65,
-  /** 一次前移的时长（180–220ms，ease-out）。 */
+  /**
+   * chip 中心相对 railTop 的 y。
+   *
+   * 白描边外沿 = 中心 ±25（半径 22 + 2px 白环）。上沿 160 与量条下沿 157 留 3px，
+   * 下沿 210 与意图行 213 留 3px；railHeight=116 不变。
+   */
+  yOffset: 67,
+  /**
+   * 一次前移的时长（180–220ms）。
+   *
+   * 位移走 Cubic.easeOut，alpha 走**线性铺满整个时长**（`railMotionAlpha`），
+   * 保证 190ms 结束时渐变才落定。
+   */
   moveMs: 190,
-  /** 进场/退场 alpha 的推进倍率：比位移更早淡完，旧头像不会压住「接下来」。 */
-  fadeSpeed: 1.7,
   /** 同时存在的 chip 上限：6 个终点 + 最多 6 个正在退场的旧 chip。 */
   pool: 12,
 } as const;
@@ -555,7 +564,7 @@ export class BattleCh01Scene extends UIScene {
     this.gaugeGraphics = this.add.graphics().setDepth(LAYERS.effects + 12);
 
     const railTop = this.layout.railTop;
-    makeSceneText(this, 24, railTop + 4, '行动条', {
+    makeSceneText(this, 24, railTop + 2, '行动条', {
       size: 18,
       color: GOLD,
       align: 'left',
@@ -565,7 +574,7 @@ export class BattleCh01Scene extends UIScene {
       stroke: 4,
       bold: true,
     });
-    this.railPlayerText = makeSceneText(this, 110, railTop + 4, '', {
+    this.railPlayerText = makeSceneText(this, 110, railTop + 2, '', {
       size: 17,
       color: PAPER,
       align: 'left',
@@ -574,7 +583,7 @@ export class BattleCh01Scene extends UIScene {
       depth: LAYERS.effects,
       stroke: 4,
     });
-    this.railEnemyText = makeSceneText(this, 400, railTop + 4, '', {
+    this.railEnemyText = makeSceneText(this, 400, railTop + 2, '', {
       size: 17,
       color: DANGER,
       align: 'left',
@@ -594,7 +603,7 @@ export class BattleCh01Scene extends UIScene {
       stroke: 3,
     });
     this.createOrderChips();
-    this.railIntentText = makeSceneText(this, 24, railTop + 91, '', {
+    this.railIntentText = makeSceneText(this, 24, railTop + 95, '', {
       size: 16,
       color: GOLD,
       align: 'left',
@@ -761,19 +770,18 @@ export class BattleCh01Scene extends UIScene {
       targets: clock,
       t: 1,
       duration: RAIL_CHIP.moveMs,
-      ease: 'Cubic.easeOut',
+      // 时钟走线性：位移自己套 ease-out，alpha 直接用时钟（线性铺满 190ms）。
+      ease: 'Linear',
       onUpdate: () => {
+        const progress = clock.t;
+        const eased = 1 - Math.pow(1 - progress, 3); // 与 Phaser 的 Cubic.easeOut 等价
         for (const { view, motion } of moving) {
-          const t = clock.t;
           view.container.x = Phaser.Math.Linear(
             this.orderChipX(motion.from),
             this.orderChipX(motion.to),
-            t,
+            eased,
           );
-          // 进场/退场比位移更快地淡入淡出：退场的旧头像在滑到「接下来」之前就消失，
-          // 不会和标签/新末位长时间叠在一起；在位的 chip 保持不透明。
-          const fade = motion.enter || motion.exit ? Math.min(1, t * RAIL_CHIP.fadeSpeed) : t;
-          view.container.alpha = Phaser.Math.Linear(motion.fromAlpha, motion.toAlpha, fade);
+          view.container.alpha = railMotionAlpha(motion, progress);
         }
       },
       onComplete: () => {
@@ -1590,7 +1598,7 @@ export class BattleCh01Scene extends UIScene {
     const graphics = this.gaugeGraphics;
     if (!graphics) return;
     graphics.clear();
-    const top = this.layout.railTop + 28;
+    const top = this.layout.railTop + 29;
     this.drawGauge(graphics, 24, top, 300, 10, this.state.player.gauge / 1000, GOLD);
     this.drawGauge(graphics, 372, top, 300, 10, this.state.enemy.gauge / 1000, DANGER);
   }

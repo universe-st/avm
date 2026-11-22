@@ -43,6 +43,23 @@ export interface RailTransition {
   readonly changed: boolean;
 }
 
+function clampProgress(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(1, Math.max(0, value));
+}
+
+/**
+ * 某个 chip 在动画进度 `progress` 时的透明度。
+ *
+ * **线性铺满全程**：`progress=1` 时 alpha 才到 `toAlpha`。不要叠 ease-out，
+ * 否则位移的 ease-out 会连带把渐隐/渐现提到前 1/4 就做完（实测 26% 就落定），
+ * 看起来像「刚离开就没了 / 还没到位就显形」。位移的 ease-out 由场景单独做。
+ */
+export function railMotionAlpha(motion: RailSlotMotion, progress: number): number {
+  const t = clampProgress(progress);
+  return motion.fromAlpha + (motion.toAlpha - motion.fromAlpha) * t;
+}
+
 function sameSequence(prev: readonly string[], next: readonly string[]): boolean {
   if (prev.length !== next.length) return false;
   for (let index = 0; index < prev.length; index += 1) {

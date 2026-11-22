@@ -66,7 +66,7 @@
 
 - **连续量条，不画格子**：轨道底 → 按 `gauge / 1000` 连续填充 → 1px 描边；可有 ≤1px 的 10 等分刻度叠在填充上，**不得**用 cell + 3px gap（那正是「行动条断开」的来源）。左右两条各自连续，中间不出现背景色缝隙。位置/尺寸不变：左 x=24、右 x=372，300×10。
 - **「接下来」是头像 chip**：6 个直径 **44px** 的圆形头像，中心距 **52px**（仍落在旧的 6 个槽位上），当前行动者 **2px 白描边**；顺序不足 6 个时空位不画。头像由 `tools/make-battle-heads.py` 从各角色**正面全身图**裁「头顶 → 下巴略下」的方形区域（人物高 40%，128×128、四周 6px 透明边、预裁透明圆），玩家固定周全、敌人按 `setup.enemy.art` 对位（矿工/御厨）；缺图回退字母 chip。
-- **前移动画**：顺序刷新时对比上一次已画出的 order，交给纯函数 `railTransition(prev, next)` 输出每个 slot 的 `from/to/alpha` 与 `enter/exit`：最左滑出并渐隐 → 其余整体左移一格 → 新末位从右侧 +1 格渐现，**190ms ease-out**。同一组 order 不重播；一次跨多格只播一轮（不是连播两次一格）；`prefers-reduced-motion` 直接落终态。
+- **前移动画**：顺序刷新时对比上一次已画出的 order，交给纯函数 `railTransition(prev, next)` 输出每个 slot 的 `from/to/alpha` 与 `enter/exit`：最左滑出并渐隐 → 其余整体左移一格 → 新末位从右侧 +1 格渐现，**190ms**（位移 ease-out、alpha 线性铺满全程，动画结束才落定）。同一组 order 不重播；一次跨多格只播一轮（不是连播两次一格）；`prefers-reduced-motion` 直接落终态。
 - 实现：`src/battle/core/rail-transition.ts`（纯逻辑 + 单测）、`src/scenes/battle-ch01-scene.ts` 的 `createOrderChips / drawActionBar / drawGauge / playOrderTransition`；头像 key `img.char.battle.head_{zhou,miner,cook}` 分属 `battle.common` / `battle.ch01` / `battle.kitchen`，派生来源见 `docs/RESOURCE-SPEC.md`。
 
 ## 3. 朝向、区域与背袭
@@ -224,7 +224,7 @@ src/ui/battle-fx.ts               # 背袭扇区/意图高亮/斩击/残影/护�
   - 意图锁定：记录意图后移动，怪物仍打旧格；打空不扣血。
   - `prefers-reduced-motion`：无震屏/残影，结算完整。
   - 390×844 / 1200×648 / 360–430 宽：站位/按钮/HUD 不重叠，console 0 error。
-- 单测：`test/battle-slots/gauge/damage/ai/flow/layout/frame-sequence/rail-transition.test.ts`（58 项，纯逻辑）。
+- 单测：`test/battle-slots/gauge/damage/ai/flow/layout/frame-sequence/rail-transition.test.ts`（59 项，纯逻辑）。
 
 ## 10. 未来扩展（不在本轮）
 
