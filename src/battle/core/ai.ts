@@ -1,95 +1,171 @@
 import type {
   BattleSetup,
   BattleState,
+  BattleUnit,
   EnemyIntent,
-  Facing8,
   SkillDef,
-  SlotId,
 } from '../types';
 import { resolveSkill } from '../data/skills';
 import {
-  SLOT_FACING,
-  facingLabel,
+  adjacentSlots,
+  facingFromPoints,
   formatSlots,
-  hitSlotsFor,
+  hitPointsFor,
+  isAdjacentSlot,
+  pointDistance,
+  shortestStepToward,
   slotLabel,
-  zoneOfSlot,
+  facingLabel,
 } from './slots';
 
 /**
  * 怪物 AI（纯函数，确定性）。
  *
- * 目标不是「最优解」，而是**可读**：玩家能从意图条读出它下一步要干什么，
- * 再用移动/防御做应对。规则：
+ * 规则见 `docs/DESIGN-BATTLE.md` §5：
+ * 1. 目标 = 最近的玩家角色（BFS 步数）；平局取 HP 低者 → id 字典序。
+ * 2. 目标相邻：按 single-front → front-arc → all-slots 选冷却好的技能；
+ *    自由瞄准目标点位，执行时免费转身。
+ * 3. 目标不相邻：AOE 冷却好 → AOE；否则 chaser 沿 7 点图走一步缩短距离
+ *    （避开占位）；无路可走 → 仍出技能瞄准（会打空）。
+ * 4. stationary 永不移动。
  *
- * 1. 玩家在侧面/背面：震地冷却好了 → 震地（惩罚贴背站桩）；
- *    否则 → 转向玩家当前站位（转向占一次行动，这是玩家绕背的收益）。
- * 2. 玩家在正面：突进冷却好了 → 突进；否则 → 横扫。
- * 3. 兜底 → 转向。
- *
- * 意图在怪物行动**结束后**锁定，玩家移动不会改它；所以挪出高亮格就能看它打空。
+ * 每只怪物的意图在**它自己行动结束后**重算；玩家移动不改已锁定意图。
  */
-export function planEnemyIntent(state: BattleState, setup: BattleSetup): EnemyIntent {
-  const facing = state.enemy.facing ?? setup.enemy.facing;
-  const slot = state.player.slot ?? setup.player.slot;
-  const zone = zoneOfSlot(slot, facing);
-
-  const skills = setup.enemy.skills.map((id) => resolveSkill(id));
-  const ready = (skill: SkillDef): boolean => (state.enemy.cooldowns[skill.id] ?? 0) <= 0;
-
-  const quake = skills.find((skill) => skill.hit === 'all-slots' && ready(skill));
-  const thrust = skills.find((skill) => skill.hit === 'single-front' && ready(skill));
-  const sweep = skills.find((skill) => skill.hit === 'front-arc' && ready(skill));
-
-  if (zone === 'back' || zone === 'side') {
-    if (quake) return skillIntent(quake, facing, slot);
-    return turnIntent(slot);
+export function planEnemyIntents(
+  state: BattleState,
+  setup: BattleSetup,
+): Record<string, EnemyIntent> {
+  const intents: Record<string, EnemyIntent> = {};
+  for (const enemy of state.enemies) {
+    if (enemy.hp <= 0) continue;
+    const intent = planEnemyIntent(state, setup, enemy.id);
+    if (intent) intents[enemy.id] = intent;
   }
-
-  if (thrust) return skillIntent(thrust, facing, slot);
-  if (sweep) return skillIntent(sweep, facing, slot);
-  if (quake) return skillIntent(quake, facing, slot);
-  return turnIntent(slot);
+  return intents;
 }
 
-function turnIntent(slot: SlotId): EnemyIntent {
-  const facing = SLOT_FACING[slot];
-  return {
-    kind: 'turn',
-    facing,
-    targetSlot: slot,
-    text: `转向 · 面朝${slotLabel(slot)}`,
-  };
+export function planEnemyIntent(
+  state: BattleState,
+  setup: BattleSetup,
+  enemyId: string,
+): EnemyIntent | null {
+  const enemy = state.enemies.find((unit) => unit.id === enemyId);
+  if (!enemy || enemy.hp <= 0) return null;
+  const target = nearestPartyTarget(state, enemy);
+  if (!target) return null;
+
+  const setupEnemy = setup.enemies.find((candidate) => candidate.id === enemyId);
+  const skills = (setupEnemy?.skills ?? []).map((id) => resolveSkill(id));
+  const ready = (skill: SkillDef): boolean => (enemy.cooldowns[skill.id] ?? 0) <= 0;
+  const single = skills.find((skill) => skill.hit === 'single-front' && ready(skill));
+  const arc = skills.find((skill) => skill.hit === 'front-arc' && ready(skill));
+  const aoe = skills.find((skill) => skill.hit === 'all-slots' && ready(skill));
+  const anyReady = skills.find(ready) ?? skills[0];
+
+  const adjacent = isAdjacentSlot(enemy.slot, target.slot);
+
+  if (adjacent) {
+    const chosen = single ?? arc ?? aoe ?? anyReady;
+    if (chosen) return skillIntent(chosen, enemy, target, target.slot);
+    return moveIntentToFreeNeighbour(state, enemy, target);
+  }
+
+  // 不相邻：AOE 是唯一能打到远处的招式。
+  if (aoe) return skillIntent(aoe, enemy, target, target.slot);
+
+  if ((setupEnemy?.behavior ?? enemy.behavior ?? 'chaser') === 'chaser') {
+    const blocked = occupiedPoints(state);
+    blocked.delete(enemy.slot);
+    const step = shortestStepToward(enemy.slot, target.slot, blocked);
+    if (step) return moveIntent(enemy, target, step);
+  }
+
+  const fallback = single ?? arc ?? aoe ?? anyReady;
+  if (fallback) {
+    const intent = skillIntent(fallback, enemy, target, target.slot);
+    return { ...intent, text: `${intent.text}（够不着）` };
+  }
+
+  return moveIntentToFreeNeighbour(state, enemy, target);
+}
+
+function nearestPartyTarget(state: BattleState, enemy: BattleUnit): BattleUnit | null {
+  const party = state.party.filter((unit) => unit.hp > 0);
+  if (party.length === 0) return null;
+  return [...party].sort((a, b) => {
+    const da = pointDistance(enemy.slot, a.slot);
+    const db = pointDistance(enemy.slot, b.slot);
+    if (da !== db) return da - db;
+    if (a.hp !== b.hp) return a.hp - b.hp;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  })[0]!;
+}
+
+function occupiedPoints(state: BattleState): Set<BattleUnit['slot']> {
+  return new Set(
+    [...state.party, ...state.enemies]
+      .filter((unit) => unit.hp > 0)
+      .map((unit) => unit.slot),
+  );
 }
 
 function skillIntent(
   skill: SkillDef,
-  facing: Facing8,
-  playerSlot: SlotId,
+  enemy: BattleUnit,
+  target: BattleUnit,
+  aim: BattleUnit['slot'],
+  suffix = '',
 ): EnemyIntent {
-  const hitSlots = hitSlotsFor(facing, skill.hit);
+  const facing = facingFromPoints(enemy.slot, aim);
+  const hitSlots = hitPointsFor(enemy.slot, aim, skill.hit);
+  const aoe = skill.hit === 'all-slots';
+  const text = aoe
+    ? `${skill.name} · 全站位（无法走位躲避）`
+    : `${skill.name} · 命中 ${formatSlots(hitSlots)}`;
   return {
     kind: 'skill',
     skillId: skill.id,
     skillName: skill.name,
+    origin: enemy.slot,
+    aim,
     facing,
+    targetId: target.id,
+    targetSlot: target.slot,
     hitSlots,
-    hitsPlayer: hitSlots.includes(playerSlot),
-    aoe: skill.hit === 'all-slots',
-    text: skill.hit === 'all-slots'
-      ? `${skill.name} · 全站位（无法走位躲避）`
-      : `${skill.name} · 命中 ${formatSlots(hitSlots)}`,
+    hitsPlayer: hitSlots.includes(target.slot),
+    aoe,
+    text: `${text}${suffix}`,
   };
 }
 
-/**
- * 给 HUD 的「它现在面朝哪、下一步打哪」的一行摘要。
- * 意图为空（已结束/刚行动完）时回退到当前朝向。
- */
-export function formatIntent(intent: EnemyIntent | null): string {
+function moveIntent(enemy: BattleUnit, target: BattleUnit, to: BattleUnit['slot']): EnemyIntent {
+  const facing = facingFromPoints(enemy.slot, to);
+  return {
+    kind: 'move',
+    from: enemy.slot,
+    to,
+    facing,
+    targetId: target.id,
+    text: `移动 · ${slotLabel(to)}（面朝${facingLabel(facing)}）`,
+  };
+}
+
+function moveIntentToFreeNeighbour(
+  state: BattleState,
+  enemy: BattleUnit,
+  target: BattleUnit,
+): EnemyIntent | null {
+  const blocked = occupiedPoints(state);
+  const candidates = adjacentSlots(enemy.slot).filter((slot) => !blocked.has(slot));
+  const to = candidates[0];
+  return to ? moveIntent(enemy, target, to) : null;
+}
+
+/** 给 HUD 的一行摘要。 */
+export function formatIntent(intent: EnemyIntent | null | undefined): string {
   if (!intent) return '——';
-  if (intent.kind === 'turn') {
-    return `转向 · 面朝${facingLabel(intent.facing)}`;
+  if (intent.kind === 'move') {
+    return `移动 · ${slotLabel(intent.to)}（面朝${facingLabel(intent.facing)}）`;
   }
   if (intent.aoe) {
     return `${intent.skillName} · 全站位（无法走位躲避）`;

@@ -3,7 +3,7 @@ import type { Ref } from '@phaser-mvvm/core';
 import { buildStageHeader } from './hud-kit';
 
 export interface BattleHudModel {
-  /** 顶栏右上角的短信息（SPD / 行动数）。 */
+  /** 顶栏右上角的短信息（行动数 / 敌方数量）。 */
   readonly turnLabel: Ref<string>;
   readonly playerLabel: Ref<string>;
   readonly hintText: Ref<string>;
@@ -22,18 +22,20 @@ export interface BattleHudModel {
   readonly onMenu: () => void;
   readonly location?: string;
   readonly subtitle?: string;
+  /** 顶部原生行动表高度（与 planBattleLayout 的 railHeight 同源）。 */
+  readonly railHeight: number;
 }
 
 /**
- * 战斗 v2 的 Compose HUD。
+ * 战斗 v3 的 Compose HUD。
  *
  * 分工：
  * - **Compose 负责**顶栏、底部指令区、按钮、提示与日志；
- * - **原生层负责**跑条/行动条、意图、怪物名牌、6 个站位环、角色、伤害数字
+ * - **原生层负责**头像行动表、每只怪的意图、怪物名牌、7 个点位环、角色、伤害数字
  *   （它们要跟着战场坐标走，放进 Compose 反而会错位）。
  *
- * 中间那段 `Spacer(118)` 就是留给原生跑条的位置：Compose 不画背景，
- * 原生文字/条形图在它下面一层，视觉上是一整块顶部信息区。
+ * 中间那段 Spacer 就是留给原生行动表的位置；高度从 layout 传入，
+ * 不再写死 118，避免以后 rail 高度变化时两层错位。
  */
 export function buildBattleHud(model: BattleHudModel): void {
   Column(
@@ -49,12 +51,12 @@ export function buildBattleHud(model: BattleHudModel): void {
         location: model.location ?? '梦域 / 金殿',
         chapter: '第一章 · 权力之梦',
         objective: model.turnLabel,
-        subtitle: model.subtitle ?? '战斗 · 六站位跑条',
+        subtitle: model.subtitle ?? '战斗 · 七点位',
         onMenu: model.onMenu,
       });
 
-      // 原生跑条区（8 向朝向/行动条/意图都画在这段里）。
-      Spacer({ height: 118 });
+      // 原生行动表区（8 向朝向/行动表/意图都画在这段里）。
+      Spacer({ height: model.railHeight });
 
       // 战场（原生 sprite / 站位环 / 伤害数字）。
       Spacer({ grow: 1 });

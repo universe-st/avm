@@ -13,26 +13,32 @@ export const CH01_FIRST_BATTLE_ID = 'battle.ch01.first';
 export const CH01_FIRST_BATTLE: BattleSetup = {
   id: CH01_FIRST_BATTLE_ID,
   title: '梦域 · 金殿',
-  player: {
-    id: 'zhou-quan',
-    name: '周全',
-    hp: 90,
-    atk: 16,
-    spd: 14,
-    // 没有「解」：攻击不可用，只能移动/防御。
-    skills: [],
-    slot: 'left',
-  },
-  enemy: {
-    id: 'miner.clear-unit',
-    name: '矿工·清除单元',
-    hp: 120,
-    atk: 16,
-    spd: 20,
-    skills: [...MINER_SKILLS],
-    facing: 'left',
-    art: 'miner',
-  },
+  arena: 'palace',
+  party: [
+    {
+      id: 'zhou-quan',
+      name: '周全',
+      hp: 90,
+      atk: 16,
+      spd: 14,
+      // 没有「解」：攻击不可用，只能移动/防御。
+      skills: [],
+      slot: 'left',
+    },
+  ],
+  enemies: [
+    {
+      id: 'miner.clear-unit',
+      name: '矿工·清除单元',
+      hp: 120,
+      atk: 16,
+      spd: 20,
+      skills: [...MINER_SKILLS],
+      slot: 'center',
+      art: 'miner',
+      behavior: 'stationary',
+    },
+  ],
   script: {
     protocolAfterEnemyActions: 4,
     protocolDamage: 999,

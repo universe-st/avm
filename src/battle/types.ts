@@ -1,20 +1,28 @@
 /**
- * 战斗系统的数据契约（v2 · 六站位跑条制）。
+ * 战斗系统的数据契约（v3 · 七点位 / 无转向行动 / 多怪）。
  *
  * 这里是**唯一真值**：纯逻辑层（core/）只依赖本文件，不 import Phaser；
  * 场景只消费 `BattleEvent`，不自己算伤害/顺序/命中。
  *
  * 规则摘要见 `docs/DESIGN-BATTLE.md`：
- * - 怪物居中，玩家在 6 个环形站位（左上/左/左下/右上/右/右下）；
- * - 双方有 SPD，按行动条（gauge 0..1000）决定谁先动；
- * - 怪物朝 8 方向之一，背面（相对角 ≥135°）吃背袭 ×1.5；
- * - 怪物转向占一次行动，技能只打特定方向；意图提前锁定并公示。
+ * - 7 个点位：6 个环位 + 中心；占据互斥，中心空出后可站；
+ * - 跑条决定先后（gauge 0..1000），顶部只显示头像行动表，不画量条；
+ * - 攻击/技能只打相邻点位；怪物技能可自由瞄准，执行时免费转身；
+ * - 怪物不再有单独的转向行动；受击后免费转向攻击来向；
+ * - 怪物可以移动到相邻点位并面朝移动方向；意图提前锁定并公示；
+ * - party / enemies 都是数组，按 activeId 找当前行动者（当前 party 只有 1 人）。
  */
 
 export type BattleTeam = 'party' | 'enemy';
 
-/** 玩家可站的 6 个站位（相对怪物中心的角度见 `core/slots.ts`）。 */
+/**
+ * 7 个点位。
+ *
+ * 名字仍沿用 v2 的 `SlotId`（减少无意义 diff），语义已经变成「七点位之一」。
+ * `center` 就是 v2 怪物站的红圈；它只在空出来时才能被站。
+ */
 export type SlotId =
+  | 'center'
   | 'right'
   | 'upperRight'
   | 'upperLeft'
@@ -22,10 +30,10 @@ export type SlotId =
   | 'lowerLeft'
   | 'lowerRight';
 
-/** 相对怪物朝向的区域：正面 / 侧面 / 背面（背袭）。 */
+/** 相对目标朝向的区域：正面 / 侧面 / 背面（背袭）。 */
 export type Zone = 'front' | 'side' | 'back';
 
-/** 怪物朝向（8 方向；转向只会选有站位的 6 个方向，上下留给演出/预览）。 */
+/** 8 方向（屏幕坐标；转向/移动后按这个表取贴图）。 */
 export type Facing8 =
   | 'up'
   | 'upRight'
@@ -36,7 +44,7 @@ export type Facing8 =
   | 'left'
   | 'upLeft';
 
-/** 技能命中范围。 */
+/** 技能命中范围（v3 语义见 `core/slots.ts` 的 `hitPointsFor`）。 */
 export type SkillHit = 'single-front' | 'front-arc' | 'all-slots';
 
 export interface SkillDef {
@@ -50,10 +58,10 @@ export interface SkillDef {
   readonly backstabMultiplier?: number;
   /**
    * 命中后的位移：
-   * - `mirror-if-front`：非背袭命中后闪现到怪物镜相对位（解离突刺）。
+   * - `mirror-if-front`：非背袭命中后闪现到**战场中心**的镜相对位（解离突刺）。
    */
   readonly teleport?: 'mirror-if-front';
-  /** 命中哪些站位。 */
+  /** 命中范围；玩家解离突刺是单一目标，不走这里的锥形集合。 */
   readonly hit: SkillHit;
   /** 使用后需要经过的怪物行动数（0/省略 = 无冷却）。 */
   readonly cooldown?: number;
@@ -74,17 +82,31 @@ export interface BattleUnitSetup {
 
 export type EnemyArtId = 'miner' | 'cook';
 
+/** 怪物行为：追击（默认）或站桩（第一场教程战）。 */
+export type BattleBehavior = 'chaser' | 'stationary';
+
+/** 战场舞台；场景/背景/返回目标不再靠 battle id 猜。 */
+export type BattleArena = 'palace' | 'kitchen';
+
+export interface BattlePartySetup extends BattleUnitSetup {
+  /** 初始点位；不写时第 1 人默认 `left`。 */
+  readonly slot?: SlotId;
+}
+
+export interface BattleEnemySetup extends BattleUnitSetup {
+  readonly art: EnemyArtId;
+  /** 初始点位；不写时用 seed 从空点位里随机。 */
+  readonly slot?: SlotId;
+  /** 不写默认 `chaser`。 */
+  readonly behavior?: BattleBehavior;
+}
+
 export interface BattleSetup {
   readonly id: string;
   readonly title: string;
-  readonly player: BattleUnitSetup & {
-    /** 初始站位；默认 `left`。 */
-    readonly slot: SlotId;
-  };
-  readonly enemy: BattleUnitSetup & {
-    readonly facing: Facing8;
-    readonly art: EnemyArtId;
-  };
+  readonly arena: BattleArena;
+  readonly party: readonly BattlePartySetup[];
+  readonly enemies: readonly BattleEnemySetup[];
   /**
    * 剧情脚本：第一场「清除协议」在第 N 次怪物行动后强制战败。
    * 不写 = 正常打到 HP 0。
@@ -124,34 +146,45 @@ export interface BattleUnit {
   /** 行动条 0..1000，到达 1000 的单位行动。 */
   readonly gauge: number;
   readonly guarding: boolean;
-  /** 仅玩家有值。 */
-  readonly slot: SlotId | null;
-  /** 仅怪物有值。 */
+  /** 所有单位都有点位（7 点位之一）。 */
+  readonly slot: SlotId;
+  /** 只有怪物有值；玩家表现层按目标/左右决定镜像。 */
   readonly facing: Facing8 | null;
   /** 技能 id → 剩余冷却行动数。 */
   readonly cooldowns: Readonly<Record<string, number>>;
+  /** 怪物渲染/AI 用。 */
+  readonly art?: EnemyArtId;
+  readonly behavior?: BattleBehavior;
 }
 
 /** 怪物下一行动的锁定意图（玩家回合时展示）。 */
 export type EnemyIntent =
   | {
-      readonly kind: 'turn';
-      readonly facing: Facing8;
-      /** 该意图会转向的站位方向（用于 UI 高亮「它要面向哪边」）。 */
-      readonly targetSlot: SlotId | null;
-      readonly text: string;
-    }
-  | {
       readonly kind: 'skill';
       readonly skillId: string;
       readonly skillName: string;
+      /** 出招时怪物所在点位（意图锁定时）。 */
+      readonly origin: SlotId;
+      /** 自由选择的瞄准点；执行时转向它。 */
+      readonly aim: SlotId;
       readonly facing: Facing8;
-      /** 该招式会覆盖的站位（红色高亮）。 */
+      readonly targetId: string;
+      readonly targetSlot: SlotId;
+      /** 该招式会覆盖的点位（红色高亮）。 */
       readonly hitSlots: readonly SlotId[];
-      /** 玩家当前站位是否在覆盖范围内（HUD 危险提示）。 */
+      /** 目标角色当前点位是否在覆盖范围内（HUD 危险提示）。 */
       readonly hitsPlayer: boolean;
-      /** 全站位技能（核心脉冲/灶台震地）：不靠转向也能命中背后，HUD 必须写「全站位」。 */
+      /** 全站位技能：HUD 必须写「全站位」。 */
       readonly aoe: boolean;
+      readonly text: string;
+    }
+  | {
+      readonly kind: 'move';
+      readonly from: SlotId;
+      readonly to: SlotId;
+      /** 移动后面朝移动方向。 */
+      readonly facing: Facing8;
+      readonly targetId: string;
       readonly text: string;
     };
 
@@ -173,21 +206,21 @@ export interface BattleState {
   readonly phase: BattlePhase;
   /** 当前该行动的单位；`null` = 上一行动已结算，等待 `startNextTurn`。 */
   readonly activeId: string | null;
-  readonly player: BattleUnit;
-  readonly enemy: BattleUnit;
-  /** 怪物下一次行动（玩家回合时展示；怪物行动后重新锁定）。 */
-  readonly intent: EnemyIntent | null;
-  /** 怪物已经行动的次数（清除协议计数）。 */
+  readonly party: readonly BattleUnit[];
+  readonly enemies: readonly BattleUnit[];
+  /** 每只活着的怪物一条锁定意图。 */
+  readonly intents: Readonly<Record<string, EnemyIntent>>;
+  /** 所有怪物已经行动的次数（清除协议计数；技能/移动都算）。 */
   readonly enemyActions: number;
   /** 已经结算的行动数。 */
   readonly seq: number;
   readonly log: readonly BattleLogEntry[];
 }
 
-/** 玩家可执行的操作。怪物的行动由锁定的 `intent` 决定（`enemy-act`）。 */
+/** 玩家可执行的操作。怪物的行动由锁定的意图决定（`enemy-act`）。 */
 export type BattleAction =
   | { readonly kind: 'move'; readonly slot: SlotId }
-  | { readonly kind: 'attack'; readonly skillId: string }
+  | { readonly kind: 'attack'; readonly skillId: string; readonly targetId: string }
   | { readonly kind: 'guard' }
   | { readonly kind: 'enemy-act' };
 
@@ -209,6 +242,7 @@ export type BattleEvent =
       readonly kind: 'attack';
       readonly actorId: string;
       readonly targetId: string;
+      readonly targetSlot: SlotId;
       readonly skillId: string;
       readonly skillName: string;
       readonly amount: number;
@@ -226,20 +260,37 @@ export type BattleEvent =
       readonly text: string;
     }
   | {
-      readonly kind: 'enemy-turn';
+      /** 免费转身：出招瞄准 / 受击转向；不算行动。 */
+      readonly kind: 'enemy-face';
       readonly actorId: string;
       readonly facing: Facing8;
+      readonly reason: 'aim' | 'hit';
+      readonly text: string;
+    }
+  | {
+      readonly kind: 'enemy-move';
+      readonly actorId: string;
+      readonly from: SlotId;
+      readonly to: SlotId;
+      readonly facing: Facing8;
+      readonly blocked: boolean;
       readonly text: string;
     }
   | {
       readonly kind: 'enemy-skill';
       readonly actorId: string;
+      readonly targetId: string;
+      readonly targetSlot: SlotId;
       readonly skillId: string;
       readonly skillName: string;
+      readonly from: SlotId;
+      readonly aim: SlotId;
+      readonly facing: Facing8;
       readonly hitSlots: readonly SlotId[];
       readonly hit: boolean;
       readonly amount: number;
-      readonly playerHp: number;
+      readonly targetHp: number;
+      readonly aoe: boolean;
       readonly text: string;
     }
   | {
@@ -255,10 +306,6 @@ export type BattleEvent =
       readonly kind: 'defeat';
       readonly cause: 'hp' | 'protocol';
       readonly text: string;
-    }
-  | {
-      readonly kind: 'intent';
-      readonly intent: EnemyIntent;
     }
   | {
       readonly kind: 'log';

@@ -210,4 +210,18 @@ describe('railTransition（行动条前移）', () => {
     expect(prev).toEqual([P, E, P]);
     expect(next).toEqual([E, P, E]);
   });
+
+  it('works for a 3-unit order (player + two enemies)', () => {
+    const p = 'zhou-quan';
+    const a = 'cook-phantom-a';
+    const b = 'cook-phantom-b';
+    const result = railTransition([p, a, b], [a, b, p]);
+    expect(result.changed).toBe(true);
+    expect(result.shift).toBe(1);
+    expect(result.motions.map((motion) => motion.id)).toContain(p);
+    expect(result.motions.map((motion) => motion.id)).toContain(a);
+    expect(result.motions.map((motion) => motion.id)).toContain(b);
+    expect(result.motions.filter((motion) => motion.exit)).toHaveLength(1);
+    expect(result.motions.filter((motion) => motion.enter)).toHaveLength(1);
+  });
 });

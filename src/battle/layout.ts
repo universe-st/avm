@@ -3,12 +3,11 @@ import type { SlotId } from './types';
 /**
  * 战斗战场的纯布局（设计坐标，720 宽基准）。
  *
- * 六个站位是一个**椭圆环**：左右两格在怪物两侧，四斜在上下方收窄，
- * 这样竖屏 720 宽也能一眼读出「谁在它背后」。所有坐标只由设计宽高决定，
- * 场景与 HUD 用同一份输出，避免「HUD 以为战场在这、角色画到那」。
+ * 7 个点位：6 个环位 + `center`。`center` 就是 v2 怪物站的红圈，
+ * 现在也是合法点位；`slots.center` 和 `centerPoint` 是同一个脚底坐标。
  *
- * 顶部预留 = 页眉 118 + 跑条 116 + 间距 10（fieldTop 244）；底部预留 = 指令面板 360。
- * 设计高 1100（1200×648 横屏钳制后的高度）时环会压扁，但仍在安全区内。
+ * 顶部预留 = 页眉 118 + 行动表 rail（1–2 怪 96 / 3 怪 116）+ 间距 10。
+ * 去掉 SPD 量条后，1–2 怪时 fieldTop 从上版的 244 上移到 224，战场略大。
  */
 
 export interface BattlePoint {
@@ -16,24 +15,24 @@ export interface BattlePoint {
   readonly y: number;
 }
 
+export const RAIL_BASE_HEIGHT = 96;
+export const RAIL_INTENT_ROW_HEIGHT = 20;
+
+/** 行动表 rail 高度：至少有 2 行意图位（1–2 怪 96），3 怪 116。 */
+export function battleRailHeight(enemyCount: number): number {
+  const rows = Math.max(2, Math.min(3, Math.trunc(enemyCount) || 0));
+  return RAIL_BASE_HEIGHT + (rows - 2) * RAIL_INTENT_ROW_HEIGHT;
+}
+
 export const BATTLE_LAYOUT = {
   /** 页眉（地点/章节/回合/菜单）预留高度。 */
   headerHeight: 118,
-  /**
-   * 页眉下方「跑条 + 接下来」条预留高度。
-   *
-   * 2026-11-22：44px 圆形头像 chip 要同时容下「行动条 / 连续量条 / 接下来 / 意图」四行，
-   * 104 会让头像压住意图行；加到 116（fieldTop 232→244），战场几何不变、只是整体下移。
-   */
-  railHeight: 116,
-  /** 页眉/跑条与战场之间的呼吸间距。 */
+  /** 页眉/行动表与战场之间的呼吸间距。 */
   fieldGap: 10,
   /** 底部指令面板（含安全区 padding）。 */
   bottomHeight: 360,
   /** 玩家战斗立绘的屏显高度（用于算上方站位不能被页眉压住）。 */
   playerHeight: 170,
-  /** 怪物屏显高度。 */
-  monsterHeight: 260,
   /** 左右两格的水平半径。 */
   radiusX: 250,
   /** 四斜格相对中心的水平偏移。 */
@@ -48,24 +47,28 @@ export interface BattleLayout {
   readonly height: number;
   readonly fieldTop: number;
   readonly fieldBottom: number;
-  /** 跑条条的顶部 y（Compose/native 叠层用）。 */
+  /** 行动表 rail 的顶部 y。 */
   readonly railTop: number;
+  readonly railHeight: number;
+  /** 环的几何中心（画环用）。 */
   readonly center: BattlePoint;
-  /** 怪物脚底坐标。 */
-  readonly monster: BattlePoint;
-  readonly monsterHeadY: number;
+  /** 中心点位的脚底坐标（= slots.center；也是原 v2 monster 的位置）。 */
+  readonly centerPoint: BattlePoint;
   readonly slots: Readonly<Record<SlotId, BattlePoint>>;
   /** 玩家立绘从脚底往上的高度。 */
   readonly playerHeadOffset: number;
-  readonly monsterHeight: number;
 }
 
-export function planBattleLayout(width = 720, height = 1280): BattleLayout {
+export function planBattleLayout(
+  width = 720,
+  height = 1280,
+  intentRows = 2,
+): BattleLayout {
   const safeWidth = Math.max(360, Math.round(width));
   const safeHeight = Math.max(640, Math.round(height));
-
+  const railHeight = battleRailHeight(intentRows);
   const railTop = BATTLE_LAYOUT.headerHeight;
-  const fieldTop = railTop + BATTLE_LAYOUT.railHeight + BATTLE_LAYOUT.fieldGap;
+  const fieldTop = railTop + railHeight + BATTLE_LAYOUT.fieldGap;
   const fieldBottom = Math.max(fieldTop + 240, safeHeight - BATTLE_LAYOUT.bottomHeight);
   const centerX = Math.round(safeWidth / 2);
   const centerY = Math.round(fieldTop + (fieldBottom - fieldTop) * 0.56);
@@ -83,6 +86,12 @@ export function planBattleLayout(width = 720, height = 1280): BattleLayout {
   const upperLeftX = centerX - diagonalX;
   const upperRightX = centerX + diagonalX;
 
+  // 中心脚底略偏前，不跟环位角色抢同一条线。
+  const centerPoint: BattlePoint = {
+    x: centerX,
+    y: Math.min(fieldBottom - 24, centerY + Math.round(radiusY * 0.45)),
+  };
+
   const slots: Record<SlotId, BattlePoint> = {
     right: { x: rightX, y: centerY },
     upperRight: { x: upperRightX, y: centerY - radiusY },
@@ -90,14 +99,8 @@ export function planBattleLayout(width = 720, height = 1280): BattleLayout {
     left: { x: leftX, y: centerY },
     lowerLeft: { x: upperLeftX, y: centerY + radiusY },
     lowerRight: { x: upperRightX, y: centerY + radiusY },
+    center: centerPoint,
   };
-
-  const monsterHeight = Math.min(
-    BATTLE_LAYOUT.monsterHeight,
-    Math.round((fieldBottom - fieldTop) * 0.55),
-  );
-  // 怪物站在环心略偏前，脚底不跟站位角色抢同一条线。
-  const monsterY = Math.min(fieldBottom - 24, centerY + Math.round(radiusY * 0.45));
 
   return {
     width: safeWidth,
@@ -105,11 +108,10 @@ export function planBattleLayout(width = 720, height = 1280): BattleLayout {
     fieldTop,
     fieldBottom,
     railTop,
+    railHeight,
     center: { x: centerX, y: centerY },
-    monster: { x: centerX, y: monsterY },
-    monsterHeadY: monsterY - monsterHeight,
+    centerPoint,
     slots,
     playerHeadOffset: BATTLE_LAYOUT.playerHeight,
-    monsterHeight,
   };
 }

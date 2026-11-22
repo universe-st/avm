@@ -1,4 +1,4 @@
-import type { BattleState } from '../types';
+import type { BattleState, BattleUnit } from '../types';
 
 /**
  * 跑条（行动条）的纯数学。
@@ -7,19 +7,17 @@ import type { BattleState } from '../types';
  * 行动后归零。这是**离散、确定性**的「ATB 顺序」，不读真实时间，
  * 所以同一 seed/同一操作序列永远得到同一顺序（可回放、可单测）。
  *
- * 注意：因为到顶会截断（1000 封顶），速度比不是严格的每次交替；
- * 20 vs 14 在 7 次行动里大约是 4:3，偶尔会出现怪物连续行动两次。
- * 这是设计允许的「它比你快」的直观表现。
+ * v3 起顶部不再画量条，但引擎保留；`previewOrder` 仍然给头像行动表提供顺序。
  */
 
 export const GAUGE_MAX = 1000;
 
 export interface GaugeAdvance {
-  readonly actorId: string;
-  /** 推进到本次行动所经过的 tick 数（调试/UI 用）。 */
+  readonly actorId: string | null;
+  /** 推进到本次行动所经过的 tick 数（调试用）。 */
   readonly ticks: number;
-  readonly playerGauge: number;
-  readonly enemyGauge: number;
+  /** 所有活着的单位 → 推进后的 gauge。 */
+  readonly gauges: Readonly<Record<string, number>>;
 }
 
 interface GaugeActor {
@@ -37,14 +35,14 @@ function ticksToFull(actor: GaugeActor): number {
 }
 
 /**
- * 平局裁决：先后到者必赢；同一 tick 到顶时，
- * 速度高者优先 → 敌方优先 → id 字典序（稳定、可复现）。
+ * 平局裁决：同一 tick 到顶时，速度高者优先 → 敌方优先 → id 字典序。
  */
-function pickWinner(actors: readonly GaugeActor[]): GaugeActor {
+function pickWinner(actors: readonly GaugeActor[]): GaugeActor | null {
   const reached = actors.filter((actor) => actor.alive && actor.gauge >= GAUGE_MAX);
   if (reached.length === 0) {
-    // 理论上不会发生：调用方总是把至少一个活着的单位推进到顶。
-    return [...actors].filter((actor) => actor.alive).sort((a, b) => b.spd - a.spd)[0]!;
+    const alive = actors.filter((actor) => actor.alive);
+    if (alive.length === 0) return null;
+    return [...alive].sort((a, b) => b.spd - a.spd || (a.id < b.id ? -1 : 1))[0]!;
   }
   return [...reached].sort((a, b) => {
     if (b.spd !== a.spd) return b.spd - a.spd;
@@ -53,72 +51,57 @@ function pickWinner(actors: readonly GaugeActor[]): GaugeActor {
   })[0]!;
 }
 
-function toActors(state: BattleState): { player: GaugeActor; enemy: GaugeActor } {
+function livingUnits(state: BattleState): readonly BattleUnit[] {
+  return [...state.party, ...state.enemies].filter((unit) => unit.hp > 0);
+}
+
+function toGaugeActor(unit: BattleUnit): GaugeActor {
   return {
-    player: {
-      id: state.player.id,
-      team: state.player.team,
-      spd: state.player.spd,
-      gauge: state.player.gauge,
-      alive: state.player.hp > 0,
-    },
-    enemy: {
-      id: state.enemy.id,
-      team: state.enemy.team,
-      spd: state.enemy.spd,
-      gauge: state.enemy.gauge,
-      alive: state.enemy.hp > 0,
-    },
+    id: unit.id,
+    team: unit.team,
+    spd: unit.spd,
+    gauge: unit.gauge,
+    alive: unit.hp > 0,
   };
 }
 
 /** 推进到下一个行动者（不真正行动，只算 gauge）。 */
 export function planNextActor(state: BattleState): GaugeAdvance {
-  const { player, enemy } = toActors(state);
-  const ticks = Math.min(ticksToFull(player), ticksToFull(enemy));
+  const units = livingUnits(state);
+  const actors = units.map(toGaugeActor);
+  if (actors.length === 0) return { actorId: null, ticks: 0, gauges: {} };
+
+  const ticks = Math.min(...actors.map(ticksToFull));
   const safeTicks = Number.isFinite(ticks) ? ticks : 1;
+  const advanced = actors.map((actor) => ({
+    ...actor,
+    gauge: Math.min(GAUGE_MAX, actor.gauge + Math.max(1, Math.floor(actor.spd)) * safeTicks),
+  }));
+  const winner = pickWinner(advanced);
+  if (!winner) return { actorId: null, ticks: safeTicks, gauges: {} };
 
-  const playerGauge = Math.min(GAUGE_MAX, player.gauge + player.spd * safeTicks);
-  const enemyGauge = Math.min(GAUGE_MAX, enemy.gauge + enemy.spd * safeTicks);
-
-  const winner = pickWinner([
-    { ...player, gauge: playerGauge },
-    { ...enemy, gauge: enemyGauge },
-  ]);
-
-  return {
-    actorId: winner.id,
-    ticks: safeTicks,
-    playerGauge,
-    enemyGauge,
-  };
+  const gauges: Record<string, number> = {};
+  for (const actor of advanced) gauges[actor.id] = actor.gauge;
+  return { actorId: winner.id, ticks: safeTicks, gauges };
 }
 
 /**
  * 预测未来 `count` 次行动顺序（含当前已锁定、尚未行动的 active actor）。
  *
- * HUD 的「接下来」条用它；纯模拟，不修改 state。
+ * HUD 的行动表用它；纯模拟，不修改 state。
  */
 export function previewOrder(state: BattleState, count: number): string[] {
-  let playerGauge = state.player.gauge;
-  let enemyGauge = state.enemy.gauge;
-  const playerAlive = state.player.hp > 0;
-  const enemyAlive = state.enemy.hp > 0;
+  const units = livingUnits(state);
+  if (units.length === 0) return [];
 
-  const playerActor = (): GaugeActor => ({
-    id: state.player.id,
-    team: state.player.team,
-    spd: state.player.spd,
-    gauge: playerGauge,
-    alive: playerAlive,
-  });
-  const enemyActor = (): GaugeActor => ({
-    id: state.enemy.id,
-    team: state.enemy.team,
-    spd: state.enemy.spd,
-    gauge: enemyGauge,
-    alive: enemyAlive,
-  });
+  const gauges = new Map<string, number>(units.map((unit) => [unit.id, unit.gauge]));
+  const actors = units.map((unit) => ({
+    id: unit.id,
+    team: unit.team,
+    spd: unit.spd,
+    alive: true,
+    gauge: unit.gauge,
+  }));
 
   const order: string[] = [];
   let active = state.activeId;
@@ -126,22 +109,34 @@ export function previewOrder(state: BattleState, count: number): string[] {
 
   for (let index = 0; index < total; index += 1) {
     if (active !== null) {
+      if (!gauges.has(active)) {
+        active = null;
+        continue;
+      }
       order.push(active);
-      if (active === state.player.id) playerGauge = 0;
-      if (active === state.enemy.id) enemyGauge = 0;
+      gauges.set(active, 0);
       active = null;
       continue;
     }
 
-    const ticks = Math.min(ticksToFull(playerActor()), ticksToFull(enemyActor()));
+    const current = actors.map((actor) => ({
+      ...actor,
+      gauge: gauges.get(actor.id) ?? 0,
+    }));
+    const ticks = Math.min(...current.map(ticksToFull));
     if (!Number.isFinite(ticks)) break;
-    playerGauge = Math.min(GAUGE_MAX, playerGauge + state.player.spd * ticks);
-    enemyGauge = Math.min(GAUGE_MAX, enemyGauge + state.enemy.spd * ticks);
+    for (const actor of current) {
+      gauges.set(
+        actor.id,
+        Math.min(GAUGE_MAX, actor.gauge + Math.max(1, Math.floor(actor.spd)) * ticks),
+      );
+    }
 
-    const winner = pickWinner([playerActor(), enemyActor()]);
+    const advanced = current.map((actor) => ({ ...actor, gauge: gauges.get(actor.id) ?? 0 }));
+    const winner = pickWinner(advanced);
+    if (!winner) break;
     order.push(winner.id);
-    if (winner.id === state.player.id) playerGauge = 0;
-    if (winner.id === state.enemy.id) enemyGauge = 0;
+    gauges.set(winner.id, 0);
   }
 
   return order;

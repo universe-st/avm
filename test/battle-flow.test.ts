@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { BattleAction, BattleEvent, BattleSetup, BattleState } from '../src/battle/types';
+import type {
+  BattleAction,
+  BattleEvent,
+  BattleSetup,
+  BattleState,
+  SlotId,
+} from '../src/battle/types';
 import { CH01_FIRST_BATTLE } from '../src/battle/data/ch01-first';
 import { CH01_KITCHEN_BATTLE } from '../src/battle/data/ch01-kitchen';
 import {
@@ -15,14 +21,10 @@ interface DriveResult {
   readonly actionCount: number;
 }
 
-/**
- * 通用驱动器：每次「轮到谁就按 decide 出招」；怪物永远执行锁定意图。
- * 与场景的回合循环同构，用来验证纯逻辑能走完整场。
- */
 function drive(
   setup: BattleSetup,
   decide: (state: BattleState) => BattleAction,
-  maxActions = 60,
+  maxActions = 240,
 ): DriveResult {
   let state = createBattle(setup);
   const events: BattleEvent[] = [];
@@ -32,14 +34,14 @@ function drive(
     if (state.phase === 'victory' || state.phase === 'defeat') break;
 
     if (state.activeId === null) {
-      const turn = startNextTurn(state);
+      const turn = startNextTurn(state, setup);
       state = turn.state;
       events.push(...turn.events);
       continue;
     }
 
     const action: BattleAction =
-      state.activeId === state.player.id ? decide(state) : { kind: 'enemy-act' };
+      state.activeId === state.party[0]!.id ? decide(state) : { kind: 'enemy-act' };
     const result = applyBattleAction(state, action, setup);
     state = result.state;
     events.push(...result.events);
@@ -49,17 +51,36 @@ function drive(
   return { state, events, actionCount };
 }
 
+function withPartySlot(setup: BattleSetup, slot: SlotId): BattleSetup {
+  return {
+    ...setup,
+    party: setup.party.map((unit, index) => (index === 0 ? { ...unit, slot } : unit)),
+  };
+}
+
+function atPlayerTurn(setup: BattleSetup): BattleState {
+  return startNextTurn(createBattle(setup), setup).state;
+}
+
+function findAttack(events: readonly BattleEvent[]): Extract<BattleEvent, { kind: 'attack' }> {
+  const attack = events.find(
+    (event): event is Extract<BattleEvent, { kind: 'attack' }> => event.kind === 'attack',
+  );
+  expect(attack).toBeDefined();
+  return attack!;
+}
+
 describe('first battle: no 解, scripted defeat', () => {
   it('rejects attack because the skill is not unlocked', () => {
-    let state = startNextTurn(createBattle(CH01_FIRST_BATTLE)).state;
+    let state = startNextTurn(createBattle(CH01_FIRST_BATTLE), CH01_FIRST_BATTLE).state;
     state = applyBattleAction(state, { kind: 'enemy-act' }, CH01_FIRST_BATTLE).state;
-    state = startNextTurn(state).state;
-    expect(state.activeId).toBe(state.player.id);
+    state = startNextTurn(state, CH01_FIRST_BATTLE).state;
+    expect(state.activeId).toBe(state.party[0]!.id);
 
     const before = state;
     const result = applyBattleAction(
       state,
-      { kind: 'attack', skillId: 'player.jielitusi' },
+      { kind: 'attack', skillId: 'player.jielitusi', targetId: state.enemies[0]!.id },
       CH01_FIRST_BATTLE,
     );
     expect(result.state).toBe(before);
@@ -71,7 +92,7 @@ describe('first battle: no 解, scripted defeat', () => {
     const result = drive(CH01_FIRST_BATTLE, () => ({ kind: 'guard' }));
     expect(result.state.phase).toBe('defeat');
     expect(result.state.enemyActions).toBe(4);
-    expect(result.state.player.hp).toBe(0);
+    expect(result.state.party[0]!.hp).toBe(0);
     expect(result.events.some((event) => event.kind === 'protocol')).toBe(true);
     expect(
       result.events.some(
@@ -84,36 +105,59 @@ describe('first battle: no 解, scripted defeat', () => {
 
   it('lets the player move without taking a turn away from the monster', () => {
     let state = createBattle(CH01_FIRST_BATTLE);
-    state = startNextTurn(state).state;
+    state = startNextTurn(state, CH01_FIRST_BATTLE).state;
     state = applyBattleAction(state, { kind: 'enemy-act' }, CH01_FIRST_BATTLE).state;
-    state = startNextTurn(state).state;
-    expect(state.activeId).toBe(state.player.id);
+    state = startNextTurn(state, CH01_FIRST_BATTLE).state;
+    expect(state.activeId).toBe(state.party[0]!.id);
 
     const moved = applyBattleAction(
       state,
       { kind: 'move', slot: 'upperLeft' },
       CH01_FIRST_BATTLE,
     );
-    expect(moved.state.player.slot).toBe('upperLeft');
+    expect(moved.state.party[0]!.slot).toBe('upperLeft');
     expect(moved.state.activeId).toBeNull();
     expect(moved.state.enemyActions).toBe(1);
   });
+
+  it('can move into the center once it is free', () => {
+    const setup = withPartySlot(CH01_KITCHEN_BATTLE, 'left');
+    const created = createBattle(setup);
+    const state: BattleState = {
+      ...created,
+      enemies: created.enemies.map((enemy) =>
+        enemy.id === 'cook-phantom-a'
+          ? { ...enemy, slot: 'upperLeft' }
+          : enemy,
+      ),
+    };
+    const turn = startNextTurn(state, setup).state;
+    expect(turn.activeId).toBe(turn.party[0]!.id);
+    const moved = applyBattleAction(turn, { kind: 'move', slot: 'center' }, setup);
+    expect(moved.state.party[0]!.slot).toBe('center');
+  });
 });
 
-describe('kitchen battle: 解离突刺', () => {
-  it('front hit deals 16 and blinks to the mirror slot', () => {
-    const state = startNextTurn(createBattle(CH01_KITCHEN_BATTLE)).state;
-    expect(state.activeId).toBe(state.player.id);
+describe('kitchen battle: 解离突刺 / 双怪 / 受击转身', () => {
+  it('front hit deals 16, blinks to the mirror slot, and the enemy turns to the attack origin', () => {
+    const state = atPlayerTurn(CH01_KITCHEN_BATTLE);
+    expect(state.activeId).toBe(state.party[0]!.id);
+    const target = state.enemies.find((enemy) => enemy.id === 'cook-phantom-a')!;
 
     const result = applyBattleAction(
       state,
-      { kind: 'attack', skillId: 'player.jielitusi' },
+      { kind: 'attack', skillId: 'player.jielitusi', targetId: target.id },
       CH01_KITCHEN_BATTLE,
     );
-    expect(result.state.player.slot).toBe('right');
-    expect(result.state.enemy.hp).toBe(CH01_KITCHEN_BATTLE.enemy.hp - 16);
-    const attack = result.events.find((event) => event.kind === 'attack');
+    expect(result.state.party[0]!.slot).toBe('right');
+    const attacked = result.state.enemies.find((enemy) => enemy.id === target.id)!;
+    expect(attacked.hp).toBe(target.hp - 16);
+    // 玩家闪到右边，但怪物面向的是攻击来向（左），不是闪现后的落点。
+    expect(attacked.facing).toBe('left');
+    const attack = findAttack(result.events);
     expect(attack).toMatchObject({
+      targetId: target.id,
+      targetSlot: 'center',
       amount: 16,
       zone: 'front',
       backstab: false,
@@ -121,10 +165,45 @@ describe('kitchen battle: 解离突刺', () => {
       to: 'right',
       teleported: true,
     });
+    const face = result.events.find(
+      (event) => event.kind === 'enemy-face' && event.actorId === target.id,
+    );
+    expect(face).toMatchObject({ reason: 'hit', facing: 'left' });
+  });
+
+  it('backstab deals 24, stays in place, and turns the enemy toward the attacker', () => {
+    const setup = withPartySlot(CH01_KITCHEN_BATTLE, 'right');
+    const state = atPlayerTurn(setup);
+    const target = state.enemies.find((enemy) => enemy.id === 'cook-phantom-a')!;
+    expect(target.facing).toBe('right');
+
+    // 手工把目标转向左，制造“从背后砍”的局面（真实流程里是绕位/闪现得到）。
+    const behind: BattleState = {
+      ...state,
+      enemies: state.enemies.map((enemy) =>
+        enemy.id === target.id ? { ...enemy, facing: 'left' } : enemy,
+      ),
+    };
+    const result = applyBattleAction(
+      behind,
+      { kind: 'attack', skillId: 'player.jielitusi', targetId: target.id },
+      setup,
+    );
+    const attacked = result.state.enemies.find((enemy) => enemy.id === target.id)!;
+    expect(attacked.hp).toBe(target.hp - 24);
+    expect(result.state.party[0]!.slot).toBe('right');
+    expect(attacked.facing).toBe('right');
+    const attack = findAttack(result.events);
+    expect(attack).toMatchObject({
+      amount: 24,
+      zone: 'back',
+      backstab: true,
+      teleported: false,
+    });
   });
 
   it('rejects moving straight across the arena', () => {
-    const state = startNextTurn(createBattle(CH01_KITCHEN_BATTLE)).state;
+    const state = atPlayerTurn(CH01_KITCHEN_BATTLE);
     const result = applyBattleAction(
       state,
       { kind: 'move', slot: 'right' },
@@ -134,124 +213,128 @@ describe('kitchen battle: 解离突刺', () => {
     expect(result.events).toEqual([]);
   });
 
-  it('needs two adjacent moves to get behind; the second committed attack misses', () => {
-    let state = startNextTurn(createBattle(CH01_KITCHEN_BATTLE)).state;
-    // 第一动：左 → 左上（相邻）。热油泼洒是正面技能，仍然打中。
-    state = applyBattleAction(
+  it('rejects attacking a non-adjacent enemy', () => {
+    const state = atPlayerTurn(CH01_KITCHEN_BATTLE);
+    const far = state.enemies.find((enemy) => enemy.id === 'cook-phantom-b')!;
+    expect(far.slot).toBe('upperRight');
+    const result = applyBattleAction(
       state,
-      { kind: 'move', slot: 'upperLeft' },
+      { kind: 'attack', skillId: 'player.jielitusi', targetId: far.id },
       CH01_KITCHEN_BATTLE,
-    ).state;
-    state = startNextTurn(state).state;
-    expect(state.activeId).toBe(state.enemy.id);
+    );
+    expect(result.state).toBe(state);
+    expect(result.events).toEqual([]);
+  });
 
-    const first = applyBattleAction(state, { kind: 'enemy-act' }, CH01_KITCHEN_BATTLE);
-    const firstHit = first.events.find((event) => event.kind === 'enemy-skill');
-    expect(firstHit).toMatchObject({ hit: true });
-    const hpAfterFirst = first.state.player.hp;
+  it('moves a monster to an adjacent point and faces the movement direction', () => {
+    const created = createBattle(CH01_KITCHEN_BATTLE);
+    const b = created.enemies.find((enemy) => enemy.id === 'cook-phantom-b')!;
+    const state: BattleState = { ...created, phase: 'enemy', activeId: b.id };
+    const result = applyBattleAction(state, { kind: 'enemy-act' }, CH01_KITCHEN_BATTLE);
+    const moved = result.state.enemies.find((enemy) => enemy.id === b.id)!;
+    expect(moved.slot).toBe('upperLeft');
+    expect(moved.facing).toBe('left');
+    const event = result.events.find((candidate) => candidate.kind === 'enemy-move');
+    expect(event).toMatchObject({
+      actorId: b.id,
+      from: 'upperRight',
+      to: 'upperLeft',
+      facing: 'left',
+      blocked: false,
+    });
+  });
 
-    // 第二动：左上 → 右上（相邻）。怪物锁定的突进只打正面，打空。
-    state = startNextTurn(first.state).state;
-    expect(state.activeId).toBe(state.player.id);
-    state = applyBattleAction(
+  it('fails a monster move when the destination is occupied', () => {
+    const created = createBattle(CH01_KITCHEN_BATTLE);
+    const b = created.enemies.find((enemy) => enemy.id === 'cook-phantom-b')!;
+    const player = created.party[0]!;
+    const state: BattleState = {
+      ...created,
+      phase: 'enemy',
+      activeId: b.id,
+      party: [{ ...player, slot: 'upperLeft' }],
+      intents: {
+        ...created.intents,
+        [b.id]: {
+          kind: 'move',
+          from: 'upperRight',
+          to: 'upperLeft',
+          facing: 'left',
+          targetId: player.id,
+          text: '移动 · 左上（面朝左）',
+        },
+      },
+    };
+    const result = applyBattleAction(state, { kind: 'enemy-act' }, CH01_KITCHEN_BATTLE);
+    const moved = result.state.enemies.find((enemy) => enemy.id === b.id)!;
+    expect(moved.slot).toBe('upperRight');
+    expect(result.events.find((event) => event.kind === 'enemy-move')).toMatchObject({
+      blocked: true,
+      to: 'upperLeft',
+    });
+    expect(result.state.enemyActions).toBe(1);
+  });
+
+  it('does not end the battle after only one enemy dies', () => {
+    const setup = withPartySlot(CH01_KITCHEN_BATTLE, 'left');
+    let state = atPlayerTurn(setup);
+    const player = state.party[0]!;
+    const a = state.enemies.find((enemy) => enemy.id === 'cook-phantom-a')!;
+    const b = state.enemies.find((enemy) => enemy.id === 'cook-phantom-b')!;
+    state = {
+      ...state,
+      enemies: state.enemies.map((enemy) => ({ ...enemy, hp: 1 })),
+    };
+
+    const first = applyBattleAction(
       state,
-      { kind: 'move', slot: 'upperRight' },
-      CH01_KITCHEN_BATTLE,
-    ).state;
-    state = startNextTurn(state).state;
-    expect(state.activeId).toBe(state.enemy.id);
+      { kind: 'attack', skillId: 'player.jielitusi', targetId: a.id },
+      setup,
+    );
+    expect(first.state.phase).not.toBe('victory');
+    expect(first.state.enemies.find((enemy) => enemy.id === a.id)!.hp).toBe(0);
+    expect(first.state.enemies.find((enemy) => enemy.id === b.id)!.hp).toBe(1);
+    expect(first.state.intents[a.id]).toBeUndefined();
+    expect(first.state.party[0]!.slot).toBe('right');
 
-    const second = applyBattleAction(state, { kind: 'enemy-act' }, CH01_KITCHEN_BATTLE);
-    const secondHit = second.events.find((event) => event.kind === 'enemy-skill');
-    expect(secondHit).toMatchObject({ hit: false, amount: 0 });
-    expect(second.state.player.hp).toBe(hpAfterFirst);
+    const secondState: BattleState = {
+      ...first.state,
+      phase: 'player',
+      activeId: player.id,
+    };
+    const second = applyBattleAction(
+      secondState,
+      { kind: 'attack', skillId: 'player.jielitusi', targetId: b.id },
+      setup,
+    );
+    expect(second.state.phase).toBe('victory');
+    expect(second.state.enemies.every((enemy) => enemy.hp === 0)).toBe(true);
+    expect(second.events.some((event) => event.kind === 'victory')).toBe(true);
   });
 
   it('halves incoming damage while guarding', () => {
-    let state = startNextTurn(createBattle(CH01_KITCHEN_BATTLE)).state;
-    state = applyBattleAction(state, { kind: 'guard' }, CH01_KITCHEN_BATTLE).state;
-    state = startNextTurn(state).state;
-    expect(state.activeId).toBe(state.enemy.id);
-
-    const result = applyBattleAction(state, { kind: 'enemy-act' }, CH01_KITCHEN_BATTLE);
-    const hit = result.events.find((event) => event.kind === 'enemy-skill');
-    // 12 × 1.1 = 13.2，防御 ×0.5 → 6.6 → 7
-    expect(hit).toMatchObject({ hit: true, amount: 7 });
-    expect(result.state.player.hp).toBe(CH01_KITCHEN_BATTLE.player.hp - 7);
-  });
-
-  it('wins in three attacks from the back: 24, 24, 16', () => {
-    const fromRight: BattleSetup = {
-      ...CH01_KITCHEN_BATTLE,
-      player: { ...CH01_KITCHEN_BATTLE.player, slot: 'right' },
-    };
-    const result = drive(fromRight, () => ({
-      kind: 'attack',
-      skillId: 'player.jielitusi',
-    }));
-
-    expect(result.state.phase).toBe('victory');
-    expect(result.state.enemy.hp).toBe(0);
-
-    const attacks = result.events.filter(
-      (event): event is Extract<BattleEvent, { kind: 'attack' }> => event.kind === 'attack',
+    const setup = withPartySlot(CH01_KITCHEN_BATTLE, 'left');
+    let state = atPlayerTurn(setup);
+    state = applyBattleAction(state, { kind: 'guard' }, setup).state;
+    state = startNextTurn(state, setup).state;
+    expect(state.activeId).toBe(
+      state.enemies.find((enemy) => enemy.id === 'cook-phantom-a')!.id,
     );
-    expect(attacks.map((event) => event.amount)).toEqual([24, 24, 16]);
-    // 前两刀在背后（+50%），最后一刀从正面收尾并闪现到对侧。
-    expect(attacks.filter((event) => event.backstab).length).toBeGreaterThanOrEqual(2);
-    expect(attacks.at(-1)).toMatchObject({
-      amount: 16,
-      backstab: false,
-      teleported: true,
-    });
-    expect(result.state.player.slot).toBe('left');
 
-    // 怪物确实转身过一次，而且转向也算一次行动。
-    const turn = result.events.find((event) => event.kind === 'enemy-turn');
-    expect(turn).toBeDefined();
-    expect(result.state.enemyActions).toBeGreaterThanOrEqual(2);
-  });
-
-  it('can win from the default left start using only adjacent moves', () => {
-    const result = drive(CH01_KITCHEN_BATTLE, (state) => {
-      if (state.player.slot === 'left') {
-        return { kind: 'move', slot: 'upperLeft' };
-      }
-      if (state.player.slot === 'upperLeft') {
-        return { kind: 'move', slot: 'upperRight' };
-      }
-      return { kind: 'attack', skillId: 'player.jielitusi' };
-    });
-    expect(result.state.phase).toBe('victory');
-    expect(result.state.enemy.hp).toBe(0);
-  });
-
-  it('is deterministic for the same action sequence', () => {
-    const run = (): string => {
-      const fromRight: BattleSetup = {
-        ...CH01_KITCHEN_BATTLE,
-        player: { ...CH01_KITCHEN_BATTLE.player, slot: 'right' },
-      };
-      const result = drive(fromRight, () => ({
-        kind: 'attack',
-        skillId: 'player.jielitusi',
-      }));
-      return JSON.stringify({
-        phase: result.state.phase,
-        player: result.state.player,
-        enemy: result.state.enemy,
-        log: result.state.log,
-        seq: result.state.seq,
-      });
-    };
-    expect(run()).toBe(run());
+    const result = applyBattleAction(state, { kind: 'enemy-act' }, setup);
+    const hit = result.events.find(
+      (event) => event.kind === 'enemy-skill' && event.actorId === 'cook-phantom-a',
+    );
+    // 10 × 1.1 = 11，防御 ×0.5 → 5.5 → 6
+    expect(hit).toMatchObject({ hit: true, amount: 6 });
+    expect(result.state.party[0]!.hp).toBe(setup.party[0]!.hp - 6);
   });
 
   it('can lose by HP when a heavy hit lands', () => {
     const fragile: BattleSetup = {
       ...CH01_KITCHEN_BATTLE,
-      player: { ...CH01_KITCHEN_BATTLE.player, hp: 1 },
-      enemy: { ...CH01_KITCHEN_BATTLE.enemy, atk: 30 },
+      party: [{ ...CH01_KITCHEN_BATTLE.party[0]!, hp: 1 }],
+      enemies: CH01_KITCHEN_BATTLE.enemies.map((enemy) => ({ ...enemy, atk: 30 })),
     };
     const result = drive(fragile, () => ({ kind: 'guard' }));
     expect(result.state.phase).toBe('defeat');

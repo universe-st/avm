@@ -1,9 +1,12 @@
-import type { BattleAction, BattleSetup, BattleState } from '../types';
+import type { BattleAction, BattleSetup, BattleState, SlotId } from '../types';
 import {
   applyBattleAction,
   createBattle,
+  isSlotOccupied,
+  livingEnemies,
   startNextTurn,
 } from './battle';
+import { isAdjacentSlot, pointDistance, shortestStepToward } from './slots';
 
 /**
  * 舞台预览用的「把战斗推进到某个画面」。
@@ -21,54 +24,60 @@ export function buildPreviewState(
   if (phase === 'opening') return createBattle(setup, seed);
 
   if (phase === 'mid') {
-    if (setup.player.skills.length > 0) {
-      // 御膳房预览：玩家已经绕到右侧背面，直接展示背袭；不再用「一步跨到对面」的旧移动。
-      const behind: BattleSetup = {
-        ...setup,
-        player: { ...setup.player, slot: 'right' },
-      };
-      return startNextTurn(createBattle(behind, seed)).state;
-    }
-    return driveToPlayerTurn(setup, seed);
+    if (setup.party[0]!.skills.length === 0) return driveToPlayerTurn(setup, seed);
+    // 御膳房/沙盒：把玩家放到右侧、中心怪转向左，直接展示“背后一刀 + 双怪目标”。
+    const atRight = withPartySlot(setup, 'right');
+    let state = createBattle(atRight, seed);
+    state = {
+      ...state,
+      enemies: state.enemies.map((enemy, index) =>
+        index === 0 ? { ...enemy, facing: 'left' as const } : enemy,
+      ),
+    };
+    return startNextTurn(state, atRight).state;
   }
 
   if (phase === 'victory') {
-    if (setup.player.skills.length === 0) {
+    if (setup.party[0]!.skills.length === 0) {
       // 第一场没有「解」，不可能赢；预览回退到中局，别给一个假胜利。
       return driveToPlayerTurn(setup, seed);
     }
-    // 从右侧背面开局，直接展示背袭三刀；移动限制由正式流程/测试覆盖。
-    const behind: BattleSetup = {
-      ...setup,
-      player: { ...setup.player, slot: 'right' },
-    };
-    return drive(behind, seed, () => ({
-      kind: 'attack',
-      skillId: setup.player.skills[0]!,
-    }));
+    return drive(setup, seed, (state) => previewCombatAction(state, setup));
   }
 
   return drive(setup, seed, () => ({ kind: 'guard' }));
+}
+
+function withPartySlot(setup: BattleSetup, slot: SlotId): BattleSetup {
+  return {
+    ...setup,
+    party: setup.party.map((unit, index) => (index === 0 ? { ...unit, slot } : unit)),
+  };
 }
 
 function driveToPlayerTurn(setup: BattleSetup, seed: number): BattleState {
   let state = createBattle(setup, seed);
   let playerTurns = 0;
 
-  for (let guard = 0; guard < 24; guard += 1) {
+  for (let guard = 0; guard < 48; guard += 1) {
     if (state.phase === 'victory' || state.phase === 'defeat') return state;
 
     if (state.activeId === null) {
-      state = startNextTurn(state).state;
+      state = startNextTurn(state, setup).state;
       continue;
     }
 
-    if (state.activeId === state.player.id) {
+    if (state.activeId === state.party[0]!.id) {
       playerTurns += 1;
       if (playerTurns === 1) {
-        const target = setup.player.skills.length > 0 ? 'right' : 'upperLeft';
-        state = applyBattleAction(state, { kind: 'move', slot: target }, setup).state;
-        continue;
+        const from = state.party[0]!.slot;
+        const target = isAdjacentSlot(from, 'upperLeft') && !isSlotOccupied(state, 'upperLeft')
+          ? 'upperLeft'
+          : null;
+        if (target) {
+          state = applyBattleAction(state, { kind: 'move', slot: target }, setup).state;
+          continue;
+        }
       }
       // 第二回合停在玩家行动前：画面里正好能看到怪物意图与新的站位。
       return state;
@@ -87,18 +96,49 @@ function drive(
 ): BattleState {
   let state = createBattle(setup, seed);
 
-  for (let guard = 0; guard < 120; guard += 1) {
+  for (let guard = 0; guard < 240; guard += 1) {
     if (state.phase === 'victory' || state.phase === 'defeat') return state;
 
     if (state.activeId === null) {
-      state = startNextTurn(state).state;
+      state = startNextTurn(state, setup).state;
       continue;
     }
 
     const action: BattleAction =
-      state.activeId === state.player.id ? decide(state) : { kind: 'enemy-act' };
+      state.activeId === state.party[0]!.id ? decide(state) : { kind: 'enemy-act' };
     state = applyBattleAction(state, action, setup).state;
   }
 
   return state;
+}
+
+/** 预览胜利用：打相邻最低 HP；没有相邻目标就走一步靠近最近敌人；否则防御。 */
+function previewCombatAction(state: BattleState, setup: BattleSetup): BattleAction {
+  const actor = state.party[0]!;
+  const skillId = setup.party[0]!.skills[0];
+  if (!skillId) return { kind: 'guard' };
+
+  const adjacent = livingEnemies(state)
+    .filter((enemy) => isAdjacentSlot(actor.slot, enemy.slot))
+    .sort((a, b) => a.hp - b.hp || (a.id < b.id ? -1 : 1));
+  const target = adjacent[0];
+  if (target) return { kind: 'attack', skillId, targetId: target.id };
+
+  const nearest = [...livingEnemies(state)].sort((a, b) => {
+    const da = pointDistance(actor.slot, a.slot);
+    const db = pointDistance(actor.slot, b.slot);
+    if (da !== db) return da - db;
+    return a.hp - b.hp || (a.id < b.id ? -1 : 1);
+  })[0];
+  if (!nearest) return { kind: 'guard' };
+
+  const blocked = new Set<SlotId>(
+    [...state.party, ...state.enemies]
+      .filter((unit) => unit.hp > 0)
+      .map((unit) => unit.slot),
+  );
+  blocked.delete(actor.slot);
+  const step = shortestStepToward(actor.slot, nearest.slot, blocked);
+  if (step) return { kind: 'move', slot: step };
+  return { kind: 'guard' };
 }
