@@ -1092,7 +1092,7 @@ export class BattleCh01Scene extends UIScene {
   private onAttack(): void {
     audioDirector.playClick();
     if (!playerCanAttack(this.setup, this.playerUnit().id)) {
-      this.flashHint('你还没有「解」——这一场只能移动或防御。');
+      this.flashHint('你还没有「解」——这一场只能移动或防御。', '还没有「解」');
       return;
     }
     const skillId = this.playerSetup()?.skills[0];
@@ -1799,7 +1799,7 @@ export class BattleCh01Scene extends UIScene {
       return `目标：${target.name} · 背袭 ×1.5，命中后留在原地。${aoeTail}`;
     }
     if (preview.teleportBlocked) {
-      return `目标：${target.name} · 正面命中，但落点被占，留在原地。${aoeTail}`;
+      return `目标：${target.name} · 非背袭命中，但落点被占，留在原地。${aoeTail}`;
     }
     return `目标：${target.name} · 正面命中后闪现到${slotLabel(preview.to)}。${aoeTail}`;
   }
