@@ -530,3 +530,10 @@ enemies: [
 - [x] **D6 多玩家本轮只做数据结构**：`party[]/enemies[]` N-ready，不做队伍 UI/换人。
 
 P1–P4 已落地并通过 `pnpm check` / `pnpm build`（见提交记录与交付报告）。
+
+## 16. v3.1 迭代（2026-11-22，覆盖 §15 的 D2/D5）
+
+- **D2 已被覆盖**：删除 `SkillDef.teleport`，非背袭命中进入 `pendingMove` 落点选择；背袭留在原地，不再自动镜像闪现。
+- **D5 已被覆盖**：顶部只留「行动表」标题 + 头像 chip（rail 64），删除每只怪意图行；场上同时删除名牌/HP/点位方位/背袭楔形/朝向三角/AOE 红环文字/目标白圈/静态点位环。地面圈只在普通移动/落点选择出现。
+- 新增：攻击技能窗（`openBattleSkill`，一个技能也弹）、平减防御 + 背袭穿防、`pendingMove/post-move`、小白图鉴（`src/battle/codex.ts`）、未知怪不显示预计伤害。
+- 测试新增 `battle-pending`、`battle-codex`；`battle-damage/flow/preview/balance/layout` 已按新公式/rail 64/pending 更新。

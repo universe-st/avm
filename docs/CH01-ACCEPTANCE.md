@@ -5,7 +5,7 @@
 - 文案真值：`src/story/ch01-dorm.ts`
 - 流程真值：`src/story/ch01-flow.ts`
 - 地图：`src/map/rooms/ch01-dorm.ts`（11×15，单房间，无地毯）
-- 战斗：`src/battle/data/ch01-first.ts`、`src/battle/data/ch01-kitchen.ts`、`src/battle/core/battle.ts`（v3 七点位/无转向行动/多怪；规则见 `docs/DESIGN-BATTLE.md`）
+- 战斗：`src/battle/data/ch01-first.ts`、`src/battle/data/ch01-kitchen.ts`、`src/battle/core/battle.ts`、`src/battle/codex.ts`（v3.1 七点位/无转向行动/多怪/技能窗/图鉴；规则见 `docs/DESIGN-BATTLE.md`）
 
 ## 1. 构建与自动检查
 
@@ -23,7 +23,7 @@
 - `ch01-flow`：手机在郑卿之前只提示、郑卿→手机→梦→战斗、战败返回、预览 phase、可选交互。
 - `map-room`：11×15 行宽、唯一出生点、家具碰撞、交互点可达、BFS。
 - `map-collision`：撞墙、滑墙、拐角不切、中央地板可走。
-- `battle-*`：七点位/相邻/命中集合、背袭全表、跑条序列、伤害公式、AI 意图锁定/追击、第一场协议必败、第二场双怪可胜、布局安全区、多怪随机点位、双怪平衡、战斗素材尺寸（`test/battle-*.test.ts`）。
+- `battle-*`：七点位/相邻/命中集合、背袭全表、跑条序列、平减防御/背袭穿防、AI 意图锁定/追击、`pendingMove`/落点、第一场协议必败、第二场双怪可胜、布局安全区、多怪随机点位、双怪平衡、战斗素材尺寸、小白图鉴（`test/battle-pending/codex.test.ts` 等）。
 - `render-layers`：原生层顺序、角色脚底排序、UI_ROOT_DEPTH 高于所有原生层、chapter key 分组与 bundle 登记一致。
 
 ## 2. 正常流程验收（Web，390×844）
@@ -35,10 +35,10 @@
    - 面板固定 300 高、字号 34；**一句放得下 5 行 × 约 14 字 ≈ 68 字**，超出由 `DialoguePlayer` 按标点分页，点一下翻下一页（页内先补全再翻页）。
 5. 手机：小白登场（白色兜帽精灵），说明沉睡症/意识能量/因泰里；目标变「听听这个外星小东西怎么说」。
 6. 问清因泰里：周全「意识能量？萃取？什么玩意儿？」→ 小白解释人类意识具备能量、这个沉睡个体的意识能量正被窃取 →「是谁干的？」→「因泰里文明。」→「因……泰里？什么意思。」→「……难以解释。我带你看看，就理解了。」→ 旁白「它伸手一指，你的眼前闪过一道白光。你试图尖叫出声，却感到一阵头晕目眩。」→ 周全「什么……情况……」。随后白闪 → 梦域金殿战斗。
-7. 战斗（v3）：
-   - 7 个点位可见（6 环 + 中心）；矿工居中、周全默认在左；双方跑条（矿工 SPD 20 > 周全 14），怪物先手。
-   - 没有「解」：攻击按钮禁用（显示「攻击 · 无「解」」），只能移动/防御。
-   - 怪物意图只有技能/移动（没有单独的转向行动）；受击格提前染红；移动可躲开技能，中心空出后可站。
+7. 战斗（v3.1）：
+   - 7 个点位合法（6 环 + 中心），但场上不常显点位圈；矿工居中、周全默认在左；双方跑条（矿工 SPD 20 > 周全 14），怪物先手。
+   - 没有「解」：攻击按钮禁用（显示「攻击 · 无「解」」），不弹技能窗，只能移动/防御。
+   - 怪物没有单独的转向行动；场上不画意图/名牌/朝向/受击格；攻击命中后才出伤害数字。
    - 第 4 次怪物行动后「清除协议」强制战败，出现「剧情战 · 战败」；HP 0 也战败。
    - 「醒来」→ 寝室，目标「听小白说完」。进场景时周全坐在地上、小白浮在他右膝旁；
      第一句旁白打完 → **起身**：`zhou_stand_up` 8 帧（520ms），**同一刻**小白同步飘到
@@ -65,20 +65,24 @@
 - `battle.ch01.first&phase=defeat` 直接显示剧情战败覆盖层；预览显示「重开战斗 / 返回标题」。
 - `battle.ch01.first` 的 `victory` 会回退 `mid`（那场不能赢）；`battle.ch01.kitchen` 的 `victory` 是真胜利卡。
 - 八向：`&skip=1&facing=up|upRight|right|downRight|down|downLeft|left|upLeft`（`phase=mid` 会模拟回合、怪物可能转向）。
-- DEV：`__avmBattle()` 读当前战斗状态（party/enemies/intents/order/seq/enemyActions/HP/slot/facing/selectedTargetId）。
+- DEV：`__avmBattle()` 读当前战斗状态（party/enemies/intents/pendingMove/knownEnemies/order/seq/enemyActions/HP/slot/facing/selectedTargetId）。
 - 未知 phase 回退 opening 并 `console.warn`，不白屏。
 - 预览模式不写存档/进度；同 seed 同画面（seed 只影响金殿尘埃/光点）。
 
-### 3.5 战斗 v3 补充验收（2026-11-22）
+### 3.5 战斗 v3.1 补充验收（2026-11-22）
 
 - 七点位：`center` + 6 环位；中心空出后玩家可一步走进去；一个点位同时只站一个单位。
-- 顶部没有 SPD 量条；只有「行动表」头像 chip + 当前行动者白描边 + 每只怪一行意图；1–2 怪 rail 96、3 怪 116。
-- 怪物没有单独的转向行动：意图只有 `skill` / `move`；受击后免费转向攻击来向；出招时免费转向 `aim`。
-- 御膳房双怪：御厨·幻影（中心、stationary）+ 帮厨·幻影（右上、chaser）；点敌人选目标，默认相邻最低 HP；只杀一只不结束，全灭才胜利。
-- 平衡目标：4–6 次玩家行动胜利，胜利 HP ≥20（`test/battle-balance.test.ts`）；帮厨第一动通常从右上往左上追击。
-- 多怪沙盒：`?stage=battle.sandbox.multi&phase=opening|mid&hud=0`；3 只厨怪随机点位（同 seed 可复现）、3 行意图、追击/堵路/目标切换。
-- `__avmBattle()` 断言 `party/enemies/intents/order/gauges/selectedTargetId`；不要靠截图猜回合/目标。
-- 旧的「六站位/量条」截图是 v2 历史图，v3 实机截图需按 `battle.ch01.kitchen&phase=mid` 与 `battle.sandbox.multi` 重拍（放 `.evidence/`，文档成品图才进 `docs/images/`）。
+- 战场不常显地面圈/文字：意图行、敌人名字/HP/血条、点位方位、背袭楔形、朝向三角、AOE 红圈/文字、目标白圈、静态点位环/中心红环/敌人红环全部删除；地面圈只在普通移动/落点选择出现。
+- 顶部 rail 恒 64：只有「行动表」+ 头像 chip + 当前行动者白描边 + 清除协议倒计时；不再有 SPD 量条/意图行/名牌。
+- 点敌人 sprite 选目标（场上无圈），默认相邻最低 HP；攻击先弹技能窗（一个技能也弹）；未知怪攻击按钮/提示不显示预计伤害，已知怪才显示。
+- 非背袭命中进入 `pendingMove`：保持玩家 active、gauge 不归零；攻击/防御/换目标禁用，移动键变「留在原地」，点亮当前点 + 目标相邻空位；选点后 `post-move` 才归零/进入下一动；背袭不进入。
+- 防御是平减：`max(1, round(atk×power×背袭 − 防御×(背袭?1−穿防:1)))`，防御动作最后 ×0.5；解离突刺背袭穿防 0.5。
+- 御膳房双怪：御厨·幻影（中心、stationary、HP40/ATK10/DEF3/SPD12）+ 帮厨·幻影（右上、chaser、HP24/ATK7/DEF2/SPD10）；只杀一只不结束，全灭才胜利。
+- 图鉴：底部 HP 行右侧「小白」按钮；未命中 `？？？`，命中一次解锁 HP/攻击/防御/速度/技能；预览命中只更新内存不写盘；跨战斗/会话持久。
+- 平衡目标：4–6 次玩家行动胜利，胜利 HP ≥20（`test/battle-balance.test.ts`）。
+- 多怪沙盒：`?stage=battle.sandbox.multi&phase=opening|mid&hud=0`；3 只厨怪随机点位（同 seed 可复现）、追击/堵路/目标切换/落点选择。
+- `__avmBattle()` 断言 `party/enemies/intents/pendingMove/knownEnemies/order/gauges/selectedTargetId`；不要靠截图猜回合/目标。
+- 旧的「六站位/量条/意图/名牌」截图是 v2/v3.0 历史图；v3.1 实机截图需按 `battle.ch01.kitchen&phase=mid`、`skip=1` 与图鉴重拍（放 `.evidence/`，文档成品图才进 `docs/images/`）。
 
 ## 4. 视口与截图
 
@@ -94,7 +98,7 @@
 | [角色 90% 缩放](images/ch01-q-player-scale-90.png) | `spriteScale 0.682 → 0.6138`、`headOffset 258 → 232`；对比图左 0.682 / 右 0.6138 |
 | [开局坐姿](images/ch01-sitting-390x844.png) | 周全坐在书桌前；先放呼噜声、不播 BGM |
 | [心情气泡](images/ch01-emotion-390x844.png) | 表情气泡在头顶，然后才开始打字 |
-| [战斗 v2 390×844](images/ch01-battle-v2-390x844.png) | **v2 历史图**：六站位、跑条、意图、攻击禁用；v3 需重拍 |
+| [战斗 v2 390×844](images/ch01-battle-v2-390x844.png) | **v2 历史图**：六站位、跑条、意图、攻击禁用；v3.1 需重拍 |
 | [背袭 390×844](images/ch01-battle-backstab-390x844.png) | **v2 历史图**：御膳房背后站位、攻击预览 24 |
 | [解离突刺 390×844](images/ch01-battle-kitchen-390x844.png) | **v2 历史图**：御膳房舞台、命中（-16）、光刃补全 |
 | [结束卡 390×844](images/ch01-end-390x844.png) | 第一节完、重看/返回 |

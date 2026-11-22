@@ -9,7 +9,7 @@ M1a。已交付：M0.9 的全部内容 + 第一章第一节《寝室》（单房
 检查点 `dorm.*` / `ch01.complete` / `kitchen.explore` / `kitchen.done`，标题「继续游戏」可直达御膳房。
 标题左下角有**游戏内测试入口**（见 `docs/STAGE-PREVIEW.md` §13），APK 里也能跳任意场景。
 
-**战斗系统 v3（七点位 / 无转向行动 / 多怪）已接入第一章两场**：金殿剧情战（`battle.ch01.first`，没有「解」、只能移动/防御、第 4 次怪物行动清除协议必败）与御膳房双怪遭遇战（`battle.ch01.kitchen`，解离突刺 / 背袭 / 闪现 / 追击 AI）。规则见 `docs/DESIGN-BATTLE.md`，入口/验收见 `docs/STAGE-PREVIEW.md`。
+**战斗系统 v3.1（七点位 / 无转向行动 / 多怪 / 技能窗 / 小白图鉴）已接入第一章两场**：金殿剧情战（`battle.ch01.first`，没有「解」、只能移动/防御、第 4 次怪物行动清除协议必败）与御膳房双怪遭遇战（`battle.ch01.kitchen`，解离突刺 / 背袭 / 平减防御 / 非背袭落点选择 / 追击 AI / 小白图鉴）。战场不画意图/名牌/点位圈/朝向/目标圈，属性只在图鉴。规则见 `docs/DESIGN-BATTLE.md`，入口/验收见 `docs/STAGE-PREVIEW.md`。
 
 尚未接入：多个可操控角色（队伍 UI/换人）、EP/核心暴露/Boss、第三节。没有计划不要继续扩章节。
 
@@ -75,14 +75,15 @@ pnpm android:release
 - 改 UI：`pnpm dev`，用浏览器在 **390×844** 与 **1200×648** 两个视口各看一眼；检查控制台 0 error。
 - 改开幕/过场：完整走一遍「开始 → 全部 cue → 点击继续 → 第一章寝室」，再测「跳过」「返回键」和 `prefers-reduced-motion`；`?stage=scene.prologue` 直接进开幕。
 - 改第一章/地图：`?stage=scene.ch01.dorm&phase=explore&hud=0`；验移动/碰撞/交互/目标/对话/返回标题；`debug=1` 看碰撞格。
-- 改战斗（v3）：
+- 改战斗（v3.1）：
   - 金殿剧情战：`?stage=battle.ch01.first&phase=opening|mid|defeat&hud=0`（`victory` 会回退 mid）；验攻击禁用、怪物先手、第 4 次怪物行动后清除协议必败、战败回寝室、预览可重开/返回。
-  - 御膳房双怪：`?stage=battle.ch01.kitchen&phase=opening|mid|victory|defeat&hud=0`；验点敌人选目标、只杀一只不结束、全灭胜利、解离突刺正面 16 → 闪现到对侧、背袭 24 留原地、回御膳房（不写 `dorm.after`）。
-  - 多怪沙盒：`?stage=battle.sandbox.multi&phase=opening|mid&hud=0`；验随机点位/3 行意图/追击/堵路。
+  - 御膳房双怪：`?stage=battle.ch01.kitchen&phase=opening|mid|victory|defeat&hud=0`；验点敌人选目标（场上无圈/无名牌/无 HP）、攻击先弹技能窗（一个技能也弹）、未知怪不显示预计伤害、命中后非背袭进入落点选择（画当前点 + 目标相邻空位）、背袭留在原地、平减防御、只杀一只不结束、全灭胜利、回御膳房（不写 `dorm.after`）。
+  - 小白图鉴：底部 HP 行右侧「小白」按钮；未攻击过的怪显示 `？？？`，攻击命中一次后显示 HP/攻击/防御/速度/技能；预览命中只更新内存不写盘；跨战斗/跨会话持久。
+  - 多怪沙盒：`?stage=battle.sandbox.multi&phase=opening|mid&hud=0`；验随机点位/追击/堵路/落点选择。
   - 8 向美术：`&facing=up|upRight|right|downRight|down|downLeft|left|upLeft`。
-  - DEV 后门：`__avmBattle()` 读 `{phase, activeId, party, enemies, intents, order, gauges, selectedTargetId, playerHp, enemyHp, slot, facing, intent, log}`；别靠截图猜回合数。
+  - DEV 后门：`__avmBattle()` 读 `{phase, activeId, party, enemies, intents, pendingMove, knownEnemies, order, gauges, selectedTargetId, playerHp, enemyHp, slot, facing, intent, log}`；别靠截图猜回合数。
   - `?stage=...&skip=1` 跳过开场卡直接玩家回合；`hud=0` 关预览 HUD。
-  - 改战斗数据/判定必须同时跑 `test/battle-*.test.ts`；意图锁定、七点位/命中集合、跑条序列、双怪平衡都有纯逻辑护栏。
+  - 改战斗数据/判定必须同时跑 `test/battle-*.test.ts`；意图锁定（内部）、七点位/命中集合、跑条序列、防御平减、pending 落点、图鉴、双怪平衡都有纯逻辑护栏。
 - 改战后黑场胁迫（小白压制周全）：`?stage=scene.ch01.dorm&phase=dark&hud=0` 从「呃……」那一拍直接开始；
   验六拍顺序、黑屏收尾、跳过（结尾卡背后不留黑屏/心跳/小白放大）、`prefers-reduced-motion`。
 - 改舞台目录/预览：`pnpm check`；按 `docs/STAGE-PREVIEW.md` §10 验「URL / 控制台 / HUD 目录 / 未知 id 回退 / hud=0」；新增场景/CG/战斗必须能单点打开、带 seed 重开、返回标题。
@@ -128,20 +129,21 @@ pnpm android:release
 - 坐姿图如果自带椅子，必须用 `sittingOffsetY` 把椅子脚对齐地面，并在坐着时隐藏独立椅子；表情气泡用 `headPoint` 定位，别用脚底坐标。
 - 角色贴图的**不透明底边不一定等于 origin 的脚底线**：`setOrigin(0.5, 400/420)` 把落点钉在画布第 400 行，但跪姿 `zhou_kneel_up` 只画到第 383 行（比落点高 8.5 设计 px），站姿都画到 399。所以脚底阴影不能给所有角色共用一条 `ellipse(x, y+3, 118, 24)`——跪着的周全就是这么悬起来的。金殿现在按贴图 alpha 轮廓查表（`src/scenes/ch01-palace-shadow.ts` + `tools/measure-actor-footprint.py`），换贴图重跑工具、把数抄回表，`test/palace-shadow.test.ts` 会现场解码 PNG 对表。
 
-- **战斗 v3 的判定只在 `src/battle/`**：场景 `battle-ch01-scene.ts` 只消费 `BattleEvent`（动画队列），不得自己算伤害/顺序/命中。新增技能/敌人只加 `data/` 数据；新增行为先加 `core/` 纯函数与单测。
+- **战斗 v3.1 的判定只在 `src/battle/`**：场景 `battle-ch01-scene.ts` 只消费 `BattleEvent`（动画队列），不得自己算伤害/顺序/命中。新增技能/敌人只加 `data/` 数据；新增行为先加 `core/` 纯函数与单测。
 - **第一场不能赢**：`player.skills=[]` + `script.protocolAfterEnemyActions=4`。改第一场数值时保留「攻击禁用 / 必然战败 / 战败回寝室」三条，否则剧情断。
 - **`battleCh01` 与 `battleKitchen` 两个模块共用同一个场景 key**（`battle-ch01`），资源闭包不同：前者 `battle.ch01`（矿工 8 向 + 金殿舞台），后者 `battle.kitchen`（御膳房舞台 + 依赖 `ch01.kitchen` 取厨子八向）。别把两个包合并，否则第一场会被迫加载 14 MB 御膳房素材。
 - **战斗贴图宽度**：解离突刺 12 帧 × 320 = 3840，已接近手机 GPU 4096 上限；矿工八向是 272×400 单张。加帧/加宽前先跑 `test/battle-assets.test.ts`（宽度 <4096）。
-- **1200×648 的设计高只有 1100**：`planBattleLayout` 会把 `radiusY` 压到约 110；上排角色的头离行动表很近。所以玩家血条不画在头顶（底部指令区已有 HP），别再加回去。**多怪名牌在短设计高会叠成一行**：下排怪名牌放脚下，设计高 <1400（1200×648、360×640）时改紧凑牌（去「面朝」、非中心怪向场外让 70px、HP 条 130），不要用统一的 `point.y-300` 居中（2026-11-22 实测 1200×648 双怪叠牌）。
-- **玩家/怪物一次只能走到相邻点位**：`adjacentSlots()`（`src/battle/core/slots.ts`）是唯一判定；7 点位 = 6 环 + 中心，中心 ↔ 所有环，环 ↔ 中心 + 两个环邻；中心被占时不能进，空出后可以站。left↔right、upperLeft↔lowerRight 这类对面只能靠解离突刺的闪现；UI 只点亮相邻空位。
-- **行动表必须真的画出来，SPD 量条不画**：顶部原生 rail 有「行动表」标题、**头像 chip**（周/矿/厨，按 actor 对位，直径 44、中心距 52，当前行动者 2px 白描边，双厨用 1/2 徽标）和**每只怪一行意图**；不再画「行动条」标题、两条 300×10 SPD 量条或 SPD 文案。顺序刷新仍走 `src/battle/core/rail-transition.ts` 的 `railTransition(prev, next)`（最左滑出渐隐 → 其余整体左移一格 → 末位从右侧 +1 格渐现，190ms；位移 ease-out、alpha 线性铺满全程），同一组 order 不重播、一次跨多格只播一轮，`prefers-reduced-motion` 直接落终态；`railHeight=96`（1–2 怪）/`116`（3 怪），`fieldTop=224/244`，由 `battleRailHeight(enemyCount)` 与 `battle-hud.ts` 的 Spacer 同源。不要退化成「接下来：你→它」一行文字。
+- **1200×648 / 360×640 短屏**：`planBattleLayout` 的 `radiusY` 会压到约 99–190（上排给 200 高的御厨留头）；行动表只留一行（rail 64 / fieldTop 192），战场不画名牌/意图/点位圈，所以短屏只剩角色、行动表 chip、底部 HUD。**场上无名牌，属性只在小白图鉴**；不要再加回 `point.y-300` 名牌、HP 条、方位文字、背袭楔形/朝向三角或静态点位环。
+- **玩家/怪物一次只能走到相邻点位**：`adjacentSlots()`（`src/battle/core/slots.ts`）是唯一判定；7 点位 = 6 环 + 中心，中心 ↔ 所有环，环 ↔ 中心 + 两个环邻；中心被占时不能进，空出后可以站。普通移动/落点选择以外不画任何地面圈；解离突刺的非背袭命中进入 `pendingMove`，落点选择画当前点 + 目标相邻空位。
+- **行动表必须真的画出来，SPD 量条/意图行不画**：顶部原生 rail 只有「行动表」标题 + **头像 chip**（周/矿/厨，按 actor 对位，直径 44、中心距 52，当前行动者 2px 白描边，双厨用 1/2 徽标）+ 清除协议倒计时；不再画「行动条」、SPD 量条、SPD 文案或每只怪的意图行。顺序刷新仍走 `src/battle/core/rail-transition.ts` 的 `railTransition(prev, next)`（最左滑出渐隐 → 其余整体左移一格 → 末位从右侧 +1 格渐现，190ms；位移 ease-out、alpha 线性铺满全程），同一组 order 不重播、一次跨多格只播一轮，`prefers-reduced-motion` 直接落终态；`railHeight=64`、`fieldTop=192`，由 `BATTLE_RAIL_HEIGHT` 与 `battle-hud.ts` 的 Spacer 同源。不要退化成「接下来：你→它」一行文字，也不要加回意图行。
 - **怪物技能攻击动画按技能分条**：每个技能一条**左向** 12 帧 strip（`BATTLE_MINER_ATTACKS` / `BATTLE_COOK_ATTACKS`），右侧三方位由 `playStrike` 的 `flip` 镜像；宽帧（如突刺）在 meta 里写 `originX`，播放时临时改原点，播完恢复 0.5。缺图自动退回程序化 nudge/斩击弧，不能阻断回合。
-- **意图是锁定的**：每只怪在自己行动结束后按当时站位锁定 `state.intents[id]`，玩家移动不改它；这样才能「读招→躲开→看它打空」。不要在玩家移动后重算意图；受击转向也不重算意图。
+- **意图仍在内部锁定，但不上屏**：每只怪在自己行动结束后按当时站位锁定 `state.intents[id]`，玩家移动不改它；受击转向也不重算。v3.1 删掉了意图行/命中高亮，但**不要**因此把 AI 改成每步重算——落点选择、AOE 命中、清除协议计数都依赖这份锁定状态。
 - **怪物没有单独的转向行动**：一次行动只有 `skill`（自由瞄准，执行时免费转身）或 `move`（相邻空位，移动后面朝移动方向；被占则失败、空耗行动）；受击后免费转向攻击来向（`from`）。不要加回 `intent.kind='turn'`。
 - **清除协议计数按所有怪物行动数**（技能/移动都算），不是玩家回合数；别改成按玩家回合数，否则玩家可以靠绕背无限拖。
-- **全站位技能不是「没转身就背刺」**：核心脉冲/灶台震地是 AOE，命中全部 7 点（不靠朝向/距离）。HUD 必须写「全站位（无法走位躲避）」+ 全 arena 红环 + 砸地双冲击波；意图文案不要列点位清单。纯逻辑里它是 `SkillHit: 'all-slots'`，`EnemyIntent.aoe=true`；`test/battle-ai.test.ts` 会断言 AOE 文案与 `aoe` 标记。
-- **攻击射程 = 相邻点位**：玩家解离突刺是单一目标（目标相邻即命中，不要用 `hitPointsFor` 当锥形 AOE）；怪物技能用 `hitPointsFor(origin, aim, hit)`。新增技能/敌人时先想清楚它是单体还是 AOE。
-- **多怪是数组**：`state.party[]` / `state.enemies[]`，按 `activeId` 找行动者；行动表/意图/HP/目标全部按 id 处理。御膳房双怪、`battle.sandbox.multi` 三怪都走同一套；只杀一只不结束，所有怪 HP 0 才胜利。
+- **全站位技能是内部判定，不再上屏**：核心脉冲/灶台震地命中全部 7 点（不靠朝向/距离）。v3.1 起 HUD **不再**写「全站位」/红环/意图文案；保留怪物砸地、冲击波、伤害数字等技能动画。纯逻辑里它是 `SkillHit: 'all-slots'`，`EnemyIntent.aoe=true`；`test/battle-ai.test.ts` 仍断言内部意图的 `aoe` 标记，但场景不渲染意图。
+- **攻击射程 = 相邻点位**：玩家解离突刺是单一目标（目标相邻即命中，不要用 `hitPointsFor` 当锥形 AOE）；怪物技能用 `hitPointsFor(origin, aim, hit)`。伤害是**平减防御**：`max(1, round(atk×power×背袭 − 防御×(背袭?1−穿防:1)))`，防御动作最后 ×0.5；`SkillDef.backstabDefensePierce` 当前解离突刺 0.5。非背袭命中进入 `pendingMove` 落点选择，背袭不进入；不再有自动镜像闪现。
+- **多怪是数组**：`state.party[]` / `state.enemies[]`，按 `activeId` 找行动者；行动表/目标/图鉴全部按 id 处理。御膳房双怪、`battle.sandbox.multi` 三怪都走同一套；只杀一只不结束，所有怪 HP 0 才胜利。场上不画敌人名字/HP；点击敌人 sprite 选目标，属性只在「小白」图鉴里（未知 `？？？`，命中一次解锁）。
+- **技能弹窗/图鉴/落点选择**：点攻击先弹 `openBattleSkill`（一个技能也弹；第一场无技能不弹、按钮禁用）；未知怪攻击按钮/提示不显示预计伤害，已知怪可以显示；落点选择时 `pendingMove` 保持 `activeId=玩家`、gauge 不归零，攻击/防御/换目标禁用，移动键变「留在原地」，只点亮当前点 + 目标相邻空位；`post-move` 后才归零并进入下一动。图鉴走 `src/battle/codex.ts` 的 localStorage `avm.battle.codex.v1`，预览只更新内存不写盘。
 - **解离突刺的 320 宽已经是上限**：12 帧 × 320 = 3840 < 4096；改 400 宽会到 4800，真机纹理创建失败变黑块。源视频在突刺峰值把光刃推到自己画幅外，成品第 3–10 帧刃尖被右缘裁掉；**不要靠加宽帧解决**，表现层用 `ui/battle-fx.ts` 的 `bladeTrail()` 从手部向目标补光刃（命中帧起 320ms）。矿工八向是 272×400，别为了「凑整 240」把钻井臂压矮——八向会一缩一胀。
 
 ## 6. 提交

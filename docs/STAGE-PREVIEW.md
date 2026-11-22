@@ -1,6 +1,6 @@
 # 舞台预览与测试后门
 
-> 状态：v1.1（2026-10-25，新增第一章第一节舞台）
+> 状态：v1.5（2026-11-22，战斗 v3.1：行动表 64 / 技能窗 / 图鉴 / 落点选择）
 > 适用：Web、Android（Cordova）、自动化测试、人工验收
 > 唯一真值：`src/dev/stage-catalog.ts`
 > 相关 ADR：[0005-stage-preview.md](adr/0005-stage-preview.md)
@@ -347,15 +347,17 @@ CG 构图要求见 `docs/ART-STYLE.md`：主体放中心 4:5 安全区；查看�
 
 未实现对应 phase 时，退回 `opening` 并在控制台 warning；不要白屏。
 
-### 9.3 当前状态（战斗 v3）
+### 9.3 当前状态（战斗 v3.1）
 
 真实战斗已接入：`battle.ch01.first`（金殿剧情战，1 怪）与 `battle.ch01.kitchen`（御膳房双怪）。两者共用场景 `battle-ch01`，但模块/资源闭包不同（`battleCh01` vs `battleKitchen`）。另有多怪沙盒 `battle.sandbox.multi`（厨房舞台、3 只厨系幻影、随机点位），只用于验收。
 
 - phase：`opening | mid | victory | defeat`；金殿的 `victory` 会回退 `mid` 并 warning（那场不能赢）。
 - `facing=up|upRight|right|downRight|down|downLeft|left|upLeft`：覆盖**第一只怪物**的初始朝向（双怪/沙盒也只改第一只），用来逐个验收八向图。**请和 `skip=1` 一起用**：`phase=mid` 会模拟回合，怪物可能已经转向，看到的就不是你指定的朝向。
 - `skip=1`：跳过开场卡，直接进玩家回合（`/battle.ch01.kitchen&skip=1`）。
-- DEV 后门：`__avmBattle()` 返回 `{phase, activeId, party, enemies, intents, order, gauges, selectedTargetId, playerHp, enemyHp, slot, facing, intent, log}`；点一下前后各读一次，直接断言 seq/enemyActions/HP/目标的变化，不靠截图猜。
-- 规则真值：`docs/DESIGN-BATTLE.md`；单测 `test/battle-*.test.ts`。
+- DEV 后门：`__avmBattle()` 返回 `{phase, activeId, party, enemies, intents, pendingMove, knownEnemies, order, gauges, selectedTargetId, playerHp, enemyHp, slot, facing, intent, log}`；点一下前后各读一次，直接断言 seq/enemyActions/HP/目标/落点的变化，不靠截图猜。
+- v3.1 战场只画角色/行动表 chip/伤害数字/技能动画；**不画意图、名牌、HP、点位圈、朝向/背袭、目标圈**；地面圈只在普通移动/落点选择出现。属性只在「小白」图鉴。
+- 攻击先弹技能窗（一个技能也弹）；未知怪不显示预计伤害，已知怪才显示；非背袭命中进入落点选择（移动键「留在原地」）。
+- 规则真值：`docs/DESIGN-BATTLE.md`；单测 `test/battle-*.test.ts`（含 `battle-pending`、`battle-codex`）。
 
 `battle.sandbox` 仍保留为**契约自检页**（seed/敌人列表/回合数/资源门禁/返回标题），不是战斗玩法；`battle.sandbox.multi` 才是战斗玩法沙盒。
 
@@ -374,8 +376,8 @@ CG 构图要求见 `docs/ART-STYLE.md`：主体放中心 4:5 安全区；查看�
 | `scene.ch01.open` | 场景 | 第一章开场动画（12.8s 竖屏 CG，播完或跳过进寝室） |
 | `scene.placeholder` | 场景 | 序章占位页（仅预览；正常流程不再进入） |
 | `scene.ch01.dorm` | 场景 | 第一章 · 第一节 寝室；phase=opening/explore/after/dark/complete，debug=1 显示碰撞（`dark` 从战后黑场胁迫那一拍开始） |
-| `battle.ch01.first` | 战斗 | 第一章剧情战 v3（七点位/行动表）；phase=opening/mid/defeat（victory 回退 mid）；没有「解」、攻击禁用、第 4 次怪物行动清除协议必败；`facing=` 预览第一只怪八向 |
-| `battle.ch01.kitchen` | 战斗 | 御膳房双怪 v3；phase=opening/mid/victory/defeat；点敌人选目标、只杀一只不结束、全灭胜利；解离突刺正面 16 → 闪现到对侧、背袭 24 留原地；`facing=` 预览第一只厨子八向 |
+| `battle.ch01.first` | 战斗 | 第一章剧情战 v3.1（七点位/行动表 64）；phase=opening/mid/defeat（victory 回退 mid）；没有「解」、攻击禁用、无技能窗、第 4 次怪物行动清除协议必败；场上无圈/无名牌；`facing=` 预览第一只怪八向 |
+| `battle.ch01.kitchen` | 战斗 | 御膳房双怪 v3.1；phase=opening/mid/victory/defeat；点敌人选目标（场上无圈/无名牌）、攻击先弹技能窗、未知怪不显示预计伤害、非背袭命中进入落点选择、背袭留在原地、平减防御、只杀一只不结束、全灭胜利；「小白」图鉴在底部 HP 行右侧；`facing=` 预览第一只厨子八向 |
 | `cg.ch01.phone` | CG | 第一章 · 手机白光 |
 | `cg.ch01.xiaobai` | CG | 第一章 · 小白登场 |
 | `cg.ch01.wake` | CG | 第一章 · 醒来 |
@@ -386,7 +388,7 @@ CG 构图要求见 `docs/ART-STYLE.md`：主体放中心 4:5 安全区；查看�
 | `cg.prologue.disaster` | CG | 梦坠 |
 | `cg.prologue.war` | CG | 无声的战争 |
 | `cg.prologue.school` | CG | 群英高中 |
-| `battle.sandbox.multi` | 战斗 | 多怪沙盒：厨房舞台、3 只厨系幻影、随机点位；phase=opening/mid；验 3 行意图/追击/堵路/目标切换 |
+| `battle.sandbox.multi` | 战斗 | 多怪沙盒 v3.1：厨房舞台、3 只厨系幻影、随机点位；phase=opening/mid；验追击/堵路/目标切换/落点选择/图鉴 |
 | `battle.sandbox` | 战斗 | 契约沙盒（非玩法） |
 
 > 开幕的 ▶▶ 自动播放图标在右上角，预览 HUD 展开时会盖住它：预览里想切自动，先用 `hud=0`，或点 HUD 的「×」收起。
@@ -528,6 +530,7 @@ pnpm check   # typecheck + vitest + assets:check
 - v1.1（2026-10-25）：新增 `scene.ch01.dorm`、`battle.ch01.first` 与 3 张第一章 CG；开幕完成/跳过改为进入第一章寝室；目录 15 项。
 - v1.3（2026-11-21）：战斗 v2（六站位跑条制）接入 `battle.ch01.first` 与新增 `battle.ch01.kitchen`；phase 扩为 opening/mid/victory/defeat，新增 `facing` / `skip` 参数与 `__avmBattle()` 调试快照。
 - v1.4（2026-11-22）：战斗 v3（七点位/无转向行动/多怪）接入；御膳房改双怪；顶部只留行动表；新增 `battle.sandbox.multi` 多怪沙盒与扩展后的 `__avmBattle()`。
+- v1.5（2026-11-22）：战斗 v3.1——删除意图/名牌/点位圈/朝向/目标圈/静态地面圈；rail 64；技能窗、平减防御、`pendingMove` 落点选择、小白图鉴；`__avmBattle()` 增加 `pendingMove` / `knownEnemies`。
 - v1.2（2026-11-01）：标题页左下角加游戏内测试入口（清单直接由 `STAGE_CATALOG` 生成）；
   御膳房接入正式流程（寝室结束卡 →「进入第二节」，新增 `kitchen.explore` / `kitchen.done` 检查点）；
   御膳房舞台条目去掉「P1 白盒」标记。
