@@ -374,7 +374,7 @@ export class Ch01KitchenScene extends UIScene {
     // 相机跟随玩家滚动；Compose 页面必须钉在屏幕上，否则 HUD 会跟着地图滚走。
     this.page?.setScrollFactor(0);
     audioDirector.attach(this);
-    // 场景绑定：潜入戏复用《危机来临》的冷脉冲；进战斗再由 battleCh01 交叉淡化到《清除协议》。
+    // 场景绑定：潜入戏复用《危机来临》的冷脉冲；进战斗切《刺王杀驾》并从 0 起播。
     bgmManager.enterScene(this);
     // 状态型 cue：存档里那首必须显式补播（场景绑定只知道「御膳房默认放危机曲」）。
     this.applyRestoredBgm();

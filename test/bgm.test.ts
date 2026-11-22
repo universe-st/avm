@@ -154,7 +154,16 @@ describe('运行时改绑（resolveSceneTrack + overrides）', () => {
 });
 
 describe('续播判定（planBgmTransition）', () => {
-  it('同一首跨场景：不重建实例（continue），进度不会回到 0', () => {
+  it('场景入场：同曲也从头 start（用户 2026-11-22 口径）', () => {
+    expect(
+      planBgmTransition(playing('ch01Battle'), sceneTrack('ch01Battle'), { restart: true }),
+    ).toEqual({ type: 'start', id: 'ch01Battle' });
+    expect(
+      planBgmTransition(paused('ch01Battle'), sceneTrack('ch01Battle'), { restart: true }),
+    ).toEqual({ type: 'start', id: 'ch01Battle' });
+  });
+
+  it('场景内 cue/改绑同曲：continue，不无故重播', () => {
     const action = planBgmTransition(playing('ch01Dream'), sceneTrack('ch01Dream'));
     expect(action).toEqual({ type: 'continue' });
   });

@@ -25,7 +25,7 @@ export interface BgmDebugSnapshot {
   readonly sceneKey: string | null;
   /** 当前曲目 id（静音/没播时为 null）。 */
   readonly currentId: BgmId | null;
-  /** 声音实例编号：同一首跨场景续播时保持不变。 */
+  /** 当前声音实例编号；进入场景重播/换曲会变，场景内续播不变。 */
   readonly instanceId: number | null;
   readonly isPlaying: boolean;
   readonly isPaused: boolean;
@@ -60,7 +60,8 @@ export interface BgmDebugApi {
  * - 绑定 `track`：切过去，旧曲淡出、新曲淡入（交叉淡化）；
  * - 绑定 `silence`：淡出到静音；
  * - 绑定 `hold`：保持当前曲目，不打断；
- * - 同一首曲子跨场景：**复用同一个声音实例**，播放进度连续、不回到 0。
+ * - **进入场景**：即使是同一首曲子也重建实例、从 0 开始（用户 2026-11-22 口径）；
+ *   场景内的 cue / 改绑同曲才续播。`hold` 场景仍显式沿用。
  *
  * 跨场景的淡出必须由**新场景**的 tween 驱动：旧场景 shutdown 会连带销毁它的 tween，
  * 在旧场景里起淡化会让旧曲永远停在半音量。
@@ -114,7 +115,8 @@ export class BgmManager {
   enterScene(scene: Phaser.Scene, entryCue?: SceneBinding): void {
     this.attach(scene);
     this.sceneKey = scene.scene.key;
-    this.applyBinding(entryCue ?? this.sceneBinding(scene.scene.key));
+    // 场景入场一律重建当前曲目实例：每个场景的 BGM 都从 0 开始（用户 2026-11-22 口径）。
+    this.applyBinding(entryCue ?? this.sceneBinding(scene.scene.key), { restart: true });
   }
 
   /**
@@ -250,8 +252,11 @@ export class BgmManager {
     };
   }
 
-  private applyBinding(binding: SceneBinding | undefined): void {
-    const action = planBgmTransition(this.playbackState(), binding);
+  private applyBinding(
+    binding: SceneBinding | undefined,
+    options: { readonly restart?: boolean } = {},
+  ): void {
+    const action = planBgmTransition(this.playbackState(), binding, options);
     switch (action.type) {
       case 'hold':
         return;
@@ -270,13 +275,13 @@ export class BgmManager {
     }
   }
 
-  /** 同一首跨场景：实例与进度都不动，只把音量收敛到目标值。 */
+  /** 场景内同曲 cue/改绑：实例与进度都不动，只把音量收敛到目标值。 */
   private keepCurrent(): void {
     if (!this.current) return;
     this.syncVolume(400);
   }
 
-  /** 同一首但被暂停（例如切后台 pauseAll）：从暂停点继续，绝不 `play()` 重头再来。 */
+  /** 场景内同曲但被暂停（例如切后台 pauseAll）：从暂停点继续；入场重播走 `start`。 */
   private resumeCurrent(): void {
     const sound = this.current;
     if (!sound) return;
@@ -302,8 +307,10 @@ export class BgmManager {
     }
 
     const previous = this.current;
+    const sameTrack = previous !== null && this.currentId === id;
     if (previous) {
-      if (hard) {
+      // 同曲重播（进场景/硬切）必须直接掐掉旧实例：若走淡出，新旧两轨会同时响、像回声。
+      if (hard || sameTrack) {
         this.killFade(previous);
         this.volumes.delete(previous);
         previous.stop();
@@ -341,7 +348,7 @@ export class BgmManager {
     this.scene = scene;
 
     // 旧场景 shutdown 会销毁挂在它上面的 tween，记账里的记录随之作废：
-    // - 属于当前曲目的记录要删掉，否则「同曲续播」会误判淡入还在跑而把音量停在半路；
+    // - 属于当前曲目的记录要删掉，否则「场景内同曲续播」会误判淡入还在跑而把音量停在半路；
     // - 属于正在淡出的旧曲目的记录，直接收尾（stop + destroy），别让它卡在半音量循环。
     for (const [sound, record] of [...this.fades]) {
       if (record.scene === scene) continue;

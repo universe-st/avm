@@ -1,7 +1,7 @@
-# BGM 绑定与续播
+# BGM 绑定与从头播放
 
 > 目的：**每个内容场景的音乐都由显式声明决定**（曲子 / 静音 / 明确沿用），不允许「没登记就悄悄继承上一首」；
-> 同一首跨场景不重播；运行时能改绑。
+> **进入场景时该场景的曲目从 0 开始、整首循环到尾**；场景内 cue 可续播；运行时能改绑。
 
 ## 1. 三层职责
 
@@ -9,7 +9,7 @@
 | --- | --- | --- |
 | `src/audio/bgm-tracks.ts` | 曲目表、场景绑定表、三态解析（`resolveSceneTrack`）、改绑表合成（`withSceneBinding`） | 无（纯数据，可 Node 单测） |
 | `src/audio/bgm-plan.ts` | 绑定 → 播放器动作（`start` / `continue` / `resume` / `silence` / `hold`）的纯判定 | 无（可 Node 单测） |
-| `src/audio/bgm-manager.ts` | 执行：建实例、交叉淡化、续播、音量记账、运行时改绑、解锁补播 | Phaser |
+| `src/audio/bgm-manager.ts` | 执行：建实例、入场重头、场景内续播、交叉淡化、音量记账、运行时改绑、解锁补播 | Phaser |
 
 场景只做两件事：`create()` 里 `bgmManager.enterScene(this)`；剧情/阶段切曲用 `bgmManager.play(id)`（cue）或 `bgmManager.applySceneBinding()`（回到场景绑定）。
 
@@ -37,8 +37,8 @@ type SceneBinding =
 | `ch01-opening` | 沿用（hold） | 开场 CG 自带同轨环境声，且可能在标题页单点预览；沿用当前曲目，正常流程里是开幕曲的尾巴 |
 | `ch01-dorm` | 《午后小憩》`ch01Dorm` | 寝室日常 |
 | `ch01-kitchen` | 《危机来临》`ch01Crisis` | 潜入戏的冷脉冲底子（`P2-KITCHEN-ASSETS.md`：复用现有曲目，不新增整首 BGM） |
-| `ch01-palace` | 《小皇帝的早朝》`ch01Palace` | 前半是荒诞早朝（诙谐宫廷古风）；太监裂皮那一刻由剧本 cue 硬切《清除协议》，随后进战斗是同一首，实例/进度连续 |
-| `battle-ch01` | 《清除协议》`ch01Dream` | 剧情战 |
+| `ch01-palace` | 《小皇帝的早朝》`ch01Palace` | 前半是荒诞早朝（诙谐宫廷古风）；太监裂皮那一刻由剧本 cue 硬切《清除协议》，进战斗切《刺王杀驾》并从 0 起播 |
+| `battle-ch01` | 《刺王杀驾》`ch01Battle` | 金殿剧情战/御膳房遭遇战共用；每个战斗场景入场都从 0 开始 |
 | `cg-stage` | 沿用（hold） | 调试用 CG 查看器，不要打断当前曲目 |
 | `battle-sandbox` | 沿用（hold） | 调试用战斗沙盒 |
 
@@ -54,20 +54,25 @@ bgmManager.enterScene(this, this.isOpening() ? SCENE_SILENT : undefined);
 入口 cue 只覆盖**这一次**进入，不写改绑表；进探索时 `startExploreAudio()` 调 `applySceneBinding()` 回到表里的曲子。
 **常规跨场景的音乐差异一律改 `SCENE_BGM`，不要滥用入口 cue。**
 
-## 4. 同曲续播规则
+## 4. 进场景从头 / 场景内续播规则
 
-判据只有一条：**当前曲目 id 与目标绑定相同、且声音实例还在** → 复用同一实例。
+用户口径（2026-11-22）：**每个场景的 BGM 进入场景时从 0 开始，整首循环到尾。**
 
-| 当前状态 | 绑定 | 动作 | 实例 |
-| --- | --- | --- | --- |
-| 正在播 X | X | `continue`（只补一次音量收敛） | 不变，进度连续 |
-| 被暂停的 X（切后台 `pauseAll`） | X | `resume()` | 不变，从暂停点继续 |
-| 实例已丢的 X | X | `start` | 新建（进度本来就没了） |
-| 正在播 X | Y | `start` | 新建 Y，X 淡出销毁 |
-| 任意 | 静音 / 沿用 | `silence` / `hold` | — |
+- 场景 `create()` 里的 `enterScene` 传 `restart: true`：`track` 绑定即使与当前同曲也 `start` 新实例，旧实例直接 stop + destroy（不走淡出，避免同曲两轨叠响），进度从 0。
+- 场景内 `play` / `bindScene` / `applySceneBinding` 不传 `restart`：同曲 `continue` / `resume`，换曲 `start`。
+- `hold` 场景（CG 预览 / 沙盒）沿用前曲；`silence` 淡出。
 
-这覆盖了「A 场景淡入/切场景 → B 场景同曲」：`enterScene` 先 `attach` 新场景，把随旧场景 shutdown 一起失效的 tween 记账删掉，再把当前音量收敛到目标值；
-淡出中的旧曲目如果宿主场景没了，会立刻 stop + destroy，不会卡在半音量继续循环。
+| 时机 | 当前状态 | 绑定 | 动作 | 实例 |
+| --- | --- | --- | --- | --- |
+| **进入场景** | 任意（含正在播 X） | X | `start` | 新建，**0** |
+| 场景内 cue / 改绑 | 正在播 X | X | `continue` | 不变，进度连续 |
+| 场景内 cue / 改绑 | 暂停的 X | X | `resume` | 不变，暂停点继续 |
+| 场景内 cue / 改绑 | 实例已丢的 X | X | `start` | 新建 |
+| 任意 | 正在播 X | Y | `start` | 新建 Y，X 淡出销毁 |
+| 任意 | 任意 | 静音 / 沿用 | `silence` / `hold` | — |
+
+`enterScene` 先 `attach` 新场景，把随旧场景 shutdown 一起失效的 tween 记账删掉；
+同曲重播先掐旧实例；不同曲交叉淡化。淡出中的旧曲目如果宿主场景没了，会立刻 stop + destroy，不会卡在半音量继续循环。
 
 ## 5. 运行时改绑
 
@@ -130,10 +135,10 @@ __avmBgm.snapshot()
 // { sceneKey, currentId, instanceId, isPlaying, isPaused, volume,
 //   positionMs, durationMs, binding }
 
-__avmBgm.instanceId()   // 同一首跨场景续播时不变（区分「续播」与「重播」）
-__avmBgm.positionMs()   // 播放进度；同曲跨场景后应继续增长，而不是回到 0
+__avmBgm.instanceId()   // 每次进场景重播/换曲会变；场景内续播不变
+__avmBgm.positionMs()   // 进场景后应从 0 开始；场景内 cue 后继续增长
 __avmBgm.bindingOf('ch01-dorm')  // 某场景当前生效的绑定（含改绑）
 ```
 
 验收口径：标题 →「继续游戏」进任一检查点后，`currentId` 必须是该场景的曲目、`audio.bgm.title` 不能再响；
-同曲跨场景（如金殿 → 剧情战）`instanceId` 不变且 `positionMs` 连续。
+**每次进场景 `positionMs` 应从 0 开始、`instanceId` 变化**；同一首跨场景（如两场战斗）不续播。`hold` 场景（CG 预览/沙盒）除外。

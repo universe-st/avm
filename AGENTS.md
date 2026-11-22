@@ -145,6 +145,7 @@ pnpm android:release
 - **多怪是数组**：`state.party[]` / `state.enemies[]`，按 `activeId` 找行动者；行动表/目标/图鉴全部按 id 处理。御膳房双怪、`battle.sandbox.multi` 三怪都走同一套；只杀一只不结束，所有怪 HP 0 才胜利。场上不画敌人名字/HP；点击敌人 sprite 选目标，选中目标脚下有**闪烁绿圈**，属性只在「小白」图鉴里（未知 `？？？`，命中一次解锁）。
 - **选中目标绿圈是唯一常驻地面圈**：独立 `targetRingGraphics` + alpha 脉冲（650ms yoyo；reduced-motion 静态），不要跟移动/落点高亮共用 `highlightGraphics`（后者每次 sync 会 `clear()`，绿圈会被一起清掉）。绿圈画在选中敌人脚下，目标死亡/胜负后隐藏；深度 `LAYERS.markers + 5`。
 - **技能弹窗/图鉴/落点选择**：点攻击先弹 `openBattleSkill`（一个技能也弹；第一场无技能不弹、按钮禁用）；未知怪攻击按钮/提示不显示预计伤害，已知怪可以显示；落点选择时 `pendingMove` 保持 `activeId=玩家`、gauge 不归零，攻击/防御/换目标禁用，移动键变「留在原地」，只点亮当前点 + 目标相邻空位；`post-move` 后才归零并进入下一动。图鉴走 `src/battle/codex.ts` 的 localStorage `avm.battle.codex.v1`，预览只更新内存不写盘。
+- **BGM 进场景必须从头**：每个内容场景 `create()` 的 `bgmManager.enterScene(this)` 会重建该场景 `track` 实例（同曲也从 0），整首 `loop:true` 循环到尾；只有场景内 `play`/`bindScene`/`applySceneBinding` 同曲才 `continue/resume`，`hold` 场景（CG 预览/沙盒）沿用前曲。不要退回「同曲跨场景续播」（用户 2026-11-22 明确要求每场景从头到尾循环）；细节见 `docs/AUDIO-BGM.md` §4。
 - **解离突刺的 320 宽已经是上限**：12 帧 × 320 = 3840 < 4096；改 400 宽会到 4800，真机纹理创建失败变黑块。源视频在突刺峰值把光刃推到自己画幅外，成品第 3–10 帧刃尖被右缘裁掉；**不要靠加宽帧解决**，表现层用 `ui/battle-fx.ts` 的 `bladeTrail()` 从手部向目标补光刃（命中帧起 320ms）。矿工八向是 272×400，别为了「凑整 240」把钻井臂压矮——八向会一缩一胀。
 
 ## 6. 提交

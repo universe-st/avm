@@ -8,7 +8,7 @@ import { CH01_ASSET_KEYS } from '../assets/keys';
 /**
  * BGM 曲目表与「场景 → 曲子」绑定（纯数据，不依赖 Phaser，便于单测）。
  *
- * 真正的播放/交叉淡化在 `bgm-manager.ts`，续播判定在 `bgm-plan.ts`；这里只回答
+ * 真正的播放/交叉淡化在 `bgm-manager.ts`，入场重播/场景内续播判定在 `bgm-plan.ts`；这里只回答
  * 「这个场景该放哪首」，并且**强制每个内容场景显式表态**（见 `SCENE_BGM`）。
  */
 export interface BgmTrack {
@@ -67,7 +67,8 @@ export const BGM_TRACKS = {
    * 第一章战斗曲《刺王杀驾》。
    *
    * 金殿剧情战与御膳房遭遇战共用：节奏轻快激动的中国古风战斗曲。
-   * 金殿过场在裂皮那一刻仍用《清除协议》铺恐怖，进战斗后由 BGM 管理器交叉淡化过来。
+   * **每个战斗场景进入时都从 0 开始**（enterScene 会重建实例），两场之间不续播。
+   * 金殿过场在裂皮那一刻用《清除协议》铺恐怖，进战斗切到本曲并从 0 起播。
    */
   ch01Battle: {
     key: 'audio.bgm.ch01_battle',
@@ -122,10 +123,10 @@ export const SCENE_BGM: Readonly<Record<ContentSceneKey, SceneBinding>> = {
   [SCENE_KEYS.ch01Opening]: SCENE_HOLD,
   // 寝室默认放校园日常；开头「睡觉戏」由场景显式传 `SCENE_SILENT` 作入口 cue（只有呼噜声）。
   [SCENE_KEYS.ch01Dorm]: sceneTrack('ch01Dorm'),
-  // 御膳房是潜入戏：复用《危机来临》的冷脉冲/心跳底子，进战斗再由 battleCh01 交叉淡化到《清除协议》。
+  // 御膳房是潜入戏：复用《危机来临》的冷脉冲/心跳底子，进战斗切《刺王杀驾》并从 0 起播。
   [SCENE_KEYS.ch01Kitchen]: sceneTrack('ch01Crisis'),
   // 金殿过场前半段是荒诞早朝，配诙谐宫廷古风；太监裂皮翻脸那一刻由剧本 cue 硬切
-  // 到《清除协议》，随后进战斗是同一首，实例与进度连续。
+  // 到《清除协议》，随后进战斗切《刺王杀驾》并从 0 起播。
   [SCENE_KEYS.ch01Palace]: sceneTrack('ch01Palace'),
   [SCENE_KEYS.battleCh01]: sceneTrack('ch01Battle'),
   // CG 预览 / 战斗沙盒是调试入口，从标题点进去时不打断标题曲。
