@@ -355,7 +355,7 @@ CG 构图要求见 `docs/ART-STYLE.md`：主体放中心 4:5 安全区；查看�
 - `facing=up|upRight|right|downRight|down|downLeft|left|upLeft`：覆盖**第一只怪物**的初始朝向（双怪/沙盒也只改第一只），用来逐个验收八向图。**请和 `skip=1` 一起用**：`phase=mid` 会模拟回合，怪物可能已经转向，看到的就不是你指定的朝向。
 - `skip=1`：跳过开场卡，直接进玩家回合（`/battle.ch01.kitchen&skip=1`）。
 - DEV 后门：`__avmBattle()` 返回 `{phase, activeId, party, enemies, intents, pendingMove, knownEnemies, order, gauges, selectedTargetId, playerHp, enemyHp, slot, facing, intent, log}`；点一下前后各读一次，直接断言 seq/enemyActions/HP/目标/落点的变化，不靠截图猜。
-- v3.1 战场只画角色/行动表 chip/伤害数字/技能动画；**不画意图、名牌、HP、点位圈、朝向/背袭、目标圈**；地面圈只在普通移动/落点选择出现。属性只在「小白」图鉴。
+- v3.1 战场只画角色/行动表 chip/伤害数字/技能动画；**不画意图、名牌、HP、点位圈、朝向/背袭、目标白圈**；**当前选中敌人脚下有闪烁绿圈**；其他地面圈只在普通移动/落点选择出现。属性只在「小白」图鉴。
 - 攻击先弹技能窗（一个技能也弹）；未知怪不显示预计伤害，已知怪才显示；非背袭命中进入落点选择（移动键「留在原地」）。
 - 规则真值：`docs/DESIGN-BATTLE.md`；单测 `test/battle-*.test.ts`（含 `battle-pending`、`battle-codex`）。
 
@@ -530,7 +530,7 @@ pnpm check   # typecheck + vitest + assets:check
 - v1.1（2026-10-25）：新增 `scene.ch01.dorm`、`battle.ch01.first` 与 3 张第一章 CG；开幕完成/跳过改为进入第一章寝室；目录 15 项。
 - v1.3（2026-11-21）：战斗 v2（六站位跑条制）接入 `battle.ch01.first` 与新增 `battle.ch01.kitchen`；phase 扩为 opening/mid/victory/defeat，新增 `facing` / `skip` 参数与 `__avmBattle()` 调试快照。
 - v1.4（2026-11-22）：战斗 v3（七点位/无转向行动/多怪）接入；御膳房改双怪；顶部只留行动表；新增 `battle.sandbox.multi` 多怪沙盒与扩展后的 `__avmBattle()`。
-- v1.5（2026-11-22）：战斗 v3.1——删除意图/名牌/点位圈/朝向/目标圈/静态地面圈；rail 64；技能窗、平减防御、`pendingMove` 落点选择、小白图鉴；`__avmBattle()` 增加 `pendingMove` / `knownEnemies`。
+- v1.5（2026-11-22）：战斗 v3.1——删除意图/名牌/点位圈/朝向/目标白圈/静态地面圈；保留选中目标闪烁绿圈；rail 64；技能窗、平减防御、`pendingMove` 落点选择、小白图鉴；`__avmBattle()` 增加 `pendingMove` / `knownEnemies`。
 - v1.2（2026-11-01）：标题页左下角加游戏内测试入口（清单直接由 `STAGE_CATALOG` 生成）；
   御膳房接入正式流程（寝室结束卡 →「进入第二节」，新增 `kitchen.explore` / `kitchen.done` 检查点）；
   御膳房舞台条目去掉「P1 白盒」标记。

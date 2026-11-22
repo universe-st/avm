@@ -7,6 +7,8 @@ export const PAPER = 0xf2efe6;
 export const GOLD = 0xd8b76a;
 export const MUTED = 0x9b9486;
 export const DANGER = 0xc0392b;
+/** 战斗里「当前选中目标」的冷绿：比主题 success 亮一档，暗底更醒目。 */
+export const SUCCESS = 0x4ade80;
 
 const colorCss = (color: number): string => `#${color.toString(16).padStart(6, '0')}`;
 

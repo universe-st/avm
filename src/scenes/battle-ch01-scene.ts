@@ -89,7 +89,7 @@ import {
 } from '../ui/fx-kit';
 import { setLinearTextures, setPixelTextures } from '../ui/pixel';
 import { LAYERS } from '../render/layers';
-import { DANGER, GOLD, INK, MUTED, PAPER, makeSceneText } from '../ui/cinematic';
+import { DANGER, GOLD, INK, MUTED, PAPER, SUCCESS, makeSceneText } from '../ui/cinematic';
 import { openGameMenu } from '../ui/game-menu';
 import { hashSeed } from '../dev/random';
 import {
@@ -197,6 +197,9 @@ export class BattleCh01Scene extends UIScene {
   private readonly enemyIndex = new Map<string, number>();
   private readonly enemyTargetZones = new Map<string, Phaser.GameObjects.Zone>();
   private highlightGraphics: Phaser.GameObjects.Graphics | null = null;
+  /** 当前选中敌人的脚下绿圈：唯一常驻地面圈，独立脉冲层。 */
+  private targetRingGraphics: Phaser.GameObjects.Graphics | null = null;
+  private targetRingTween: Phaser.Tweens.Tween | null = null;
 
   private protocolText: Phaser.GameObjects.Text | null = null;
   private selectedTargetId: string | null = null;
@@ -408,6 +411,9 @@ export class BattleCh01Scene extends UIScene {
     this.enemyIndex.clear();
     this.enemyTargetZones.clear();
     this.highlightGraphics = null;
+    this.targetRingTween?.remove();
+    this.targetRingTween = null;
+    this.targetRingGraphics = null;
     this.protocolText = null;
     this.orderChips.length = 0;
     this.displayedOrder = [];
@@ -492,6 +498,22 @@ export class BattleCh01Scene extends UIScene {
 
   private createArena(): void {
     this.highlightGraphics = this.add.graphics().setDepth(LAYERS.markers + 4);
+    this.targetRingGraphics = this.add
+      .graphics()
+      .setDepth(LAYERS.markers + 5)
+      .setVisible(false);
+    if (this.reduced) {
+      this.targetRingGraphics.setAlpha(0.95);
+    } else {
+      this.targetRingTween = this.tweens.add({
+        targets: this.targetRingGraphics,
+        alpha: { from: 0.3, to: 1 },
+        duration: 650,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    }
 
     // 点位本身不常显：只保留不可见的点击区；地面圈只在 moveMode/落点选择时画。
     for (const slot of SLOT_ORDER) {
@@ -1780,6 +1802,7 @@ export class BattleCh01Scene extends UIScene {
   }
 
   private drawHighlights(): void {
+    this.drawTargetRing();
     const graphics = this.highlightGraphics;
     if (!graphics) return;
     graphics.clear();
@@ -1817,6 +1840,39 @@ export class BattleCh01Scene extends UIScene {
       fillAlpha: 0.08,
       lineWidth: 3,
     });
+  }
+
+  /**
+   * 当前选中敌人脚下的闪烁绿圈。
+   *
+   * 这是 v3.1「地面圈只在移动/落点出现」的唯一例外：玩家点敌人身体选目标后，
+   * 场上没有名字/HP/白圈，必须有一个持续可见的选中指示。绿圈用独立 Graphics
+   * 叠 alpha 脉冲，不跟移动/落点高亮共用图层；reduced-motion 下只显示静态绿圈。
+   */
+  private drawTargetRing(): void {
+    const graphics = this.targetRingGraphics;
+    if (!graphics) return;
+    graphics.clear();
+    const target = this.selectedEnemyUnit();
+    if (
+      !target ||
+      this.ended ||
+      this.state.phase === 'victory' ||
+      this.state.phase === 'defeat'
+    ) {
+      graphics.setVisible(false);
+      return;
+    }
+    drawSlotRing(graphics, this.layout.slots[target.slot], {
+      color: SUCCESS,
+      alpha: 0.95,
+      fillColor: SUCCESS,
+      fillAlpha: 0.06,
+      radiusX: 62,
+      radiusY: 20,
+      lineWidth: 3,
+    });
+    graphics.setVisible(true);
   }
 
   private syncActorPositions(): void {
@@ -2152,6 +2208,9 @@ export class BattleCh01Scene extends UIScene {
     for (const object of this.fx) object.destroy();
     this.fx.length = 0;
     this.highlightGraphics = null;
+    this.targetRingTween?.remove();
+    this.targetRingTween = null;
+    this.targetRingGraphics = null;
     this.enemyIndex.clear();
     this.enemyTargetZones.clear();
     this.protocolText = null;
