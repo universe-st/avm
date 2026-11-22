@@ -3,6 +3,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   BATTLE_ASSET_KEYS,
+  BATTLE_HEAD_KEYS,
   BATTLE_MINER_ART,
   BATTLE_COOK_ATTACKS,
   BATTLE_MINER_ATTACKS,
@@ -143,6 +144,25 @@ describe('battle v2 assets', () => {
     for (const key of Object.values(BATTLE_ASSET_KEYS.sfx)) {
       expect(all, key).toContain(key);
     }
+  });
+
+  it('ships one 128×128 circular head per battle closure, without cross-loading', () => {
+    const common = collectAssets(['battle.common']);
+    const first = collectAssets(['battle.ch01']);
+    const kitchen = collectAssets(['battle.kitchen']);
+    const commonIds: BundleId[] = ['battle.common'];
+    const firstIds: BundleId[] = ['battle.ch01'];
+    const kitchenIds: BundleId[] = ['battle.kitchen'];
+    expect(pngSize(read(commonIds, BATTLE_HEAD_KEYS.zhou))).toEqual({ width: 128, height: 128 });
+    expect(pngSize(read(firstIds, BATTLE_HEAD_KEYS.miner))).toEqual({ width: 128, height: 128 });
+    expect(pngSize(read(kitchenIds, BATTLE_HEAD_KEYS.cook))).toEqual({ width: 128, height: 128 });
+
+    // 周全两场都用 → battle.common；矿工/御厨各归各包，不跨包混装。
+    expect(first.some((asset) => asset.key === BATTLE_HEAD_KEYS.miner)).toBe(true);
+    expect(first.some((asset) => asset.key === BATTLE_HEAD_KEYS.cook)).toBe(false);
+    expect(kitchen.some((asset) => asset.key === BATTLE_HEAD_KEYS.cook)).toBe(true);
+    expect(kitchen.some((asset) => asset.key === BATTLE_HEAD_KEYS.miner)).toBe(false);
+    expect(common.some((asset) => asset.key === BATTLE_HEAD_KEYS.zhou)).toBe(true);
   });
 
   it('keeps the two battle modules on separate resource closures', () => {

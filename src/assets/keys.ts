@@ -12,7 +12,7 @@
  * - `audio.*`：BGM / SFX
  * - UI 资源继续用 `img.ui.*`
  */
-import type { Facing8 } from '../battle/types';
+import type { EnemyArtId, Facing8 } from '../battle/types';
 /**
  * 全局逐字提示音（core bundle）。
  *
@@ -647,6 +647,32 @@ export const BATTLE_MINER_ART = {
 export const BATTLE_COOK_ART = {
   scaleFactor: 0.86,
 } as const;
+
+/**
+ * 行动条「接下来」chip 的圆形头像（128×128 RGBA）。
+ *
+ * 由 `tools/make-battle-heads.py` 从各角色**朝下（正面）全身图**裁出：
+ * 「头顶 → 下巴略下」的 40% 人物高方形区域，缩到 116px 后四周留 6px 透明边，
+ * 并在资产里**预裁透明圆**（HUD 不再用 GeometryMask，见脚本头部的理由）。
+ *
+ * - `zhou`  ← `character/ch01/q/zhou_q_down.png`（Q 版头部约 107px；非 Q 版 64×96 放大会糊）
+ * - `miner` ← `character/battle/miner/miner_down.png`（272×400）
+ * - `cook`  ← `character/ch01/kitchen/cook/cook_down.png`（224×400）
+ *
+ * 归属：`zhou` 两场战斗都用 → `battle.common`（共享 key 不重复登记，assets:check 禁重复 key）；
+ * `miner` → `battle.ch01`，`cook` → `battle.kitchen`，不跨包混装。
+ */
+export const BATTLE_HEAD_KEYS = {
+  zhou: 'img.char.battle.head_zhou',
+  miner: 'img.char.battle.head_miner',
+  cook: 'img.char.battle.head_cook',
+} as const;
+
+/** 敌人 art → 头像 key（玩家固定 `BATTLE_HEAD_KEYS.zhou`）。 */
+export const BATTLE_HEAD_FOR_ART = {
+  miner: BATTLE_HEAD_KEYS.miner,
+  cook: BATTLE_HEAD_KEYS.cook,
+} as const satisfies Record<EnemyArtId, string>;
 
 /** 怪物技能帧动画的元数据（左向；右向由场景 flip）。 */
 export interface BattleAttackSheetMeta {

@@ -1791,6 +1791,14 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         tags: ['battle', 'character', 'sequence'],
       },
       {
+        key: 'img.char.battle.head_zhou',
+        kind: 'image',
+        url: 'assets/img/character/battle/heads/zhou.png',
+        required: false,
+        label: '行动条头像 · 周全（128×128 圆形，派生自 Q 版朝下）',
+        tags: ['battle', 'character', 'head'],
+      },
+      {
         key: 'audio.sfx.battle_slash',
         kind: 'audio',
         url: 'assets/audio/sfx/battle_slash.mp3',
@@ -1861,6 +1869,14 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         required: false,
         label: '矿工战斗八向 · down',
         tags: ['battle', 'character', 'miner'],
+      },
+      {
+        key: 'img.char.battle.head_miner',
+        kind: 'image',
+        url: 'assets/img/character/battle/heads/miner.png',
+        required: false,
+        label: '行动条头像 · 矿工（128×128 圆形，派生自 miner_down）',
+        tags: ['battle', 'character', 'head', 'miner'],
       },
       {
         key: 'img.char.battle.miner_up',
@@ -2006,6 +2022,14 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         required: false,
         label: '战斗舞台 · 御膳房（传膳廊）',
         tags: ['battle'],
+      },
+      {
+        key: 'img.char.battle.head_cook',
+        kind: 'image',
+        url: 'assets/img/character/battle/heads/cook.png',
+        required: false,
+        label: '行动条头像 · 御厨（128×128 圆形，派生自 cook_down）',
+        tags: ['battle', 'character', 'head', 'cook'],
       },
       {
         key: 'img.char.battle.cook_attack_sweep',

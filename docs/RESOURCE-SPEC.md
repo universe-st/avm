@@ -39,9 +39,9 @@ interface AssetDef {
 | `cutscene.ch01palace.sfx` | 金殿音效 14 条（环境/脚步/跪地/裂皮/心跳…，mp3 24kHz 单声道，共约 300 KB） | 1 MB | `cutscene.ch01palace` | 过场音效；缺失时静默跳过，不阻断 |
 | `ch.01` | 33×54 寝室整图（重组窗光版）、郑卿睡床 4 帧、周全 Q 版八向/行走、小白/郑卿、沉睡症新闻 CG、呼噜/拳击/手机 SFX、寝室环境音与木地板脚步 A/B；`img.char.ch01.zhou_sit_right`（坐地朝右正式图 160×400）+ `img.char.ch01.zhou_stand_up`（起身 8 帧 × 160×400 横排）+ `img.char.ch01.zhou_idle_right`（正侧面站立 idle 160×400，t39 入库、暂未接场景）；依赖 `ch01.bgm`（寝室曲 + 回忆 cue） | 12 MB | — | 进入第一章 |
 | `ch01.bgm` | 第一章共享 BGM 五首：《午后小憩》`ch01_dorm`（寝室）、《危机来临》`ch01_crisis`（回忆/御膳房）、《清除协议》`ch01_dream`（裂皮之后/金殿过场）、《小皇帝的早朝》`ch01_palace`（金殿过场前半）、《刺王杀驾》`ch01_battle`（两场战斗），约 6.7 MB | 8 MB | — | `ch.01` / `battle.ch01` / `battle.kitchen` 依赖它；`ch01Kitchen` / `ch01Palace` 显式 requires |
-| `battle.common` | 战斗 v2 公共：周全起手式/格挡/解离突刺 12 帧横排（320×400）、打击/背袭/格挡/闪现 SFX；依赖 `ui` | 4 MB | — | 两场战斗共用 |
-| `battle.ch01` | 金殿战斗舞台 `miner_hall.webp`、矿工战斗八向（272×400 × 8）、矿工三技能左向 12 帧（272/336×400）、旧单面兜底、矿工技能/协议/胜利 SFX；依赖 `battle.common` + `ch01.bgm` | 6 MB | — | 金殿剧情战 |
-| `battle.kitchen` | 御膳房战斗舞台 `kitchen_hall.webp`（720×1280，本地从 `kitchen.webp` 合成）、御厨三技能左向 10 帧（400×400 → 4000×400）、依赖 `battle.common` + `ch01.kitchen`（御厨八向）+ `ch01.bgm` | 1.5 MB | — | 御膳房遭遇战 |
+| `battle.common` | 战斗 v2 公共：周全起手式/格挡/解离突刺 12 帧横排（320×400）、行动条头像 `head_zhou`（128×128）、打击/背袭/格挡/闪现 SFX；依赖 `ui` | 4 MB | — | 两场战斗共用（周全是两场都上场的角色，头像放公共包，避免同一 key 在两个包重复登记） |
+| `battle.ch01` | 金殿战斗舞台 `miner_hall.webp`、矿工战斗八向（272×400 × 8）、矿工三技能左向 12 帧（272/336×400）、行动条头像 `head_miner`（128×128）、旧单面兜底、矿工技能/协议/胜利 SFX；依赖 `battle.common` + `ch01.bgm` | 6 MB | — | 金殿剧情战 |
+| `battle.kitchen` | 御膳房战斗舞台 `kitchen_hall.webp`（720×1280，本地从 `kitchen.webp` 合成）、御厨三技能左向 10 帧（400×400 → 4000×400）、行动条头像 `head_cook`（128×128）、依赖 `battle.common` + `ch01.kitchen`（御厨八向）+ `ch01.bgm` | 1.5 MB | — | 御膳房遭遇战 |
 
 后续：`ch.NN`（单章 ≤ 8 MB）、`battle.<id>`（≤ 5 MB）、`cutscene.<id>`（单段 ≤ 8 MB）。
 章节包不得互相依赖；公共资源上移到 `ui` / `battle.common`。
@@ -71,6 +71,13 @@ interface AssetDef {
   - 怪物技能帧：`battle.ch01` 的 `img.char.battle.miner_attack_{sweep,thrust,quake}`（12 帧，272/336/272×400），
     `battle.kitchen` 的 `img.char.battle.cook_attack_{sweep,oil,quake}`（10 帧，400×400）；都只做**左向**，
     右侧三方位运行时 `flipX` 镜像，帧元数据在 `BATTLE_MINER_ATTACKS` / `BATTLE_COOK_ATTACKS`。
+  - 2026-11-22（行动条头像 chip）：`battle.common` 新增 `img.char.battle.head_zhou`，`battle.ch01` 新增
+    `img.char.battle.head_miner`，`battle.kitchen` 新增 `img.char.battle.head_cook`；三张都是 **128×128 RGBA**
+    （内容 116px + 四周 6px 透明边，圆形裁切已预裁进 PNG），由 `tools/make-battle-heads.py` 从现有正面全身图派生：
+    `head_zhou` ← `assets/img/character/ch01/q/zhou_q_down.png`（Q 版头部约 107px；非 Q 版 `zhou_down.png` 仅 64×96，放大必糊）、
+    `head_miner` ← `assets/img/character/battle/miner/miner_down.png`、`head_cook` ← `assets/img/character/ch01/kitchen/cook/cook_down.png`。
+    裁切规则：alpha bbox 定人物头顶/身高 → 取人物高 40% 的方形（水平以头部 alpha 带中心对齐）→ 116px + 6px 边。
+    游戏里按 44px 圆形显示（中心距 52px），LINEAR 采样；缺图时场景回退为「周/矿/厨」字母 chip。
   - `ch01.bgm`：`audio.bgm.ch01_battle.mp3`（《刺王杀驾》，89.22s，128kbps 立体声，-16.4 LUFS；循环段 74.74–163.96s）。
 - 2026-11-21（战后黑场胁迫段音效）：`ch.01` 新增 4 条 `required:false` 音效 →
   `assets/audio/sfx/ch01_dark_pressure.mp3`（10.55s 无缝循环，127 KB）、

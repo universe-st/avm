@@ -32,7 +32,7 @@
 | `lowerRight` 右下 | 315° | `(+180, +radiusY)` |
 
 - 布局唯一真值：`src/battle/layout.ts` 的 `planBattleLayout(720, designH)`。
-- 顶部预留 = 页眉 118 + 行动条 104 + 间距 10 = `fieldTop 232`（Compose 在页眉下再留 118px）；底部预留 = 指令面板 360。
+- 顶部预留 = 页眉 118 + 行动条 116 + 间距 10 = `fieldTop 244`（Compose 在页眉下再留 118px）；底部预留 = 指令面板 360。行动条从 104 加到 116 是为了给 44px 头像 chip 和意图行留出四行空间（2026-11-22）。
 - `radiusY` 按设计高（1100–1700）钳制在 96–190，保证上排角色的头不被跑条压住、下排脚不越过指令区。
 - 角色脚底锚点 `origin(0.5, 0.985)`；玩家屏显高约 170，矿工约 260，御厨约 200。
 
@@ -62,6 +62,13 @@
 | 矿工·清除单元 | 20 | 明显快于周全；第一场先手 |
 | 御厨·幻影 | 12 | 略慢于周全；御膳房可打赢 |
 
+### 2.1 行动条表现
+
+- **连续量条，不画格子**：轨道底 → 按 `gauge / 1000` 连续填充 → 1px 描边；可有 ≤1px 的 10 等分刻度叠在填充上，**不得**用 cell + 3px gap（那正是「行动条断开」的来源）。左右两条各自连续，中间不出现背景色缝隙。位置/尺寸不变：左 x=24、右 x=372，300×10。
+- **「接下来」是头像 chip**：6 个直径 **44px** 的圆形头像，中心距 **52px**（仍落在旧的 6 个槽位上），当前行动者 **2px 白描边**；顺序不足 6 个时空位不画。头像由 `tools/make-battle-heads.py` 从各角色**正面全身图**裁「头顶 → 下巴略下」的方形区域（人物高 40%，128×128、四周 6px 透明边、预裁透明圆），玩家固定周全、敌人按 `setup.enemy.art` 对位（矿工/御厨）；缺图回退字母 chip。
+- **前移动画**：顺序刷新时对比上一次已画出的 order，交给纯函数 `railTransition(prev, next)` 输出每个 slot 的 `from/to/alpha` 与 `enter/exit`：最左滑出并渐隐 → 其余整体左移一格 → 新末位从右侧 +1 格渐现，**190ms ease-out**。同一组 order 不重播；一次跨多格只播一轮（不是连播两次一格）；`prefers-reduced-motion` 直接落终态。
+- 实现：`src/battle/core/rail-transition.ts`（纯逻辑 + 单测）、`src/scenes/battle-ch01-scene.ts` 的 `createOrderChips / drawActionBar / drawGauge / playOrderTransition`；头像 key `img.char.battle.head_{zhou,miner,cook}` 分属 `battle.common` / `battle.ch01` / `battle.kitchen`，派生来源见 `docs/RESOURCE-SPEC.md`。
+
 ## 3. 朝向、区域与背袭
 
 相对角 `rel = normalize180(slotAngle - facingAngle)`：
@@ -89,7 +96,7 @@
 - **没有「解」时攻击按钮禁用**（第一场）：点击给「你还没有「解」——这一场只能移动或防御」。
 - v1 **不做** EP / 暴击 / 闪避 / 命中率：技能表按 `SkillDef` 数据化，后续加技能只加数据。
 - 移动只允许环上相邻一格：`adjacentSlots()` 是唯一判定；对面（left↔right、upperLeft↔lowerRight 等）只能靠解离突刺的闪现。绕背至少要两步，怪物有机会转向/震地，站位收益才值钱。
-- 行动条 HUD：顶部原生 rail 有「行动条」标题、双方分段 gauge（SPD + 当前进度）、「接下来」6 个行动 chip（周/矿/厨，当前行动者白描边）、意图行。不要退化成一行「你→它」文字。
+- 行动条 HUD：顶部原生 rail 有「行动条」标题、双方**连续量条**（SPD + 当前进度）、「接下来」6 个**头像 chip**（周/矿/厨，当前行动者白描边）、意图行。不要退化成一行「你→它」文字；表现细节见 §2.1。
 
 ## 5. 怪物技能、AI 与意图
 
@@ -179,6 +186,7 @@ src/battle/
   core/
     slots.ts              # 角度/区域/背袭/镜像/命中集合
     gauge.ts              # 跑条推进、并列裁决、未来顺序预览
+    rail-transition.ts    # 「接下来」chip 的 prev→next 位移（纯逻辑）
     damage.ts             # 伤害公式（正面/背袭/防御）
     ai.ts                 # 意图锁定与 AI 优先级
     battle.ts             # createBattle / startNextTurn / applyBattleAction / 预览
@@ -216,7 +224,7 @@ src/ui/battle-fx.ts               # 背袭扇区/意图高亮/斩击/残影/护�
   - 意图锁定：记录意图后移动，怪物仍打旧格；打空不扣血。
   - `prefers-reduced-motion`：无震屏/残影，结算完整。
   - 390×844 / 1200×648 / 360–430 宽：站位/按钮/HUD 不重叠，console 0 error。
-- 单测：`test/battle-slots/gauge/damage/ai/flow/layout/frame-sequence.test.ts`（44 项，纯逻辑）。
+- 单测：`test/battle-slots/gauge/damage/ai/flow/layout/frame-sequence/rail-transition.test.ts`（58 项，纯逻辑）。
 
 ## 10. 未来扩展（不在本轮）
 

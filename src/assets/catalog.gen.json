@@ -276,16 +276,28 @@
     "mtimeMs": 1792839029269
   },
   "assets/img/character/battle/cook_attack_oil.webp": {
-    "bytes": 103560,
-    "mtimeMs": 1795301907946
+    "bytes": 219042,
+    "mtimeMs": 1795304505297
   },
   "assets/img/character/battle/cook_attack_quake.webp": {
-    "bytes": 146304,
-    "mtimeMs": 1795301914269
+    "bytes": 214442,
+    "mtimeMs": 1795304512720
   },
   "assets/img/character/battle/cook_attack_sweep.webp": {
-    "bytes": 107422,
-    "mtimeMs": 1795301895555
+    "bytes": 228316,
+    "mtimeMs": 1795304498352
+  },
+  "assets/img/character/battle/heads/cook.png": {
+    "bytes": 23948,
+    "mtimeMs": 1795311113084
+  },
+  "assets/img/character/battle/heads/miner.png": {
+    "bytes": 28140,
+    "mtimeMs": 1795311113078
+  },
+  "assets/img/character/battle/heads/zhou.png": {
+    "bytes": 16238,
+    "mtimeMs": 1795311113072
   },
   "assets/img/character/battle/miner/miner_down.png": {
     "bytes": 154093,
@@ -320,12 +332,16 @@
     "mtimeMs": 1795273195277
   },
   "assets/img/character/battle/miner_attack_quake.webp": {
-    "bytes": 220282,
-    "mtimeMs": 1795301671923
+    "bytes": 309356,
+    "mtimeMs": 1795303304165
+  },
+  "assets/img/character/battle/miner_attack_sweep.webp": {
+    "bytes": 296534,
+    "mtimeMs": 1795303290184
   },
   "assets/img/character/battle/miner_attack_thrust.webp": {
-    "bytes": 236280,
-    "mtimeMs": 1795301977004
+    "bytes": 321036,
+    "mtimeMs": 1795303297403
   },
   "assets/img/character/battle/zhou_attack_right.webp": {
     "bytes": 245070,

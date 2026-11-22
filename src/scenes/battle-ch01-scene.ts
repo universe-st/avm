@@ -15,6 +15,8 @@ import {
   BATTLE_ASSET_KEYS,
   BATTLE_COOK_ART,
   BATTLE_COOK_ATTACKS,
+  BATTLE_HEAD_FOR_ART,
+  BATTLE_HEAD_KEYS,
   BATTLE_MINER_ART,
   BATTLE_MINER_ATTACKS,
   BATTLE_PLAYER_ART,
@@ -39,6 +41,11 @@ import {
 } from '../battle/core/battle';
 import { formatIntent } from '../battle/core/ai';
 import { previewOrder } from '../battle/core/gauge';
+import {
+  railTransition,
+  type RailSlotMotion,
+  type RailTransition,
+} from '../battle/core/rail-transition';
 import {
   FACING_ANGLES,
   SLOT_LABELS,
@@ -132,6 +139,44 @@ interface Step {
 }
 
 /**
+ * 「接下来」chip 的尺寸/节奏（设计坐标）。
+ *
+ * 6 个 chip 仍落在旧的 6 个槽位上（`firstX + index * pitch`），所以换成头像后
+ * 不会把「行动条 / 接下来 / 意图」三行挤乱；直径 44、中心距 52 与设计稿一致。
+ */
+const RAIL_CHIP = {
+  diameter: 44,
+  pitch: 52,
+  /** 第一个 chip 的中心 x（「接下来」三个字右侧 8px）。 */
+  firstX: 96,
+  /** chip 中心相对 railTop 的 y；白描边下沿与意图行之间留 2px（railHeight=116）。 */
+  yOffset: 65,
+  /** 一次前移的时长（180–220ms，ease-out）。 */
+  moveMs: 190,
+  /** 进场/退场 alpha 的推进倍率：比位移更早淡完，旧头像不会压住「接下来」。 */
+  fadeSpeed: 1.7,
+  /** 同时存在的 chip 上限：6 个终点 + 最多 6 个正在退场的旧 chip。 */
+  pool: 12,
+} as const;
+
+/**
+ * 一个头像 chip 的绘制对象。
+ *
+ * 圆形裁切已经**预裁进 PNG**（`tools/make-battle-heads.py`），所以这里只叠：
+ * 深色底圆 → 头像 Image → 队伍色描边环 → 当前行动者的 2px 白描边。
+ * 不用 GeometryMask：stencil 不跟随 Image 的 alpha，前移淡出时会留下一个
+ * 不透明的圆形窗口。
+ */
+interface OrderChipView {
+  readonly container: Phaser.GameObjects.Container;
+  readonly ring: Phaser.GameObjects.Graphics;
+  readonly head: Phaser.GameObjects.Image;
+  /** 缺图兜底（周/矿/厨），正常加载时不可见。 */
+  readonly fallback: Phaser.GameObjects.Text;
+  readonly currentRing: Phaser.GameObjects.Graphics;
+}
+
+/**
  * 战斗场景（v2 · 六站位跑条制）。
  *
  * 职责边界：
@@ -168,8 +213,12 @@ export class BattleCh01Scene extends UIScene {
   private railPlayerText: Phaser.GameObjects.Text | null = null;
   private railEnemyText: Phaser.GameObjects.Text | null = null;
   private railIntentText: Phaser.GameObjects.Text | null = null;
-  private orderGraphics: Phaser.GameObjects.Graphics | null = null;
-  private readonly orderChips: Phaser.GameObjects.Text[] = [];
+  private readonly orderChips: OrderChipView[] = [];
+  /** 上一帧真正画出来的顺序；用于 `railTransition(prev, next)`（同组不重播）。 */
+  private displayedOrder: readonly string[] = [];
+  /** 首次绘制直接落终态，不播「从右侧进场」的出场动画。 */
+  private orderSettled = false;
+  private railTween: Phaser.Tweens.Tween | null = null;
   private readonly slotLabels = new Map<SlotId, Phaser.GameObjects.Text>();
   private readonly slotZones = new Map<SlotId, Phaser.GameObjects.Zone>();
   private readonly fx: Phaser.GameObjects.GameObject[] = [];
@@ -356,8 +405,10 @@ export class BattleCh01Scene extends UIScene {
     this.railPlayerText = null;
     this.railEnemyText = null;
     this.railIntentText = null;
-    this.orderGraphics = null;
     this.orderChips.length = 0;
+    this.displayedOrder = [];
+    this.orderSettled = false;
+    this.railTween = null;
     this.slotLabels.clear();
     this.slotZones.clear();
     for (const object of this.fx) object.destroy();
@@ -383,6 +434,12 @@ export class BattleCh01Scene extends UIScene {
       BATTLE_ASSET_KEYS.miner.dirs.upRight,
     ]);
     setPixelTextures(this, [BATTLE_ASSET_KEYS.miner.fallback]);
+    // 头像 chip 是 HD 插画，128→44 属于非整数缩放，必须 LINEAR。
+    setLinearTextures(this, [
+      BATTLE_HEAD_KEYS.zhou,
+      BATTLE_HEAD_KEYS.miner,
+      BATTLE_HEAD_KEYS.cook,
+    ]);
   }
 
   private createBackdrop(): void {
@@ -532,22 +589,12 @@ export class BattleCh01Scene extends UIScene {
       align: 'left',
       originX: 0,
       originY: 0,
-      depth: LAYERS.effects,
+      // 比 chip 高一层：最左 chip 向左滑出时会经过这行字，字不能被头像盖住。
+      depth: LAYERS.effects + 15,
       stroke: 3,
     });
-    this.orderGraphics = this.add.graphics().setDepth(LAYERS.effects + 13);
-    for (let index = 0; index < 6; index += 1) {
-      const chip = makeSceneText(this, 0, 0, '', {
-        size: 16,
-        color: PAPER,
-        depth: LAYERS.effects + 14,
-        stroke: 3,
-        bold: true,
-      });
-      chip.setVisible(false);
-      this.orderChips.push(chip);
-    }
-    this.railIntentText = makeSceneText(this, 24, railTop + 78, '', {
+    this.createOrderChips();
+    this.railIntentText = makeSceneText(this, 24, railTop + 91, '', {
       size: 16,
       color: GOLD,
       align: 'left',
@@ -584,6 +631,163 @@ export class BattleCh01Scene extends UIScene {
       },
     );
     this.aoeLabel.setVisible(false);
+  }
+
+  // ------------------------------------------------------------------ 行动条 chip
+
+  /**
+   * 「接下来」的 6 个头像 chip（池 12 个：6 个在位 + 最多 6 个同时退场）。
+   *
+   * 圆底/描边/白环画在各自的 Graphics 里，头像用 Image；容器一起 tween x/alpha，
+   * 所以「滑出渐隐 / 左移 / 右侧渐现」是一组同速运动，不会各走各的。
+   */
+  private createOrderChips(): void {
+    for (let index = 0; index < RAIL_CHIP.pool; index += 1) {
+      const ring = this.add.graphics();
+      const head = this.add
+        .image(0, 0, '__DEFAULT')
+        .setDisplaySize(RAIL_CHIP.diameter, RAIL_CHIP.diameter)
+        .setVisible(false);
+      const fallback = makeSceneText(this, 0, 0, '', {
+        size: 15,
+        color: PAPER,
+        depth: LAYERS.effects + 14,
+        stroke: 3,
+        bold: true,
+      }).setVisible(false);
+      const currentRing = this.add.graphics();
+      const container = this.add
+        .container(0, 0, [ring, head, fallback, currentRing])
+        .setDepth(LAYERS.effects + 14)
+        .setVisible(false);
+      this.orderChips.push({ container, ring, head, fallback, currentRing });
+    }
+  }
+
+  private orderChipX(slot: number): number {
+    return RAIL_CHIP.firstX + slot * RAIL_CHIP.pitch;
+  }
+
+  private orderChipY(): number {
+    return this.layout.railTop + RAIL_CHIP.yOffset;
+  }
+
+  /** 玩家固定周全；敌人按 `setup.enemy.art` 对位（矿工/御厨），不靠名字猜。 */
+  private headKeyFor(id: string): string | null {
+    if (id === this.state.player.id) return BATTLE_HEAD_KEYS.zhou;
+    return BATTLE_HEAD_FOR_ART[this.setup.enemy.art] ?? null;
+  }
+
+  private unitInitial(id: string): string {
+    if (id === this.state.player.id) return '周';
+    return this.setup.enemy.name.includes('御厨') ? '厨' : '矿';
+  }
+
+  private paintOrderChip(view: OrderChipView, id: string, current: boolean): void {
+    const isPlayer = id === this.state.player.id;
+    const color = isPlayer ? GOLD : DANGER;
+    const radius = RAIL_CHIP.diameter / 2;
+
+    view.ring.clear();
+    view.ring.fillStyle(INK, 0.94);
+    view.ring.fillCircle(0, 0, radius);
+    view.ring.lineStyle(2, color, current ? 0.95 : 0.66);
+    view.ring.strokeCircle(0, 0, radius);
+
+    const headKey = this.headKeyFor(id);
+    if (headKey !== null && this.textures.exists(headKey)) {
+      view.head
+        .setTexture(headKey)
+        .setDisplaySize(RAIL_CHIP.diameter, RAIL_CHIP.diameter)
+        .setVisible(true);
+      view.fallback.setVisible(false);
+    } else {
+      // 缺图（battle.* 都是 required:false）时退回字母，不让 chip 变成黑圆。
+      view.head.setVisible(false);
+      view.fallback.setText(this.unitInitial(id)).setVisible(true);
+    }
+
+    view.currentRing.clear();
+    if (current) {
+      view.currentRing.lineStyle(2, PAPER, 0.95);
+      view.currentRing.strokeCircle(0, 0, radius + 2);
+    }
+  }
+
+  /** 直接落终态：首帧、reduced-motion、动画结束都走这里。 */
+  private settleOrder(order: readonly string[]): void {
+    this.cancelRailTween();
+    for (let index = 0; index < this.orderChips.length; index += 1) {
+      const view = this.orderChips[index]!;
+      const id = order[index];
+      if (id === undefined) {
+        view.container.setVisible(false);
+        continue;
+      }
+      this.paintOrderChip(view, id, index === 0);
+      view.container
+        .setPosition(this.orderChipX(index), this.orderChipY())
+        .setAlpha(1)
+        .setVisible(true);
+    }
+  }
+
+  private playOrderTransition(transition: RailTransition, next: readonly string[]): void {
+    this.cancelRailTween();
+    if (this.reduced) {
+      // 减动效：不滑、不渐隐，直接换到终态（数字/顺序信息不丢）。
+      this.settleOrder(next);
+      return;
+    }
+
+    const moving: { view: OrderChipView; motion: RailSlotMotion }[] = [];
+    for (let index = 0; index < this.orderChips.length; index += 1) {
+      const view = this.orderChips[index]!;
+      const motion = transition.motions[index];
+      if (!motion) {
+        view.container.setVisible(false);
+        continue;
+      }
+      this.paintOrderChip(view, motion.id, false);
+      view.container
+        .setPosition(this.orderChipX(motion.from), this.orderChipY())
+        .setAlpha(motion.fromAlpha)
+        .setVisible(true);
+      moving.push({ view, motion });
+    }
+
+    const clock = { t: 0 };
+    this.railTween = this.tweens.add({
+      targets: clock,
+      t: 1,
+      duration: RAIL_CHIP.moveMs,
+      ease: 'Cubic.easeOut',
+      onUpdate: () => {
+        for (const { view, motion } of moving) {
+          const t = clock.t;
+          view.container.x = Phaser.Math.Linear(
+            this.orderChipX(motion.from),
+            this.orderChipX(motion.to),
+            t,
+          );
+          // 进场/退场比位移更快地淡入淡出：退场的旧头像在滑到「接下来」之前就消失，
+          // 不会和标签/新末位长时间叠在一起；在位的 chip 保持不透明。
+          const fade = motion.enter || motion.exit ? Math.min(1, t * RAIL_CHIP.fadeSpeed) : t;
+          view.container.alpha = Phaser.Math.Linear(motion.fromAlpha, motion.toAlpha, fade);
+        }
+      },
+      onComplete: () => {
+        this.railTween = null;
+        if (!this.lifecycle.isLive(this.runId)) return;
+        this.settleOrder(next);
+      },
+    });
+  }
+
+  private cancelRailTween(): void {
+    if (!this.railTween) return;
+    this.railTween.remove();
+    this.railTween = null;
   }
 
   private playerArt(): BattleActorArt {
@@ -1391,6 +1595,12 @@ export class BattleCh01Scene extends UIScene {
     this.drawGauge(graphics, 372, top, 300, 10, this.state.enemy.gauge / 1000, DANGER);
   }
 
+  /**
+   * 连续量条：底轨 → 按 `gauge / GAUGE_MAX` 连续填充 → 1px 描边 → 极细刻度。
+   *
+   * 不再画 10 个 cell + 3px 断口（2026-11-22 用户报「行动条断开」）。
+   * 刻度只有 1px、且叠在填充之上，不切断填充；两侧各自连续，不出现背景色缝隙。
+   */
   private drawGauge(
     graphics: Phaser.GameObjects.Graphics,
     x: number,
@@ -1400,58 +1610,40 @@ export class BattleCh01Scene extends UIScene {
     ratio: number,
     color: number,
   ): void {
-    const cells = 10;
-    const gap = 3;
-    const cellWidth = (width - gap * (cells - 1)) / cells;
     const safe = Math.min(1, Math.max(0, Number.isFinite(ratio) ? ratio : 0));
-    for (let index = 0; index < cells; index += 1) {
-      const cellX = x + index * (cellWidth + gap);
-      const filled = safe > index / cells;
-      graphics.fillStyle(INK, 0.72);
-      graphics.fillRect(cellX, y, cellWidth, height);
-      if (filled) {
-        graphics.fillStyle(color, 0.9);
-        graphics.fillRect(cellX, y, cellWidth, height);
-      }
+    graphics.fillStyle(INK, 0.78);
+    graphics.fillRect(x, y, width, height);
+    if (safe > 0) {
+      graphics.fillStyle(color, 0.92);
+      graphics.fillRect(x, y, width * safe, height);
     }
-    graphics.lineStyle(1, 0x3a3428, 0.8);
-    graphics.strokeRect(x, y, width, height);
+    // 10 等分的极细刻度：1px 半透明墨线，只做读数参照，不把填充切成段。
+    for (let index = 1; index < 10; index += 1) {
+      graphics.fillStyle(INK, 0.26);
+      graphics.fillRect(x + (width * index) / 10, y + 1, 1, height - 2);
+    }
+    graphics.lineStyle(1, 0x3a3428, 0.9);
+    graphics.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
   }
 
+  /**
+   * 「接下来」头像 chip：顺序来自 `previewOrder()`（唯一顺序源），位移交给
+   * `railTransition(prev, next)` 纯函数。同一组顺序不重播；一次跨多格只播一轮。
+   */
   private drawActionBar(): void {
-    const graphics = this.orderGraphics;
-    if (!graphics) return;
-    graphics.clear();
     const order = previewOrder(this.state, 6);
-    const playerId = this.state.player.id;
-    const enemyInitial = this.state.enemy.name.includes('御厨') ? '厨' : '矿';
-    const y = this.layout.railTop + 60;
-    for (let index = 0; index < this.orderChips.length; index += 1) {
-      const chip = this.orderChips[index];
-      if (!chip) continue;
-      const id = order[index];
-      if (!id) {
-        chip.setVisible(false);
-        continue;
-      }
-      const isPlayer = id === playerId;
-      const color = isPlayer ? GOLD : DANGER;
-      const x = 96 + index * 52;
-      const current = index === 0;
-      graphics.fillStyle(INK, 0.72);
-      graphics.fillCircle(x, y, 17);
-      graphics.fillStyle(color, current ? 0.98 : 0.58);
-      graphics.fillCircle(x, y, 14);
-      if (current) {
-        graphics.lineStyle(2, PAPER, 0.95);
-        graphics.strokeCircle(x, y, 17);
-      }
-      chip
-        .setPosition(x, y)
-        .setText(isPlayer ? '周' : enemyInitial)
-        .setAlpha(current ? 1 : 0.78)
-        .setVisible(true);
+    if (!this.orderSettled) {
+      // 首帧直接落位：进场动画只属于「顺序变化」，不在场景淡入时又叠一层。
+      this.orderSettled = true;
+      this.displayedOrder = [...order];
+      this.settleOrder(order);
+      return;
     }
+
+    const transition = railTransition(this.displayedOrder, order);
+    if (!transition.changed) return;
+    this.displayedOrder = [...order];
+    this.playOrderTransition(transition, order);
   }
 
   private drawHighlights(): void {
@@ -1865,10 +2057,10 @@ export class BattleCh01Scene extends UIScene {
     this.railPlayerText = null;
     this.railEnemyText = null;
     this.railIntentText = null;
-    this.orderGraphics = null;
     this.orderChips.length = 0;
     this.slotLabels.clear();
     this.slotZones.clear();
+    this.railTween = null;
   }
 }
 
