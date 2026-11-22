@@ -1329,7 +1329,10 @@ export class BattleCh01Scene extends UIScene {
       () => {
         targetActor?.flash(0xffffff, 70);
         // 命中即解锁图鉴；预览只更新内存，不写盘。
-        this.knownEnemies = markEnemyKnown(event.targetId, { preview: this.preview });
+        // markEnemyKnown 会从 storage 重新读；预览没有写盘，必须和当前内存集合求并，
+        // 否则同一场预览里攻击第二只怪会把第一只的解锁状态冲掉。
+        const known = markEnemyKnown(event.targetId, { preview: this.preview });
+        this.knownEnemies = new Set([...this.knownEnemies, ...known]);
         bladeTrail(
           this,
           { x: fromPoint.x + (facesRight ? 74 : -74), y: fromPoint.y - 104 },
