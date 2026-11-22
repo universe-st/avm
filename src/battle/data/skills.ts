@@ -16,7 +16,7 @@ export const SKILLS: Readonly<Record<string, SkillDef>> = {
     backstabMultiplier: 1.5,
     teleport: 'mirror-if-front',
     hit: 'single-front',
-    desc: '向怪物发动一次突刺。正面命中后闪现到它对侧；背袭伤害 +50%，留在原地。',
+    desc: '向怪物发动一次突刺。非背袭命中后闪现到它对侧；背袭伤害 +50%，留在原地。',
   },
 
   /** 矿工·清除单元。atk 16 → 横扫 10 / 突进 18 / 震地 6。 */

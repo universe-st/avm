@@ -169,7 +169,7 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     requires: ['core', 'battle.common', 'battle.kitchen', 'ch01.bgm'],
     description:
       '有「解」之后的第一场完整战斗：御厨·幻影（中心）+ 帮厨·幻影（右上追击），双怪可点选目标；' +
-      '解离突刺正面命中后闪现到战场对侧，背袭 +50%；只打相邻点位。phase=opening|mid|victory|defeat；facing 可用于验收第一只厨子的朝向。',
+      '解离突刺非背袭命中后闪现到战场对侧，背袭 +50%；只打相邻点位。phase=opening|mid|victory|defeat；facing 可用于验收第一只厨子的朝向。',
     tags: ['ch01', 'encounter', 'positions'],
     options: [
       { name: 'seed', description: '确定性种子（默认 1）', example: '7' },

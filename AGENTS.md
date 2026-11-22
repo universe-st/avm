@@ -132,7 +132,7 @@ pnpm android:release
 - **第一场不能赢**：`player.skills=[]` + `script.protocolAfterEnemyActions=4`。改第一场数值时保留「攻击禁用 / 必然战败 / 战败回寝室」三条，否则剧情断。
 - **`battleCh01` 与 `battleKitchen` 两个模块共用同一个场景 key**（`battle-ch01`），资源闭包不同：前者 `battle.ch01`（矿工 8 向 + 金殿舞台），后者 `battle.kitchen`（御膳房舞台 + 依赖 `ch01.kitchen` 取厨子八向）。别把两个包合并，否则第一场会被迫加载 14 MB 御膳房素材。
 - **战斗贴图宽度**：解离突刺 12 帧 × 320 = 3840，已接近手机 GPU 4096 上限；矿工八向是 272×400 单张。加帧/加宽前先跑 `test/battle-assets.test.ts`（宽度 <4096）。
-- **1200×648 的设计高只有 1100**：`planBattleLayout` 会把 `radiusY` 压到约 110；上排角色的头离行动表很近。所以玩家血条不画在头顶（底部指令区已有 HP），别再加回去。
+- **1200×648 的设计高只有 1100**：`planBattleLayout` 会把 `radiusY` 压到约 110；上排角色的头离行动表很近。所以玩家血条不画在头顶（底部指令区已有 HP），别再加回去。**多怪名牌在短设计高会叠成一行**：下排怪名牌放脚下，设计高 <1400（1200×648、360×640）时改紧凑牌（去「面朝」、非中心怪向场外让 70px、HP 条 130），不要用统一的 `point.y-300` 居中（2026-11-22 实测 1200×648 双怪叠牌）。
 - **玩家/怪物一次只能走到相邻点位**：`adjacentSlots()`（`src/battle/core/slots.ts`）是唯一判定；7 点位 = 6 环 + 中心，中心 ↔ 所有环，环 ↔ 中心 + 两个环邻；中心被占时不能进，空出后可以站。left↔right、upperLeft↔lowerRight 这类对面只能靠解离突刺的闪现；UI 只点亮相邻空位。
 - **行动表必须真的画出来，SPD 量条不画**：顶部原生 rail 有「行动表」标题、**头像 chip**（周/矿/厨，按 actor 对位，直径 44、中心距 52，当前行动者 2px 白描边，双厨用 1/2 徽标）和**每只怪一行意图**；不再画「行动条」标题、两条 300×10 SPD 量条或 SPD 文案。顺序刷新仍走 `src/battle/core/rail-transition.ts` 的 `railTransition(prev, next)`（最左滑出渐隐 → 其余整体左移一格 → 末位从右侧 +1 格渐现，190ms；位移 ease-out、alpha 线性铺满全程），同一组 order 不重播、一次跨多格只播一轮，`prefers-reduced-motion` 直接落终态；`railHeight=96`（1–2 怪）/`116`（3 怪），`fieldTop=224/244`，由 `battleRailHeight(enemyCount)` 与 `battle-hud.ts` 的 Spacer 同源。不要退化成「接下来：你→它」一行文字。
 - **怪物技能攻击动画按技能分条**：每个技能一条**左向** 12 帧 strip（`BATTLE_MINER_ATTACKS` / `BATTLE_COOK_ATTACKS`），右侧三方位由 `playStrike` 的 `flip` 镜像；宽帧（如突刺）在 meta 里写 `originX`，播放时临时改原点，播完恢复 0.5。缺图自动退回程序化 nudge/斩击弧，不能阻断回合。

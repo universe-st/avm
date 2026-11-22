@@ -955,6 +955,38 @@ export class BattleCh01Scene extends UIScene {
     return this.layout.slots[enemy.slot];
   }
 
+  /**
+   * 怪物名牌锚点。
+   *
+   * 1200×648（设计高 1100）与 360×640（设计高 1280）时上排怪的头顶离行动表只有十几像素，
+   * 两只怪的名牌如果都居中、都带「面朝左」，会叠成一行。短屏改成紧凑牌：
+   * - 去掉「面朝」（朝向箭头/背袭楔形/意图行已经表达）；
+   * - 非中心怪向场地外侧让 70px，两只怪的名牌不再互相压；
+   * - HP 条用同样锚点并缩窄。
+   * 390×844/430×932 等竖屏仍用带「面朝」的完整名牌。
+   */
+  private enemyLabelAnchor(enemy: BattleUnit): {
+    readonly x: number;
+    readonly y: number;
+    readonly compact: boolean;
+  } {
+    const point = this.enemyPoint(enemy);
+    const compact = this.layout.height < 1400;
+    // 下排怪的名牌放到脚下：下排的头几乎和玩家左/右站位同高，名牌放上面会压住玩家。
+    if (enemy.slot === 'lowerLeft' || enemy.slot === 'lowerRight') {
+      return { x: point.x, y: point.y + 58, compact };
+    }
+    const side =
+      compact && point.x !== this.layout.center.x
+        ? (point.x > this.layout.center.x ? 70 : -70)
+        : 0;
+    return {
+      x: point.x + side,
+      y: Math.max(this.layout.fieldTop + 18, point.y - 300),
+      compact,
+    };
+  }
+
   private playerFlipForSlot(slot: SlotId): boolean {
     if (slot !== 'center') return isRightSide(slot);
     const target = this.selectedEnemyUnit() ?? this.livingEnemies()[0];
@@ -1723,14 +1755,16 @@ export class BattleCh01Scene extends UIScene {
       const aoe = this.enemyAoeTexts.get(enemy.id);
       const zone = this.enemyTargetZones.get(enemy.id);
       const point = this.enemyPoint(enemy);
+      const label = this.enemyLabelAnchor(enemy);
       const alive = enemy.hp > 0;
       const prefix = multiple ? `${index + 1}·` : '';
-      const labelY = Math.max(this.layout.fieldTop + 18, point.y - 300);
-      name?.setPosition(point.x, labelY);
-      hp?.setPosition(point.x, labelY + 24);
+      name?.setPosition(label.x, label.y);
+      hp?.setPosition(label.x, label.y + 24);
       name?.setText(
         alive
-          ? `${prefix}${enemy.name}${enemy.facing ? ` · 面朝${facingLabel(enemy.facing)}` : ''}`
+          ? `${prefix}${enemy.name}${
+              !label.compact && enemy.facing ? ` · 面朝${facingLabel(enemy.facing)}` : ''
+            }`
           : `${prefix}${enemy.name}（已散）`,
       );
       name?.setColor(
@@ -1801,7 +1835,11 @@ export class BattleCh01Scene extends UIScene {
     if (preview.teleportBlocked) {
       return `目标：${target.name} · 非背袭命中，但落点被占，留在原地。${aoeTail}`;
     }
-    return `目标：${target.name} · 正面命中后闪现到${slotLabel(preview.to)}。${aoeTail}`;
+    if (!preview.teleported) {
+      // 玩家站在中心时 mirror(center)=center：没有可闪的落点，别写「闪现到中」。
+      return `目标：${target.name} · 命中后留在原地。${aoeTail}`;
+    }
+    return `目标：${target.name} · 非背袭命中后闪现到${slotLabel(preview.to)}。${aoeTail}`;
   }
 
   private computeAttackLabel(): string {
@@ -1823,13 +1861,13 @@ export class BattleCh01Scene extends UIScene {
     graphics.clear();
 
     for (const enemy of this.livingEnemies()) {
-      const point = this.enemyPoint(enemy);
-      const labelY = Math.max(this.layout.fieldTop + 18, point.y - 300);
+      const anchor = this.enemyLabelAnchor(enemy);
+      const width = anchor.compact ? 130 : 190;
       this.drawBar(
         graphics,
-        point.x - 95,
-        labelY + 42,
-        190,
+        anchor.x - width / 2,
+        anchor.y + 42,
+        width,
         8,
         enemy.hp / enemy.maxHp,
         DANGER,
