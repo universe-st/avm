@@ -666,6 +666,7 @@ export const BATTLE_HEAD_KEYS = {
   zhou: 'img.char.battle.head_zhou',
   miner: 'img.char.battle.head_miner',
   cook: 'img.char.battle.head_cook',
+  xiaobai: 'img.char.battle.head_xiaobai',
 } as const;
 
 /** 敌人 art → 头像 key（玩家固定 `BATTLE_HEAD_KEYS.zhou`）。 */

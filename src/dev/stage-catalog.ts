@@ -142,9 +142,9 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     status: 'ready',
     requires: ['core', 'battle.common', 'battle.ch01', 'ch01.bgm'],
     description:
-      '第一章剧情战 v3：矿工居中、周全默认在左，7 个点位（中心空出后可站）；双方跑条（怪 SPD 20 > 周全 14）。' +
-      '怪物没有单独的转向行动；周全没有「解」，攻击禁用，只能移动/防御；第 4 次怪物行动执行清除协议必败。' +
-      'phase=opening|mid|victory|defeat（本场 victory 会回退 mid）。',
+      '第一章剧情战 v3.1：矿工居中、周全默认在左，7 个点位（中心空出后可站）；双方跑条（怪 SPD 20 > 周全 14）。' +
+      '怪物没有单独的转向行动；周全没有「解」，攻击禁用、不弹技能窗，只能移动/防御；第 4 次怪物行动执行清除协议必败。' +
+      '战场不画意图/名牌/点位圈；phase=opening|mid|victory|defeat（本场 victory 会回退 mid）。',
     tags: ['ch01', 'scripted', 'positions'],
     options: [
       { name: 'seed', description: '确定性种子（默认 1）', example: '7' },
@@ -169,7 +169,8 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     requires: ['core', 'battle.common', 'battle.kitchen', 'ch01.bgm'],
     description:
       '有「解」之后的第一场完整战斗：御厨·幻影（中心）+ 帮厨·幻影（右上追击），双怪可点选目标；' +
-      '解离突刺非背袭命中后闪现到战场对侧，背袭 +50%；只打相邻点位。phase=opening|mid|victory|defeat；facing 可用于验收第一只厨子的朝向。',
+      '攻击先弹技能窗；非背袭命中进入落点选择（不再自动闪现），背袭 +50% 且无视一半防御；平减防御；只打相邻点位。' +
+      '底部「小白」图鉴可看已命中怪的属性。phase=opening|mid|victory|defeat；facing 可用于验收第一只厨子的朝向。',
     tags: ['ch01', 'encounter', 'positions'],
     options: [
       { name: 'seed', description: '确定性种子（默认 1）', example: '7' },
@@ -190,7 +191,7 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     requires: ['core', 'battle.common', 'battle.kitchen', 'ch01.bgm'],
     description:
       'DEV 多怪沙盒：厨房舞台、3 只厨系幻影、初始点位随机（同 seed 可复现，不重叠）。' +
-      '用来验收 3 行意图（rail 116）、追击/堵路、目标切换、只杀一只不胜利。' +
+      '用来验收追击/堵路、目标切换、落点选择、图鉴、只杀一只不胜利。' +
       'phase=opening|mid；不进正式剧情。',
     tags: ['dev', 'multi', 'positions'],
     options: [

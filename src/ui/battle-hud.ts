@@ -1,6 +1,7 @@
 import { Button, Column, Panel, Row, Spacer, Text } from '@phaser-mvvm/widgets/compose';
 import type { Ref } from '@phaser-mvvm/core';
 import { buildStageHeader } from './hud-kit';
+import { BATTLE_HEAD_KEYS } from '../assets/keys';
 
 export interface BattleHudModel {
   /** 顶栏右上角的短信息（行动数 / 敌方数量）。 */
@@ -19,6 +20,8 @@ export interface BattleHudModel {
   readonly onAttack: () => void;
   readonly onMove: () => void;
   readonly onGuard: () => void;
+  /** 打开小白图鉴（跨战斗持久）。 */
+  readonly onCodex: () => void;
   readonly onMenu: () => void;
   readonly location?: string;
   readonly subtitle?: string;
@@ -31,11 +34,9 @@ export interface BattleHudModel {
  *
  * 分工：
  * - **Compose 负责**顶栏、底部指令区、按钮、提示与日志；
- * - **原生层负责**头像行动表、每只怪的意图、怪物名牌、7 个点位环、角色、伤害数字
- *   （它们要跟着战场坐标走，放进 Compose 反而会错位）。
+ * - **原生层负责**行动表、角色、伤害数字；战场不再常显点位环/意图/名牌。
  *
- * 中间那段 Spacer 就是留给原生行动表的位置；高度从 layout 传入，
- * 不再写死 118，避免以后 rail 高度变化时两层错位。
+ * 中间那段 Spacer 就是留给原生行动表的位置；高度从 layout 传入（v3.1 = 64）。
  */
 export function buildBattleHud(model: BattleHudModel): void {
   Column(
@@ -55,7 +56,7 @@ export function buildBattleHud(model: BattleHudModel): void {
         onMenu: model.onMenu,
       });
 
-      // 原生行动表区（8 向朝向/行动表/意图都画在这段里）。
+      // 原生行动表区（标题 + 头像 chip）。
       Spacer({ height: model.railHeight });
 
       // 战场（原生 sprite / 站位环 / 伤害数字）。
@@ -72,7 +73,17 @@ export function buildBattleHud(model: BattleHudModel): void {
             alignSelf: 'center',
           },
           () => {
-            Text(() => model.playerLabel.value, { size: 'md', tone: 'primary' });
+            Row({ width: 'fill', gap: 8, alignItems: 'center' }, () => {
+              Text(() => model.playerLabel.value, { size: 'md', tone: 'primary' });
+              Spacer({ grow: 1 });
+              Button('小白', {
+                icon: BATTLE_HEAD_KEYS.xiaobai,
+                variant: 'secondary',
+                size: 'sm',
+                width: 104,
+                onClick: model.onCodex,
+              });
+            });
             Text(() => model.hintText.value, {
               size: 'sm',
               tone: 'muted',

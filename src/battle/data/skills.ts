@@ -1,10 +1,10 @@
 import type { SkillDef } from '../types';
 
 /**
- * 战斗技能表（v2 唯一真值）。
+ * 战斗技能表（v3.1 唯一真值）。
  *
- * 数值口径：`power × atk` 后取整；背袭 ×1.5（技能可覆盖）；防御 ×0.5。
- * 第一场没有「解」，所以玩家技能表为空；御膳房遭遇战解锁解离突刺。
+ * 数值口径：`max(1, round(atk × power × 背袭 − 目标防御 × 背袭穿防系数))`，
+ * 防御动作最后 ×0.5。第一场没有「解」，所以玩家技能表为空；御膳房遭遇战解锁解离突刺。
  */
 export const SKILLS: Readonly<Record<string, SkillDef>> = {
   /** 周全：解离突刺。 */
@@ -14,9 +14,11 @@ export const SKILLS: Readonly<Record<string, SkillDef>> = {
     power: 1,
     positional: true,
     backstabMultiplier: 1.5,
-    teleport: 'mirror-if-front',
+    // 非背袭命中后进入落点选择；背袭只扣一半防御、留在原地。
+    postHitMove: 'near-target',
+    backstabDefensePierce: 0.5,
     hit: 'single-front',
-    desc: '向怪物发动一次突刺。非背袭命中后闪现到它对侧；背袭伤害 +50%，留在原地。',
+    desc: '攻击相邻目标。非背袭命中后可选择目标附近点位落地；背袭无视目标一半防御。',
   },
 
   /** 矿工·清除单元。atk 16 → 横扫 10 / 突进 18 / 震地 6。 */

@@ -1,6 +1,6 @@
 import type { ModalHandle, MVVMPlugin } from '@phaser-mvvm/phaser';
 import { MODAL_NO_AUTOFOCUS } from './modal-guard';
-import { Button, Divider, Panel, Row, Text } from '@phaser-mvvm/widgets/compose';
+import { Button, Column, Divider, Panel, Row, Text } from '@phaser-mvvm/widgets/compose';
 import { CH01_BATTLE_BANNER } from '../story/ch01-dorm';
 
 /**
@@ -204,6 +204,154 @@ export function openBattleVictory(
       dismissible: false,
       name: 'ch01-battle-victory',
       onClose: callbacks.onClose,
+    },
+  );
+  return modal;
+}
+
+export interface BattleSkillOption {
+  readonly id: string;
+  readonly name: string;
+  readonly desc: string;
+}
+
+/** 点「攻击」先选技能；一个技能也走这个窗口。 */
+export function openBattleSkill(
+  mvvm: MVVMPlugin,
+  options: {
+    readonly targetName: string;
+    readonly skills: readonly BattleSkillOption[];
+    readonly onSelect: (skillId: string) => void;
+    readonly onClose: () => void;
+  },
+): ModalHandle {
+  let modal: ModalHandle | null = null;
+  modal = mvvm.modal.open(
+    () => {
+      Panel({ width: 620, padding: 28, gap: 12, variant: 'surface' }, () => {
+        Text('选择技能', { size: 'xl', tone: 'primary', align: 'center' });
+        Text(`目标：${options.targetName}`, { size: 'md', align: 'center' });
+        Divider({});
+        if (options.skills.length === 0) {
+          Text('没有可用技能。', { size: 'sm', tone: 'muted', align: 'center' });
+        }
+        for (const skill of options.skills) {
+          Column({ width: 'fill', gap: 4 }, () => {
+            Button(skill.name, {
+              variant: 'primary',
+              size: 'md',
+              width: 520,
+              onClick: () => {
+                modal?.close();
+                options.onSelect(skill.id);
+              },
+            });
+            Text(skill.desc, {
+              size: 'sm',
+              tone: 'muted',
+              wrap: true,
+              maxLines: 2,
+            });
+          });
+        }
+        Row({ width: 'fill', justifyContent: 'center' }, () => {
+          Button('取消', {
+            variant: 'secondary',
+            size: 'md',
+            width: 200,
+            onClick: () => {
+              modal?.close();
+            },
+          });
+        });
+      });
+    },
+    {
+      ...MODAL_NO_AUTOFOCUS,
+      dismissible: true,
+      name: 'ch01-battle-skill',
+      onClose: options.onClose,
+    },
+  );
+  return modal;
+}
+
+export interface BattleCodexEntry {
+  readonly id: string;
+  readonly name: string;
+  readonly known: boolean;
+  readonly hp: number;
+  readonly maxHp: number;
+  readonly atk: number;
+  readonly defense: number;
+  readonly spd: number;
+  readonly skills: readonly string[];
+}
+
+/** 小白图鉴：已知怪给数值，未知怪只给问号。 */
+export function openBattleCodex(
+  mvvm: MVVMPlugin,
+  options: {
+    readonly entries: readonly BattleCodexEntry[];
+    readonly onClose: () => void;
+  },
+): ModalHandle {
+  let modal: ModalHandle | null = null;
+  modal = mvvm.modal.open(
+    () => {
+      Panel({ width: 640, padding: 28, gap: 10, variant: 'surface' }, () => {
+        Text('小白图鉴', { size: 'xl', tone: 'primary', align: 'center' });
+        Text('攻击过它一次，小白就能看出底细。', {
+          size: 'sm',
+          tone: 'muted',
+          align: 'center',
+        });
+        Divider({});
+        for (const entry of options.entries) {
+          Column({ width: 'fill', gap: 3 }, () => {
+            Text(entry.name, {
+              size: 'md',
+              tone: entry.known ? 'primary' : 'muted',
+            });
+            if (entry.known) {
+              Text(
+                `HP ${entry.hp}/${entry.maxHp} · 攻击 ${entry.atk} · 防御 ${entry.defense} · 速度 ${entry.spd}`,
+                { size: 'sm', tone: 'muted', wrap: true },
+              );
+              Text(`技能：${entry.skills.length > 0 ? entry.skills.join(' / ') : '—'}`, {
+                size: 'sm',
+                tone: 'muted',
+                wrap: true,
+                maxLines: 2,
+              });
+            } else {
+              Text('HP ？？？ · 攻击 ？？？ · 防御 ？？？ · 速度 ？？？', {
+                size: 'sm',
+                tone: 'muted',
+                wrap: true,
+              });
+              Text('技能 ？？？', { size: 'sm', tone: 'muted' });
+            }
+          });
+          Divider({});
+        }
+        Row({ width: 'fill', justifyContent: 'center' }, () => {
+          Button('关闭', {
+            variant: 'secondary',
+            size: 'md',
+            width: 200,
+            onClick: () => {
+              modal?.close();
+            },
+          });
+        });
+      });
+    },
+    {
+      ...MODAL_NO_AUTOFOCUS,
+      dismissible: true,
+      name: 'ch01-battle-codex',
+      onClose: options.onClose,
     },
   );
   return modal;

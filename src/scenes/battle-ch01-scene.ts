@@ -41,7 +41,6 @@ import {
   previewPlayerAttack,
   startNextTurn,
 } from '../battle/core/battle';
-import { formatIntent } from '../battle/core/ai';
 import { previewOrder } from '../battle/core/gauge';
 import {
   railMotionAlpha,
@@ -51,29 +50,28 @@ import {
 } from '../battle/core/rail-transition';
 import {
   FACING_ANGLES,
-  SLOT_LABELS,
   SLOT_ORDER,
   adjacentSlots,
-  facingLabel,
   isAdjacentSlot,
-  slotLabel,
 } from '../battle/core/slots';
 import { buildPreviewState, type BattlePreviewPhase } from '../battle/core/preview';
 import { planBattleLayout, type BattleLayout } from '../battle/layout';
 import { resolveBattleSetup } from '../battle/data/ch01-kitchen';
+import { getSkill, resolveSkill } from '../battle/data/skills';
+import { loadKnownEnemies, markEnemyKnown } from '../battle/codex';
 import { BattleActor, type BattleActorArt, type BattleStrikeStrip } from '../actors/battle-actor';
 import { buildBattleHud } from '../ui/battle-hud';
 import {
+  openBattleCodex,
   openBattleDefeat,
   openBattleExit,
   openBattleIntro,
+  openBattleSkill,
   openBattleVictory,
 } from '../ui/battle-ch01-modals';
 import {
   afterimage,
   bladeTrail,
-  drawBackArc,
-  drawFacingMark,
   drawSlotRing,
   guardShield,
   hitBurst,
@@ -154,7 +152,8 @@ const RAIL_CHIP = {
   pitch: 52,
   /** 第一个 chip 的中心 x（「行动表」三个字右侧 8px）。 */
   firstX: 96,
-  yOffset: 30,
+  /** rail 64：44px chip 上下各留 10px，中心 y=32。 */
+  yOffset: 32,
   moveMs: 190,
   pool: 12,
 } as const;
@@ -196,16 +195,12 @@ export class BattleCh01Scene extends UIScene {
   private playerActor: BattleActor | null = null;
   private readonly enemyActors = new Map<string, BattleActor>();
   private readonly enemyIndex = new Map<string, number>();
-  private readonly enemyNameTexts = new Map<string, Phaser.GameObjects.Text>();
-  private readonly enemyHpTexts = new Map<string, Phaser.GameObjects.Text>();
-  private readonly enemyAoeTexts = new Map<string, Phaser.GameObjects.Text>();
   private readonly enemyTargetZones = new Map<string, Phaser.GameObjects.Zone>();
   private highlightGraphics: Phaser.GameObjects.Graphics | null = null;
-  private hpGraphics: Phaser.GameObjects.Graphics | null = null;
 
-  private readonly intentTexts: Phaser.GameObjects.Text[] = [];
   private protocolText: Phaser.GameObjects.Text | null = null;
   private selectedTargetId: string | null = null;
+  private knownEnemies: Set<string> = new Set();
 
   private readonly orderChips: OrderChipView[] = [];
   /** 上一帧真正画出来的顺序；用于 `railTransition(prev, next)`（同组不重播）。 */
@@ -213,7 +208,6 @@ export class BattleCh01Scene extends UIScene {
   /** 首次绘制直接落终态，不播「从右侧进场」的出场动画。 */
   private orderSettled = false;
   private railTween: Phaser.Tweens.Tween | null = null;
-  private readonly slotLabels = new Map<SlotId, Phaser.GameObjects.Text>();
   private readonly slotZones = new Map<SlotId, Phaser.GameObjects.Zone>();
   private readonly fx: Phaser.GameObjects.GameObject[] = [];
 
@@ -228,6 +222,8 @@ export class BattleCh01Scene extends UIScene {
   private victoryModal: ModalHandle | null = null;
   private exitModal: ModalHandle | null = null;
   private menuModal: ModalHandle | null = null;
+  private skillModal: ModalHandle | null = null;
+  private codexModal: ModalHandle | null = null;
 
   private readonly turnLabel = ref('战斗');
   private readonly playerLabel = ref('');
@@ -313,8 +309,8 @@ export class BattleCh01Scene extends UIScene {
     this.layout = planBattleLayout(
       getViewportPlan().designWidth,
       getViewportPlan().designHeight,
-      Math.max(2, Math.min(3, this.state.enemies.length)),
     );
+    this.knownEnemies = loadKnownEnemies();
 
     this.prepareTextures();
     this.createBackdrop();
@@ -380,6 +376,7 @@ export class BattleCh01Scene extends UIScene {
       onAttack: () => this.onAttack(),
       onMove: () => this.onMove(),
       onGuard: () => this.playerAction({ kind: 'guard' }),
+      onCodex: () => this.openCodex(),
       onMenu: () => {
         audioDirector.playClick();
         this.openMenu();
@@ -404,22 +401,18 @@ export class BattleCh01Scene extends UIScene {
     this.victoryModal = null;
     this.exitModal = null;
     this.menuModal = null;
+    this.skillModal = null;
+    this.codexModal = null;
     this.playerActor = null;
     this.enemyActors.clear();
     this.enemyIndex.clear();
-    this.enemyNameTexts.clear();
-    this.enemyHpTexts.clear();
-    this.enemyAoeTexts.clear();
     this.enemyTargetZones.clear();
     this.highlightGraphics = null;
-    this.hpGraphics = null;
-    this.intentTexts.length = 0;
     this.protocolText = null;
     this.orderChips.length = 0;
     this.displayedOrder = [];
     this.orderSettled = false;
     this.railTween = null;
-    this.slotLabels.clear();
     this.slotZones.clear();
     for (const object of this.fx) object.destroy();
     this.fx.length = 0;
@@ -449,6 +442,7 @@ export class BattleCh01Scene extends UIScene {
       BATTLE_HEAD_KEYS.zhou,
       BATTLE_HEAD_KEYS.miner,
       BATTLE_HEAD_KEYS.cook,
+      BATTLE_HEAD_KEYS.xiaobai,
     ]);
   }
 
@@ -497,27 +491,11 @@ export class BattleCh01Scene extends UIScene {
   }
 
   private createArena(): void {
-    const graphics = this.add.graphics().setDepth(LAYERS.markers);
-    for (const slot of SLOT_ORDER) {
-      drawSlotRing(graphics, this.layout.slots[slot], {
-        color: GOLD,
-        alpha: 0.22,
-        radiusX: 52,
-        radiusY: 16,
-      });
-    }
     this.highlightGraphics = this.add.graphics().setDepth(LAYERS.markers + 4);
 
+    // 点位本身不常显：只保留不可见的点击区；地面圈只在 moveMode/落点选择时画。
     for (const slot of SLOT_ORDER) {
       const point = this.layout.slots[slot];
-      const label = makeSceneText(this, point.x, point.y + 18, SLOT_LABELS[slot], {
-        size: 18,
-        color: PAPER,
-        depth: LAYERS.markers + 6,
-        stroke: 4,
-      });
-      this.slotLabels.set(slot, label);
-
       const zone = this.add
         .zone(point.x, point.y - 46, 104, 124)
         .setOrigin(0.5)
@@ -553,10 +531,9 @@ export class BattleCh01Scene extends UIScene {
   }
 
   private createBarsAndRail(): void {
-    this.hpGraphics = this.add.graphics().setDepth(LAYERS.effects + 10);
     const railTop = this.layout.railTop;
 
-    makeSceneText(this, 24, railTop + 2, '行动表', {
+    makeSceneText(this, 24, railTop + 10, '行动表', {
       size: 16,
       color: GOLD,
       align: 'left',
@@ -566,7 +543,8 @@ export class BattleCh01Scene extends UIScene {
       stroke: 4,
       bold: true,
     });
-    this.protocolText = makeSceneText(this, 696, railTop + 2, '', {
+    // 清除协议倒计时是唯一保留的战场文字提示（非意图）。
+    this.protocolText = makeSceneText(this, 696, railTop + 10, '', {
       size: 14,
       color: DANGER,
       align: 'right',
@@ -578,47 +556,9 @@ export class BattleCh01Scene extends UIScene {
     });
     this.createOrderChips();
 
-    for (let row = 0; row < 3; row += 1) {
-      const text = makeSceneText(this, 24, railTop + 56 + row * 20, '', {
-        size: 15,
-        color: GOLD,
-        align: 'left',
-        originX: 0,
-        originY: 0,
-        depth: LAYERS.effects,
-        stroke: 4,
-      });
-      text.setVisible(false);
-      this.intentTexts.push(text);
-    }
-
-    this.state.enemies.forEach((enemy) => {
+    // 敌人点击区保持不可见；场上不画名字/HP/意图/目标圈。
+    for (const enemy of this.state.enemies) {
       const point = this.layout.slots[enemy.slot];
-      const name = makeSceneText(this, point.x, point.y - 300, '', {
-        size: 18,
-        color: enemy.id === this.selectedTargetId ? GOLD : DANGER,
-        depth: LAYERS.effects + 20,
-        stroke: 5,
-        bold: true,
-      });
-      const hp = makeSceneText(this, point.x, point.y - 276, '', {
-        size: 14,
-        color: MUTED,
-        depth: LAYERS.effects + 20,
-        stroke: 3,
-      });
-      const aoe = makeSceneText(this, point.x, point.y + 38, '全站位 · 无法走位躲避', {
-        size: 16,
-        color: DANGER,
-        depth: LAYERS.effects + 26,
-        stroke: 5,
-        bold: true,
-      });
-      aoe.setVisible(false);
-      this.enemyNameTexts.set(enemy.id, name);
-      this.enemyHpTexts.set(enemy.id, hp);
-      this.enemyAoeTexts.set(enemy.id, aoe);
-
       const zone = this.add
         .zone(point.x, point.y - 80, 150, 190)
         .setOrigin(0.5)
@@ -626,7 +566,7 @@ export class BattleCh01Scene extends UIScene {
         .setInteractive({ useHandCursor: true });
       zone.on('pointerdown', () => this.onEnemyPointer(enemy.id));
       this.enemyTargetZones.set(enemy.id, zone);
-    });
+    }
   }
 
   // ------------------------------------------------------------------ 行动表 chip
@@ -955,38 +895,6 @@ export class BattleCh01Scene extends UIScene {
     return this.layout.slots[enemy.slot];
   }
 
-  /**
-   * 怪物名牌锚点。
-   *
-   * 1200×648（设计高 1100）与 360×640（设计高 1280）时上排怪的头顶离行动表只有十几像素，
-   * 两只怪的名牌如果都居中、都带「面朝左」，会叠成一行。短屏改成紧凑牌：
-   * - 去掉「面朝」（朝向箭头/背袭楔形/意图行已经表达）；
-   * - 非中心怪向场地外侧让 70px，两只怪的名牌不再互相压；
-   * - HP 条用同样锚点并缩窄。
-   * 390×844/430×932 等竖屏仍用带「面朝」的完整名牌。
-   */
-  private enemyLabelAnchor(enemy: BattleUnit): {
-    readonly x: number;
-    readonly y: number;
-    readonly compact: boolean;
-  } {
-    const point = this.enemyPoint(enemy);
-    const compact = this.layout.height < 1400;
-    // 下排怪的名牌放到脚下：下排的头几乎和玩家左/右站位同高，名牌放上面会压住玩家。
-    if (enemy.slot === 'lowerLeft' || enemy.slot === 'lowerRight') {
-      return { x: point.x, y: point.y + 58, compact };
-    }
-    const side =
-      compact && point.x !== this.layout.center.x
-        ? (point.x > this.layout.center.x ? 70 : -70)
-        : 0;
-    return {
-      x: point.x + side,
-      y: Math.max(this.layout.fieldTop + 18, point.y - 300),
-      compact,
-    };
-  }
-
   private playerFlipForSlot(slot: SlotId): boolean {
     if (slot !== 'center') return isRightSide(slot);
     const target = this.selectedEnemyUnit() ?? this.livingEnemies()[0];
@@ -1016,6 +924,11 @@ export class BattleCh01Scene extends UIScene {
 
   private beginTurn(): void {
     if (this.ended || !this.lifecycle.isLive(this.runId)) return;
+    if (this.state.pendingMove) {
+      this.busy = false;
+      this.syncHud();
+      return;
+    }
     this.setMoveMode(false);
     const turn = startNextTurn(this.state, this.setup);
     if (turn.events.length === 0) {
@@ -1046,7 +959,6 @@ export class BattleCh01Scene extends UIScene {
     this.playerActor?.setPose('idle');
     this.actionsDisabled.value = false;
     this.showTurnBanner('你的回合');
-    this.pulseIntentSlots();
   }
 
   private refreshTurnState(): void {
@@ -1057,7 +969,6 @@ export class BattleCh01Scene extends UIScene {
       this.busy = false;
       this.actionsDisabled.value = false;
       this.showTurnBanner('你的回合');
-      this.pulseIntentSlots();
       return;
     }
     if (active?.team === 'enemy') {
@@ -1087,6 +998,7 @@ export class BattleCh01Scene extends UIScene {
   private playerAction(action: BattleAction): void {
     if (this.ended || this.transitioning || !this.lifecycle.isLive(this.runId)) return;
     if (this.menuModal?.open === true) return;
+    if (this.skillModal?.open === true || this.codexModal?.open === true) return;
     if (this.busy || this.actionsDisabled.value) return;
     if (this.state.phase !== 'player' || this.state.activeId !== this.playerUnit().id) return;
 
@@ -1105,6 +1017,15 @@ export class BattleCh01Scene extends UIScene {
     this.busy = false;
     this.setMoveMode(false);
     this.syncActorPositions();
+
+    const pending = this.state.pendingMove;
+    if (pending) {
+      // 攻击已命中，等玩家选落点：activeId 仍是玩家，攻击/防御禁用、移动键改「留在原地」。
+      this.selectedTargetId = pending.targetId;
+      this.syncHud();
+      return;
+    }
+
     this.ensureTarget();
     this.syncHud();
 
@@ -1123,12 +1044,12 @@ export class BattleCh01Scene extends UIScene {
 
   private onAttack(): void {
     audioDirector.playClick();
+    if (this.state.pendingMove) return;
+    if (this.skillModal?.open === true || this.codexModal?.open === true) return;
     if (!playerCanAttack(this.setup, this.playerUnit().id)) {
       this.flashHint('你还没有「解」——这一场只能移动或防御。', '还没有「解」');
       return;
     }
-    const skillId = this.playerSetup()?.skills[0];
-    if (!skillId) return;
     const target = this.attackTarget();
     if (!target) {
       this.flashHint(
@@ -1137,13 +1058,39 @@ export class BattleCh01Scene extends UIScene {
       );
       return;
     }
-    this.playerAction({ kind: 'attack', skillId, targetId: target.id });
+
+    const skillIds = this.playerSetup()?.skills ?? [];
+    if (skillIds.length === 0) return;
+    const skills = skillIds.map((id) => {
+      const skill = getSkill(id);
+      return {
+        id,
+        name: skill?.name ?? id,
+        desc: skill?.desc ?? '',
+      };
+    });
+    this.skillModal = openBattleSkill(this.mvvm, {
+      targetName: target.name,
+      skills,
+      onSelect: (skillId) => {
+        this.skillModal = null;
+        this.playerAction({ kind: 'attack', skillId, targetId: target.id });
+      },
+      onClose: () => {
+        this.skillModal = null;
+      },
+    });
   }
 
   private onMove(): void {
     audioDirector.playClick();
     if (this.busy || this.ended || this.actionsDisabled.value) return;
+    if (this.skillModal?.open === true || this.codexModal?.open === true) return;
     if (this.state.activeId !== this.playerUnit().id) return;
+    if (this.state.pendingMove) {
+      this.playerAction({ kind: 'post-move', slot: this.playerUnit().slot });
+      return;
+    }
     this.setMoveMode(!this.moveMode);
   }
 
@@ -1158,8 +1105,18 @@ export class BattleCh01Scene extends UIScene {
   }
 
   private onSlotPointer(slot: SlotId): void {
-    if (!this.moveMode || this.busy || this.ended) return;
+    if (this.busy || this.ended) return;
+    if (this.skillModal?.open === true || this.codexModal?.open === true) return;
     if (this.state.activeId !== this.playerUnit().id) return;
+
+    const pending = this.state.pendingMove;
+    if (pending) {
+      if (slot !== this.playerUnit().slot && !pending.slots.includes(slot)) return;
+      this.playerAction({ kind: 'post-move', slot });
+      return;
+    }
+
+    if (!this.moveMode) return;
     const from = this.playerUnit().slot;
     if (slot === from || !isAdjacentSlot(from, slot)) return;
     if (isSlotOccupied(this.state, slot)) return;
@@ -1168,12 +1125,41 @@ export class BattleCh01Scene extends UIScene {
   }
 
   private onEnemyPointer(id: string): void {
-    if (this.ended) return;
+    if (this.ended || this.busy || this.state.pendingMove) return;
+    if (this.skillModal?.open === true || this.codexModal?.open === true) return;
+    if (this.menuModal?.open === true) return;
     const enemy = this.state.enemies.find((unit) => unit.id === id && unit.hp > 0);
     if (!enemy) return;
     audioDirector.playClick();
     this.selectedTargetId = id;
     this.syncHud();
+  }
+
+  private openCodex(): void {
+    if (this.ended || this.busy || this.introOpen) return;
+    if (this.skillModal?.open === true || this.codexModal?.open === true) return;
+    if (this.menuModal?.open === true) return;
+    audioDirector.playClick();
+    const entries = this.setup.enemies.map((setupEnemy) => {
+      const unit = this.state.enemies.find((enemy) => enemy.id === setupEnemy.id);
+      return {
+        id: setupEnemy.id,
+        name: setupEnemy.name,
+        known: this.knownEnemies.has(setupEnemy.id),
+        hp: Math.max(0, unit?.hp ?? 0),
+        maxHp: setupEnemy.hp,
+        atk: setupEnemy.atk,
+        defense: setupEnemy.defense ?? 0,
+        spd: setupEnemy.spd,
+        skills: setupEnemy.skills.map((skillId) => resolveSkill(skillId).name),
+      };
+    });
+    this.codexModal = openBattleCodex(this.mvvm, {
+      entries,
+      onClose: () => {
+        this.codexModal = null;
+      },
+    });
   }
 
   private updateSlotInteractivity(): void {
@@ -1183,13 +1169,20 @@ export class BattleCh01Scene extends UIScene {
       this.state.activeId === this.playerUnit().id &&
       this.state.phase === 'player';
     const from = this.playerUnit().slot;
-    const targets = new Set<SlotId>(
-      adjacentSlots(from).filter((slot) => !isSlotOccupied(this.state, slot)),
-    );
+    const pending = this.state.pendingMove;
+    const targets = new Set<SlotId>();
+    if (pending) {
+      for (const slot of pending.slots) targets.add(slot);
+      targets.add(from);
+    } else if (this.moveMode) {
+      for (const slot of adjacentSlots(from)) {
+        if (!isSlotOccupied(this.state, slot)) targets.add(slot);
+      }
+    }
     for (const slot of SLOT_ORDER) {
       const zone = this.slotZones.get(slot);
       if (!zone?.input) continue;
-      zone.input.enabled = this.moveMode && playerTurn && targets.has(slot);
+      zone.input.enabled = playerTurn && targets.has(slot);
     }
   }
 
@@ -1335,6 +1328,8 @@ export class BattleCh01Scene extends UIScene {
       { reduced: this.reduced },
       () => {
         targetActor?.flash(0xffffff, 70);
+        // 命中即解锁图鉴；预览只更新内存，不写盘。
+        this.knownEnemies = markEnemyKnown(event.targetId, { preview: this.preview });
         bladeTrail(
           this,
           { x: fromPoint.x + (facesRight ? 74 : -74), y: fromPoint.y - 104 },
@@ -1374,59 +1369,9 @@ export class BattleCh01Scene extends UIScene {
         }
       },
       () => {
-        if (!event.teleported) {
-          next();
-          return;
-        }
-        const to = this.playerFlipForSlot(event.to);
-        this.animateBlink(event.from, event.to, to, next);
-      },
-    );
-  }
-
-  private animateBlink(from: SlotId, to: SlotId, flip: boolean, next: () => void): void {
-    const actor = this.playerActor;
-    const fromPoint = this.layout.slots[from];
-    const toPoint = this.layout.slots[to];
-    if (!actor) {
-      next();
-      return;
-    }
-    this.playSfx(BATTLE_ASSET_KEYS.sfx.blink, 0.85);
-    actor.setPosition(fromPoint.x, fromPoint.y);
-    if (this.reduced) {
-      actor.setPosition(toPoint.x, toPoint.y);
-      actor.setMirror(flip);
-      next();
-      return;
-    }
-    actor.display.setAlpha(0.9);
-    afterimage(this, BATTLE_PLAYER_ART.key, fromPoint.x, fromPoint.y, {
-      scale: BATTLE_PLAYER_ART.displayScale,
-      flipX: isRightSide(from),
-      alpha: 0.55,
-      ms: 260,
-    });
-    this.tweens.add({
-      targets: actor.display,
-      alpha: 0,
-      duration: 100,
-      ease: 'Quad.easeIn',
-      onComplete: () => {
-        actor.setPosition(toPoint.x, toPoint.y);
-        actor.setMirror(flip);
-        actor.display.setAlpha(1);
-        actor.flash(0xffffff, 70);
-        impactRing(this, toPoint.x, toPoint.y - 60, {
-          color: PAPER,
-          radius: 72,
-          ms: 220,
-          reduced: this.reduced,
-          depth: LAYERS.effects,
-        });
         next();
       },
-    });
+    );
   }
 
   private animateGuard(next: () => void): void {
@@ -1722,15 +1667,23 @@ export class BattleCh01Scene extends UIScene {
       .map((entry) => entry.text)
       .join('\n');
     this.attackLabel.value = this.computeAttackLabel();
-    this.moveLabel.value = this.moveMode ? '取消移动' : '移动';
+    this.moveLabel.value = this.state.pendingMove
+      ? '留在原地'
+      : this.moveMode
+        ? '取消移动'
+        : '移动';
 
     this.actionsDisabled.value = !playerTurn;
     this.attackDisabled.value =
-      !playerTurn || this.moveMode || !playerCanAttack(this.setup, this.playerUnit().id) || !this.attackTarget();
-    this.guardDisabled.value = !playerTurn || this.moveMode;
+      !playerTurn ||
+      this.moveMode ||
+      this.state.pendingMove !== null ||
+      !playerCanAttack(this.setup, this.playerUnit().id) ||
+      !this.attackTarget();
+    this.guardDisabled.value =
+      !playerTurn || this.moveMode || this.state.pendingMove !== null;
 
-    this.syncEnemyLabels();
-    this.syncIntentLines();
+    this.syncTargetZones();
     if (this.protocolText) {
       const script = this.setup.script;
       if (script) {
@@ -1741,82 +1694,37 @@ export class BattleCh01Scene extends UIScene {
       }
     }
 
-    this.drawBars();
     this.drawActionBar();
     this.drawHighlights();
     this.updateSlotInteractivity();
   }
 
-  private syncEnemyLabels(): void {
-    const multiple = this.state.enemies.length > 1;
-    this.state.enemies.forEach((enemy, index) => {
-      const name = this.enemyNameTexts.get(enemy.id);
-      const hp = this.enemyHpTexts.get(enemy.id);
-      const aoe = this.enemyAoeTexts.get(enemy.id);
+  private syncTargetZones(): void {
+    // 敌人点击区保持不可见；落点选择期间锁定目标，不再换人。
+    for (const enemy of this.state.enemies) {
       const zone = this.enemyTargetZones.get(enemy.id);
+      if (!zone?.input) continue;
       const point = this.enemyPoint(enemy);
-      const label = this.enemyLabelAnchor(enemy);
-      const alive = enemy.hp > 0;
-      const prefix = multiple ? `${index + 1}·` : '';
-      name?.setPosition(label.x, label.y);
-      hp?.setPosition(label.x, label.y + 24);
-      name?.setText(
-        alive
-          ? `${prefix}${enemy.name}${
-              !label.compact && enemy.facing ? ` · 面朝${facingLabel(enemy.facing)}` : ''
-            }`
-          : `${prefix}${enemy.name}（已散）`,
-      );
-      name?.setColor(
-        `#${(enemy.id === this.selectedTargetId ? GOLD : DANGER).toString(16).padStart(6, '0')}`,
-      );
-      name?.setVisible(alive);
-      hp?.setText(`HP ${Math.max(0, enemy.hp)}/${enemy.maxHp}`);
-      hp?.setVisible(alive);
-      aoe?.setPosition(point.x, point.y + 38);
-      const intent = this.state.intents[enemy.id];
-      aoe?.setVisible(alive && intent?.kind === 'skill' && intent.aoe === true);
-      if (zone?.input) {
-        zone.setPosition(point.x, point.y - 80);
-        zone.input.enabled = alive && !this.ended;
-      }
-    });
-  }
-
-  private syncIntentLines(): void {
-    const living = this.livingEnemies();
-    for (let index = 0; index < this.intentTexts.length; index += 1) {
-      const text = this.intentTexts[index]!;
-      const enemy = living[index];
-      if (!enemy) {
-        text.setVisible(false);
-        continue;
-      }
-      const intent = this.state.intents[enemy.id];
-      text
-        .setText(`${enemy.name}：${formatIntent(intent)}`)
-        .setColor(
-          `#${(intent?.kind === 'skill' ? DANGER : GOLD).toString(16).padStart(6, '0')}`,
-        )
-        .setVisible(true);
+      zone.setPosition(point.x, point.y - 80);
+      zone.input.enabled =
+        enemy.hp > 0 && !this.ended && this.state.pendingMove === null;
     }
-  }
-
-  private anyAoeIntent(): boolean {
-    return Object.values(this.state.intents).some(
-      (intent) => intent.kind === 'skill' && intent.aoe,
-    );
   }
 
   private computeHint(): string {
     if (this.state.phase === 'defeat') return '你倒下了。';
     if (this.state.phase === 'victory') return '幻影散尽。';
-    const aoeTail = this.anyAoeIntent() ? ' 有全站位招式，防御可减半。' : '';
+
+    const pending = this.state.pendingMove;
+    if (pending) {
+      const target = this.state.enemies.find((enemy) => enemy.id === pending.targetId);
+      return `选择${target?.name ?? '目标'}附近的点位落地，或按「留在原地」。`;
+    }
     if (this.moveMode) {
-      return `只能走到相邻空点位（点亮的格子）${aoeTail}；再按「取消移动」回到指令。`;
+      return '只能走到相邻空点位（点亮的格子）；再按「取消移动」回到指令。';
     }
     if (!playerCanAttack(this.setup, this.playerUnit().id)) {
-      return `你还没有「解」——只能移动或防御。${aoeTail || '先看清它下一招打哪边。'}`;
+      return '你还没有「解」——只能移动或防御。';
     }
     if (this.state.activeId !== this.playerUnit().id) return '等待它行动……';
 
@@ -1829,20 +1737,16 @@ export class BattleCh01Scene extends UIScene {
     if (!skillId) return '选择行动。';
     const preview = previewPlayerAttack(this.state, this.setup, skillId, target.id);
     if (!preview) return '选择行动。';
+    // 未知怪只给机制提示；已知怪（图鉴已解锁）才显示预计伤害。
+    const expected = this.knownEnemies.has(target.id) ? ` 预计 ${preview.amount}。` : '';
     if (preview.backstab) {
-      return `目标：${target.name} · 背袭 ×1.5，命中后留在原地。${aoeTail}`;
+      return `目标：${target.name} · 背袭（无视一半防御），命中后留在原地。${expected}`;
     }
-    if (preview.teleportBlocked) {
-      return `目标：${target.name} · 非背袭命中，但落点被占，留在原地。${aoeTail}`;
-    }
-    if (!preview.teleported) {
-      // 玩家站在中心时 mirror(center)=center：没有可闪的落点，别写「闪现到中」。
-      return `目标：${target.name} · 命中后留在原地。${aoeTail}`;
-    }
-    return `目标：${target.name} · 非背袭命中后闪现到${slotLabel(preview.to)}。${aoeTail}`;
+    return `目标：${target.name} · 命中后可选择附近落点。${expected}`;
   }
 
   private computeAttackLabel(): string {
+    if (this.state.pendingMove) return '攻击 · 落点选择';
     if (!playerCanAttack(this.setup, this.playerUnit().id)) return '攻击 · 无「解」';
     const selected = this.selectedEnemyUnit();
     if (!selected) return '攻击 · 选目标';
@@ -1852,48 +1756,9 @@ export class BattleCh01Scene extends UIScene {
     if (!skillId) return '攻击';
     const preview = previewPlayerAttack(this.state, this.setup, skillId, target.id);
     if (!preview) return '攻击';
-    return `攻击 · ${target.name} · ${preview.amount}`;
-  }
-
-  private drawBars(): void {
-    const graphics = this.hpGraphics;
-    if (!graphics) return;
-    graphics.clear();
-
-    for (const enemy of this.livingEnemies()) {
-      const anchor = this.enemyLabelAnchor(enemy);
-      const width = anchor.compact ? 130 : 190;
-      this.drawBar(
-        graphics,
-        anchor.x - width / 2,
-        anchor.y + 42,
-        width,
-        8,
-        enemy.hp / enemy.maxHp,
-        DANGER,
-      );
-    }
-    // 玩家血条不画在头顶：底部指令区已有 HP，避免短设计高时钻进行动表。
-  }
-
-  private drawBar(
-    graphics: Phaser.GameObjects.Graphics,
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    ratio: number,
-    color: number,
-  ): void {
-    const safe = Math.min(1, Math.max(0, Number.isFinite(ratio) ? ratio : 0));
-    graphics.fillStyle(INK, 0.74);
-    graphics.fillRoundedRect(x, y, width, height, 3);
-    graphics.lineStyle(1, 0x3a3428, 0.9);
-    graphics.strokeRoundedRect(x, y, width, height, 3);
-    if (safe > 0) {
-      graphics.fillStyle(color, 0.92);
-      graphics.fillRoundedRect(x + 1, y + 1, (width - 2) * safe, height - 2, 2);
-    }
+    return this.knownEnemies.has(target.id)
+      ? `攻击 · ${target.name} · ${preview.amount}`
+      : `攻击 · ${target.name}`;
   }
 
   private drawActionBar(): void {
@@ -1915,144 +1780,39 @@ export class BattleCh01Scene extends UIScene {
     const graphics = this.highlightGraphics;
     if (!graphics) return;
     graphics.clear();
-    const player = this.playerUnit();
-    const playerSlot = player.slot;
-    const selected = this.selectedEnemyUnit();
 
-    for (const enemy of this.livingEnemies()) {
-      const point = this.enemyPoint(enemy);
-      const facing = enemy.facing ?? 'left';
-      const isSelected = enemy.id === this.selectedTargetId;
-      drawBackArc(graphics, point, facing, 205, {
-        color: GOLD,
-        alpha: this.state.phase === 'defeat' ? 0.03 : isSelected ? 0.13 : 0.055,
-      });
-      drawFacingMark(
-        graphics,
-        point,
-        facing,
-        108,
-        isSelected ? GOLD : MUTED,
-      );
-      drawSlotRing(graphics, point, {
-        color: DANGER,
-        alpha: 0.16,
-        radiusX: 62,
-        radiusY: 20,
-        lineWidth: 2,
-      });
+    const playerSlot = this.playerUnit().slot;
+    const pending = this.state.pendingMove;
 
-      const intent = this.state.intents[enemy.id];
-      if (intent?.kind === 'skill' && intent.aoe) {
-        graphics.fillStyle(DANGER, isSelected ? 0.05 : 0.03);
-        graphics.fillEllipse(point.x, point.y + 4, 680, 430);
-        graphics.lineStyle(isSelected ? 4 : 2, DANGER, isSelected ? 0.5 : 0.3);
-        graphics.strokeEllipse(point.x, point.y + 4, 680, 430);
+    // 落点选择：当前点 + 目标相邻的空闲落点；其余时候一律不画。
+    if (pending) {
+      this.drawMoveMarker(graphics, playerSlot, PAPER);
+      for (const slot of pending.slots) {
+        this.drawMoveMarker(graphics, slot, GOLD);
       }
+      return;
     }
 
-    const hitSet = new Set<SlotId>();
-    for (const intent of Object.values(this.state.intents)) {
-      if (intent.kind !== 'skill') continue;
-      for (const slot of intent.hitSlots) hitSet.add(slot);
-    }
-    const moveTargets = new Set<SlotId>(
-      adjacentSlots(playerSlot).filter((slot) => !isSlotOccupied(this.state, slot)),
-    );
-
-    for (const slot of SLOT_ORDER) {
-      const point = this.layout.slots[slot];
-      const isPlayer = slot === playerSlot;
-      const danger = hitSet.has(slot);
-      const selectable = this.moveMode && moveTargets.has(slot);
-      const occupied = this.state.enemies.some(
-        (enemy) => enemy.hp > 0 && enemy.slot === slot,
-      );
-      const stroke = danger ? DANGER : isPlayer ? GOLD : selectable ? GOLD : occupied ? MUTED : GOLD;
-      const alpha = isPlayer
-        ? 0.95
-        : danger
-          ? 0.8
-          : selectable
-            ? 0.85
-            : this.moveMode
-              ? 0.16
-              : occupied
-                ? 0.2
-                : 0.22;
-      drawSlotRing(graphics, point, {
-        color: stroke,
-        fillColor: isPlayer ? GOLD : DANGER,
-        alpha,
-        fillAlpha: isPlayer ? 0.12 : danger ? 0.08 : selectable ? 0.07 : 0,
-        lineWidth: isPlayer || danger || selectable ? 3 : 2,
-      });
-      const label = this.slotLabels.get(slot);
-      if (label) {
-        label.setColor(
-          `#${(danger ? DANGER : isPlayer ? GOLD : MUTED).toString(16).padStart(6, '0')}`,
-        );
-        label.setAlpha(
-          isPlayer
-            ? 1
-            : danger
-              ? 0.95
-              : selectable
-                ? 1
-                : this.moveMode
-                  ? 0.32
-                  : occupied
-                    ? 0.3
-                    : 0.55,
-        );
-      }
-    }
-
-    if (selected) {
-      drawSlotRing(graphics, this.layout.slots[selected.slot], {
-        color: PAPER,
-        alpha: 0.8,
-        lineWidth: 2,
-        radiusX: 58,
-        radiusY: 18,
-      });
-    }
-
-    if (
-      this.state.activeId === this.playerUnit().id &&
-      this.state.phase === 'player' &&
-      playerCanAttack(this.setup, this.playerUnit().id)
-    ) {
-      const skillId = this.playerSetup()?.skills[0];
-      const target = this.attackTarget();
-      const preview =
-        skillId && target
-          ? previewPlayerAttack(this.state, this.setup, skillId, target.id)
-          : null;
-      if (preview?.teleported) {
-        drawSlotRing(graphics, this.layout.slots[preview.to], {
-          color: PAPER,
-          alpha: 0.75,
-          lineWidth: 2,
-          radiusX: 58,
-          radiusY: 18,
-        });
-      }
+    if (!this.moveMode) return;
+    this.drawMoveMarker(graphics, playerSlot, PAPER);
+    for (const slot of adjacentSlots(playerSlot)) {
+      if (isSlotOccupied(this.state, slot)) continue;
+      this.drawMoveMarker(graphics, slot, GOLD);
     }
   }
 
-  private pulseIntentSlots(): void {
-    const graphics = this.highlightGraphics;
-    if (!graphics || this.reduced) return;
-    this.tweens.killTweensOf(graphics);
-    graphics.setAlpha(1);
-    this.tweens.add({
-      targets: graphics,
-      alpha: 0.55,
-      duration: 260,
-      yoyo: true,
-      repeat: 1,
-      onComplete: () => graphics.setAlpha(1),
+  /** 移动/落点选择的地面圈：只在这里出现，不画文字、不画朝向/背袭。 */
+  private drawMoveMarker(
+    graphics: Phaser.GameObjects.Graphics,
+    slot: SlotId,
+    color: number,
+  ): void {
+    drawSlotRing(graphics, this.layout.slots[slot], {
+      color,
+      alpha: 0.88,
+      fillColor: color,
+      fillAlpha: 0.08,
+      lineWidth: 3,
     });
   }
 
@@ -2322,6 +2082,7 @@ export class BattleCh01Scene extends UIScene {
       maxHp: unit.maxHp,
       slot: unit.slot,
       spd: unit.spd,
+      defense: unit.defense,
       gauge: unit.gauge,
       guarding: unit.guarding,
     }));
@@ -2333,6 +2094,7 @@ export class BattleCh01Scene extends UIScene {
       slot: unit.slot,
       facing: unit.facing,
       spd: unit.spd,
+      defense: unit.defense,
       gauge: unit.gauge,
       intent: state.intents[unit.id] ?? null,
     }));
@@ -2345,6 +2107,8 @@ export class BattleCh01Scene extends UIScene {
       party,
       enemies,
       intents: state.intents,
+      pendingMove: state.pendingMove,
+      knownEnemies: [...this.knownEnemies],
       order: previewOrder(state, 6),
       gauges: Object.fromEntries(
         [...state.party, ...state.enemies].map((unit) => [unit.id, unit.gauge]),
@@ -2371,6 +2135,10 @@ export class BattleCh01Scene extends UIScene {
     this.menuModal = null;
     this.introModal?.close('scene');
     this.introModal = null;
+    this.skillModal?.close('scene');
+    this.skillModal = null;
+    this.codexModal?.close('scene');
+    this.codexModal = null;
     this.defeatModal = null;
     this.victoryModal = null;
     this.exitModal = null;
@@ -2380,17 +2148,11 @@ export class BattleCh01Scene extends UIScene {
     this.enemyActors.clear();
     for (const object of this.fx) object.destroy();
     this.fx.length = 0;
-    this.hpGraphics = null;
     this.highlightGraphics = null;
     this.enemyIndex.clear();
-    this.enemyNameTexts.clear();
-    this.enemyHpTexts.clear();
-    this.enemyAoeTexts.clear();
     this.enemyTargetZones.clear();
-    this.intentTexts.length = 0;
     this.protocolText = null;
     this.orderChips.length = 0;
-    this.slotLabels.clear();
     this.slotZones.clear();
     this.railTween = null;
   }

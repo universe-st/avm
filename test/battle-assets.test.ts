@@ -154,15 +154,17 @@ describe('battle v2 assets', () => {
     const firstIds: BundleId[] = ['battle.ch01'];
     const kitchenIds: BundleId[] = ['battle.kitchen'];
     expect(pngSize(read(commonIds, BATTLE_HEAD_KEYS.zhou))).toEqual({ width: 128, height: 128 });
+    expect(pngSize(read(commonIds, BATTLE_HEAD_KEYS.xiaobai))).toEqual({ width: 96, height: 96 });
     expect(pngSize(read(firstIds, BATTLE_HEAD_KEYS.miner))).toEqual({ width: 128, height: 128 });
     expect(pngSize(read(kitchenIds, BATTLE_HEAD_KEYS.cook))).toEqual({ width: 128, height: 128 });
 
-    // 周全两场都用 → battle.common；矿工/御厨各归各包，不跨包混装。
+    // 周全/小白两场都用 → battle.common；矿工/御厨各归各包，不跨包混装。
     expect(first.some((asset) => asset.key === BATTLE_HEAD_KEYS.miner)).toBe(true);
     expect(first.some((asset) => asset.key === BATTLE_HEAD_KEYS.cook)).toBe(false);
     expect(kitchen.some((asset) => asset.key === BATTLE_HEAD_KEYS.cook)).toBe(true);
     expect(kitchen.some((asset) => asset.key === BATTLE_HEAD_KEYS.miner)).toBe(false);
     expect(common.some((asset) => asset.key === BATTLE_HEAD_KEYS.zhou)).toBe(true);
+    expect(common.some((asset) => asset.key === BATTLE_HEAD_KEYS.xiaobai)).toBe(true);
   });
 
   it('keeps the two battle modules on separate resource closures', () => {

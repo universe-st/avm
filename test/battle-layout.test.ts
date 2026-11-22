@@ -14,23 +14,20 @@ describe('battle layout (7 points)', () => {
     expect(layout.center).toEqual({ x: 360, y: layout.center.y });
   });
 
-  it('uses a 96 rail for 1–2 monsters and 116 for 3', () => {
-    expect(battleRailHeight(1)).toBe(96);
-    expect(battleRailHeight(2)).toBe(96);
-    expect(battleRailHeight(3)).toBe(116);
-    expect(battleRailHeight(9)).toBe(116);
+  it('uses one 64 rail for every monster count', () => {
+    expect(battleRailHeight()).toBe(64);
 
-    const two = planBattleLayout(720, 1280, 2);
-    expect(two.railHeight).toBe(96);
-    expect(two.fieldTop).toBe(224);
-    const three = planBattleLayout(720, 1280, 3);
-    expect(three.railHeight).toBe(116);
-    expect(three.fieldTop).toBe(244);
+    const two = planBattleLayout(720, 1280);
+    expect(two.railHeight).toBe(64);
+    expect(two.fieldTop).toBe(192);
+    const three = planBattleLayout(720, 1280);
+    expect(three.railHeight).toBe(64);
+    expect(three.fieldTop).toBe(192);
   });
 
   it('keeps the 7 points inside the safe field for every design height', () => {
     for (const height of HEIGHTS) {
-      const layout = planBattleLayout(720, height, 2);
+      const layout = planBattleLayout(720, height);
       const label = `h=${height}`;
 
       expect(layout.fieldBottom, label).toBeGreaterThan(layout.fieldTop + 240);
@@ -42,13 +39,17 @@ describe('battle layout (7 points)', () => {
       expect(upperFeet - layout.playerHeadOffset, `${label} upper head`).toBeGreaterThanOrEqual(
         layout.fieldTop,
       );
+      // 御厨/帮厨约 200 高：上排站位不能顶进行动表。
+      expect(upperFeet - 200, `${label} upper enemy head`).toBeGreaterThanOrEqual(
+        layout.fieldTop,
+      );
       expect(lowerFeet, `${label} lower feet`).toBeLessThanOrEqual(layout.fieldBottom - 8);
     }
   });
 
   it('keeps every point inside the safe area and keeps them apart', () => {
     for (const height of HEIGHTS) {
-      const layout = planBattleLayout(720, height, 2);
+      const layout = planBattleLayout(720, height);
       const points = Object.values(layout.slots);
       for (const point of points) {
         expect(point.x).toBeGreaterThan(50);
@@ -65,7 +66,7 @@ describe('battle layout (7 points)', () => {
   });
 
   it('is symmetric around the vertical centre line', () => {
-    const layout = planBattleLayout(720, 1280, 2);
+    const layout = planBattleLayout(720, 1280);
     expect(layout.slots.left.y).toBe(layout.slots.right.y);
     expect(layout.slots.upperLeft.y).toBe(layout.slots.upperRight.y);
     expect(layout.slots.lowerLeft.y).toBe(layout.slots.lowerRight.y);
@@ -75,8 +76,8 @@ describe('battle layout (7 points)', () => {
   });
 
   it('grows with the viewport but clamps the vertical radius', () => {
-    const short = planBattleLayout(720, 1100, 2);
-    const tall = planBattleLayout(720, 1558, 2);
+    const short = planBattleLayout(720, 1100);
+    const tall = planBattleLayout(720, 1558);
     const shortRadius = short.slots.left.y - short.slots.upperLeft.y;
     const tallRadius = tall.slots.left.y - tall.slots.upperLeft.y;
     expect(tallRadius).toBeGreaterThanOrEqual(shortRadius);

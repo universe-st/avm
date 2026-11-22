@@ -27,6 +27,12 @@ function play(
   for (let step = 0; step < maxSteps; step += 1) {
     if (state.phase === 'victory' || state.phase === 'defeat') break;
 
+    if (state.pendingMove) {
+      const slot = state.pendingMove.slots[0] ?? state.party[0]!.slot;
+      state = applyBattleAction(state, { kind: 'post-move', slot }, setup).state;
+      continue;
+    }
+
     if (state.activeId === null) {
       state = startNextTurn(state, setup).state;
       continue;

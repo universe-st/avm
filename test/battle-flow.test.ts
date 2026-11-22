@@ -33,6 +33,12 @@ function drive(
   for (let guard = 0; guard < maxActions; guard += 1) {
     if (state.phase === 'victory' || state.phase === 'defeat') break;
 
+    if (state.pendingMove) {
+      const slot = state.pendingMove.slots[0] ?? state.party[0]!.slot;
+      state = applyBattleAction(state, { kind: 'post-move', slot }, setup).state;
+      continue;
+    }
+
     if (state.activeId === null) {
       const turn = startNextTurn(state, setup);
       state = turn.state;
@@ -139,7 +145,7 @@ describe('first battle: no 解, scripted defeat', () => {
 });
 
 describe('kitchen battle: 解离突刺 / 双怪 / 受击转身', () => {
-  it('front hit deals 16, blinks to the mirror slot, and the enemy turns to the attack origin', () => {
+  it('front hit deals 13, stays in place, and offers a post-hit landing choice', () => {
     const state = atPlayerTurn(CH01_KITCHEN_BATTLE);
     expect(state.activeId).toBe(state.party[0]!.id);
     const target = state.enemies.find((enemy) => enemy.id === 'cook-phantom-a')!;
@@ -149,35 +155,52 @@ describe('kitchen battle: 解离突刺 / 双怪 / 受击转身', () => {
       { kind: 'attack', skillId: 'player.jielitusi', targetId: target.id },
       CH01_KITCHEN_BATTLE,
     );
-    expect(result.state.party[0]!.slot).toBe('right');
+    // 非背袭命中不再自动闪现：玩家还在左，activeId 仍是玩家，等待落点。
+    expect(result.state.party[0]!.slot).toBe('left');
+    expect(result.state.activeId).toBe(state.party[0]!.id);
+    expect(result.state.pendingMove).not.toBeNull();
+    expect(result.state.pendingMove!.targetId).toBe(target.id);
+    expect(result.state.pendingMove!.slots).toContain('right');
     const attacked = result.state.enemies.find((enemy) => enemy.id === target.id)!;
-    expect(attacked.hp).toBe(target.hp - 16);
-    // 玩家闪到右边，但怪物面向的是攻击来向（左），不是闪现后的落点。
+    expect(attacked.hp).toBe(target.hp - 13);
+    // 受击转向攻击来向（左）。
     expect(attacked.facing).toBe('left');
     const attack = findAttack(result.events);
     expect(attack).toMatchObject({
       targetId: target.id,
       targetSlot: 'center',
-      amount: 16,
+      amount: 13,
       zone: 'front',
       backstab: false,
       from: 'left',
-      to: 'right',
-      teleported: true,
     });
+    expect(attack).not.toHaveProperty('to');
+    expect(attack).not.toHaveProperty('teleported');
     const face = result.events.find(
       (event) => event.kind === 'enemy-face' && event.actorId === target.id,
     );
     expect(face).toMatchObject({ reason: 'hit', facing: 'left' });
+
+    // 选右侧落点后行动才结束、gauge 才归零。
+    const landed = applyBattleAction(
+      result.state,
+      { kind: 'post-move', slot: 'right' },
+      CH01_KITCHEN_BATTLE,
+    );
+    expect(landed.state.party[0]!.slot).toBe('right');
+    expect(landed.state.party[0]!.gauge).toBe(0);
+    expect(landed.state.activeId).toBeNull();
+    expect(landed.state.pendingMove).toBeNull();
+    expect(landed.events.some((event) => event.kind === 'move')).toBe(true);
   });
 
-  it('backstab deals 24, stays in place, and turns the enemy toward the attacker', () => {
+  it('backstab deals 23, stays in place, and does not enter pendingMove', () => {
     const setup = withPartySlot(CH01_KITCHEN_BATTLE, 'right');
     const state = atPlayerTurn(setup);
     const target = state.enemies.find((enemy) => enemy.id === 'cook-phantom-a')!;
     expect(target.facing).toBe('right');
 
-    // 手工把目标转向左，制造“从背后砍”的局面（真实流程里是绕位/闪现得到）。
+    // 手工把目标转向左，制造“从背后砍”的局面。
     const behind: BattleState = {
       ...state,
       enemies: state.enemies.map((enemy) =>
@@ -190,15 +213,18 @@ describe('kitchen battle: 解离突刺 / 双怪 / 受击转身', () => {
       setup,
     );
     const attacked = result.state.enemies.find((enemy) => enemy.id === target.id)!;
-    expect(attacked.hp).toBe(target.hp - 24);
+    // 24 - 3×0.5 = 22.5 → 23
+    expect(attacked.hp).toBe(target.hp - 23);
     expect(result.state.party[0]!.slot).toBe('right');
+    expect(result.state.pendingMove).toBeNull();
+    expect(result.state.activeId).toBeNull();
     expect(attacked.facing).toBe('right');
     const attack = findAttack(result.events);
     expect(attack).toMatchObject({
-      amount: 24,
+      amount: 23,
       zone: 'back',
       backstab: true,
-      teleported: false,
+      from: 'right',
     });
   });
 
@@ -275,7 +301,7 @@ describe('kitchen battle: 解离突刺 / 双怪 / 受击转身', () => {
     expect(result.state.enemyActions).toBe(1);
   });
 
-  it('does not end the battle after only one enemy dies', () => {
+  it('does not end the battle after only one enemy dies; the killing blow still offers landing', () => {
     const setup = withPartySlot(CH01_KITCHEN_BATTLE, 'left');
     let state = atPlayerTurn(setup);
     const player = state.party[0]!;
@@ -295,10 +321,19 @@ describe('kitchen battle: 解离突刺 / 双怪 / 受击转身', () => {
     expect(first.state.enemies.find((enemy) => enemy.id === a.id)!.hp).toBe(0);
     expect(first.state.enemies.find((enemy) => enemy.id === b.id)!.hp).toBe(1);
     expect(first.state.intents[a.id]).toBeUndefined();
-    expect(first.state.party[0]!.slot).toBe('right');
+    expect(first.state.pendingMove?.targetId).toBe(a.id);
+    expect(first.state.party[0]!.slot).toBe('left');
+
+    const landed = applyBattleAction(
+      first.state,
+      { kind: 'post-move', slot: 'right' },
+      setup,
+    );
+    expect(landed.state.pendingMove).toBeNull();
+    expect(landed.state.party[0]!.slot).toBe('right');
 
     const secondState: BattleState = {
-      ...first.state,
+      ...landed.state,
       phase: 'player',
       activeId: player.id,
     };

@@ -10,6 +10,7 @@ import type {
   BattleUnit,
   EnemyIntent,
   Facing8,
+  PendingMove,
   SlotId,
   Zone,
 } from '../types';
@@ -19,11 +20,11 @@ import { planNextActor } from './gauge';
 import { getSkill, resolveSkill } from '../data/skills';
 import { placeUnits } from './placement';
 import {
+  adjacentSlots,
   facingFromPoints,
   facingLabel,
   isAdjacentSlot,
   isBackstabPoint,
-  mirrorSlot,
   slotLabel,
   zoneOfPoint,
 } from './slots';
@@ -46,6 +47,7 @@ function makeUnit(
     readonly hp: number;
     readonly atk: number;
     readonly spd: number;
+    readonly defense?: number;
   },
   team: 'party' | 'enemy',
   extras: {
@@ -63,6 +65,7 @@ function makeUnit(
     maxHp: setup.hp,
     atk: setup.atk,
     spd: setup.spd,
+    defense: Math.max(0, setup.defense ?? 0),
     gauge: 0,
     guarding: false,
     slot: extras.slot,
@@ -110,6 +113,7 @@ export function createBattle(setup: BattleSetup, seed = 1): BattleState {
     party,
     enemies,
     intents: {},
+    pendingMove: null,
     enemyActions: 0,
     seq: 0,
     log: appendLog([], 0, `${enemies.map((enemy) => enemy.name).join('、')}挡住了去路。`, 'normal'),
@@ -201,6 +205,7 @@ export function startNextTurn(state: BattleState, setup: BattleSetup): BattleAct
         ...state,
         phase: 'victory',
         activeId: null,
+        pendingMove: null,
         intents: {},
         log: appendLog(state.log, state.seq, text, 'player'),
       },
@@ -214,6 +219,7 @@ export function startNextTurn(state: BattleState, setup: BattleSetup): BattleAct
         ...state,
         phase: 'defeat',
         activeId: null,
+        pendingMove: null,
         intents: {},
         log: appendLog(state.log, state.seq, text, 'danger'),
       },
@@ -243,6 +249,7 @@ export function startNextTurn(state: BattleState, setup: BattleSetup): BattleAct
     ...next,
     phase: updated.team === 'party' ? 'player' : 'enemy',
     activeId: updated.id,
+    pendingMove: null,
     log: appendLog(
       next.log,
       next.seq,
@@ -293,12 +300,24 @@ export function applyBattleAction(
   if (state.phase === 'victory' || state.phase === 'defeat') {
     return { state, events: [] };
   }
+  // pending 落点选择期间只接受 post-move；其他行动一律拒绝。
+  if (state.pendingMove) {
+    if (action.kind !== 'post-move') return { state, events: [] };
+  } else if (action.kind === 'post-move') {
+    return { state, events: [] };
+  }
   if (state.activeId === null) {
     return { state, events: [] };
   }
 
   const actor = unitById(state, state.activeId);
   if (!actor) return { state, events: [] };
+
+  if (state.pendingMove) {
+    return actor.team === 'party'
+      ? applyPostMove(state, action, actor)
+      : { state, events: [] };
+  }
 
   if (actor.team === 'party' && action.kind === 'enemy-act') {
     return { state, events: [] };
@@ -310,6 +329,46 @@ export function applyBattleAction(
   return actor.team === 'party'
     ? applyPartyAction(state, action, actor, setup)
     : applyEnemyAction(state, setup, actor);
+}
+
+/**
+ * 落点选择：`slot` 必须是 pending.slots 之一，或玩家当前点（留在原地）。
+ * 结算后 gauge 归零、activeId 置空、pending 清空，回到正常回合循环。
+ */
+function applyPostMove(
+  state: BattleState,
+  action: BattleAction,
+  actor: BattleUnit,
+): BattleActionResult {
+  const pending = state.pendingMove;
+  if (!pending || pending.actorId !== actor.id || action.kind !== 'post-move') {
+    return { state, events: [] };
+  }
+  const from = actor.slot;
+  const to = action.slot;
+  if (to !== from && !pending.slots.includes(to)) {
+    return { state, events: [] };
+  }
+  const moved = to !== from;
+  const seq = state.seq + 1;
+  const text = moved ? `你借势落到${slotLabel(to)}。` : '你留在原地。';
+  const party = state.party.map((unit) =>
+    unit.id === actor.id ? { ...unit, slot: to, gauge: 0 } : unit,
+  );
+  const events: BattleEvent[] = moved
+    ? [{ kind: 'move', actorId: actor.id, from, to, text }]
+    : [{ kind: 'log', text, tone: 'player' }];
+  return {
+    state: {
+      ...state,
+      activeId: null,
+      pendingMove: null,
+      party,
+      seq,
+      log: appendLog(state.log, seq, text, 'player'),
+    },
+    events,
+  };
 }
 
 function finishPartyAction(
@@ -325,6 +384,7 @@ function finishPartyAction(
     state: {
       ...state,
       activeId: null,
+      pendingMove: null,
       party: state.party.map((unit) => (unit.id === player.id ? { ...player, gauge: 0 } : unit)),
       enemies,
       intents,
@@ -399,6 +459,10 @@ function applyPartyAction(
     ...(skill.backstabMultiplier === undefined
       ? {}
       : { backstabMultiplier: skill.backstabMultiplier }),
+    defense: target.defense,
+    ...(skill.backstabDefensePierce === undefined
+      ? {}
+      : { backstabDefensePierce: skill.backstabDefensePierce }),
     guarding: false,
   });
   const targetHp = Math.max(0, target.hp - amount);
@@ -410,22 +474,10 @@ function applyPartyAction(
     ...(targetSurvives ? { facing: counterFacing } : {}),
   };
 
-  const mirror = mirrorSlot(from);
-  const mirrorFree = mirror !== from && !isSlotOccupied(state, mirror);
-  const wantsTeleport = !backstab && skill.teleport === 'mirror-if-front';
-  const teleported = wantsTeleport && mirrorFree;
-  const teleportBlocked = wantsTeleport && mirror !== from && !mirrorFree;
-  const to = teleported ? mirror : from;
-
   const seq = state.seq + 1;
-  let text = backstab
+  const text = backstab
     ? `${skill.name}从背后扎进去（-${amount} · 背袭 ×1.5）。`
     : `${skill.name}命中${zoneLabel(zone)}（-${amount}）。`;
-  if (teleported) {
-    text = `${skill.name}命中${zoneLabel(zone)}（-${amount}），你借势闪到${slotLabel(to)}。`;
-  } else if (teleportBlocked) {
-    text = `${skill.name}命中${zoneLabel(zone)}（-${amount}），但落点被占，你留在原地。`;
-  }
 
   const enemies = state.enemies.map((unit) => (unit.id === target.id ? updatedTarget : unit));
   const events: BattleEvent[] = [
@@ -441,8 +493,6 @@ function applyPartyAction(
       backstab,
       targetHp,
       from,
-      to,
-      teleported,
       text,
     },
   ];
@@ -472,8 +522,9 @@ function applyPartyAction(
         ...state,
         phase: 'victory',
         activeId: null,
+        pendingMove: null,
         party: state.party.map((unit) =>
-          unit.id === actor.id ? { ...unit, slot: to, gauge: 0 } : unit,
+          unit.id === actor.id ? { ...unit, slot: from, gauge: 0 } : unit,
         ),
         enemies,
         intents: {},
@@ -489,11 +540,42 @@ function applyPartyAction(
   }
 
   const intents = { ...state.intents };
-  delete intents[target.id];
+  if (!targetSurvives) delete intents[target.id];
+
+  // 非背袭 + near-target：进入落点选择；没有空闲点就按普通行动结束。
+  const pendingSlots =
+    !backstab && skill.postHitMove === 'near-target'
+      ? adjacentSlots(target.slot).filter(
+          (slot) => slot !== from && !isSlotOccupied(state, slot),
+        )
+      : [];
+  if (pendingSlots.length > 0) {
+    const pending: PendingMove = {
+      actorId: actor.id,
+      targetId: target.id,
+      targetSlot: target.slot,
+      slots: pendingSlots,
+    };
+    return {
+      state: {
+        ...state,
+        activeId: actor.id,
+        party: state.party.map((unit) =>
+          unit.id === actor.id ? { ...unit, slot: from } : unit,
+        ),
+        enemies,
+        intents,
+        pendingMove: pending,
+        seq,
+        log,
+      },
+      events,
+    };
+  }
 
   return finishPartyAction(
     state,
-    { ...actor, slot: to },
+    { ...actor, slot: from },
     enemies,
     seq,
     log,
@@ -514,6 +596,7 @@ function applyEnemyAction(
         ...state,
         phase: 'defeat',
         activeId: null,
+        pendingMove: null,
         intents: {},
         log: appendLog(state.log, state.seq, text, 'danger'),
       },
@@ -525,7 +608,7 @@ function applyEnemyAction(
   if (!intent) {
     const planned = planEnemyIntent(state, setup, enemy.id);
     if (!planned) {
-      return { state: { ...state, activeId: null }, events: [] };
+      return { state: { ...state, activeId: null, pendingMove: null }, events: [] };
     }
     intent = planned;
     state = { ...state, intents: { ...state.intents, [enemy.id]: planned } };
@@ -559,6 +642,7 @@ function applyEnemyAction(
     const next: BattleState = {
       ...state,
       activeId: null,
+      pendingMove: null,
       enemies: state.enemies.map((unit) => (unit.id === enemy.id ? nextEnemy : unit)),
       enemyActions: state.enemyActions + 1,
       seq,
@@ -577,6 +661,8 @@ function applyEnemyAction(
           atk: enemy.atk,
           power: skill.power,
           backstab: false,
+          defense: target.defense,
+          backstabDefensePierce: 0,
           guarding: target.guarding,
         })
       : 0;
@@ -638,6 +724,7 @@ function applyEnemyAction(
           ...state,
           phase: 'defeat',
           activeId: null,
+          pendingMove: null,
           party,
           enemies: state.enemies.map((unit) => (unit.id === enemy.id ? nextEnemy : unit)),
           intents: {},
@@ -654,6 +741,7 @@ function applyEnemyAction(
   const next: BattleState = {
     ...state,
     activeId: null,
+    pendingMove: null,
     party,
     enemies: state.enemies.map((unit) => (unit.id === enemy.id ? nextEnemy : unit)),
     enemyActions: state.enemyActions + 1,
@@ -685,7 +773,7 @@ function finishEnemyAction(
   } else {
     delete intents[enemyId];
   }
-  return { state: { ...state, intents }, events };
+  return { state: { ...state, pendingMove: null, intents }, events };
 }
 
 function maybeProtocol(
@@ -705,6 +793,7 @@ function maybeProtocol(
       ...state,
       phase: 'defeat',
       activeId: null,
+      pendingMove: null,
       party: state.party.map((unit) => ({
         ...unit,
         hp: 0,
@@ -737,9 +826,6 @@ export interface PlayerAttackPreview {
   readonly backstab: boolean;
   readonly amount: number;
   readonly from: SlotId;
-  readonly to: SlotId;
-  readonly teleported: boolean;
-  readonly teleportBlocked: boolean;
 }
 
 /** HUD 用的攻击预览。技能没解锁/目标不存在/不相邻时返回 null。 */
@@ -771,12 +857,12 @@ export function previewPlayerAttack(
     ...(skill.backstabMultiplier === undefined
       ? {}
       : { backstabMultiplier: skill.backstabMultiplier }),
+    defense: target.defense,
+    ...(skill.backstabDefensePierce === undefined
+      ? {}
+      : { backstabDefensePierce: skill.backstabDefensePierce }),
     guarding: false,
   });
-  const mirror = mirrorSlot(from);
-  const mirrorFree = mirror !== from && !isSlotOccupied(state, mirror);
-  const wantsTeleport = !backstab && skill.teleport === 'mirror-if-front';
-  const teleported = wantsTeleport && mirrorFree;
   return {
     skillId: skill.id,
     skillName: skill.name,
@@ -784,9 +870,6 @@ export function previewPlayerAttack(
     backstab,
     amount,
     from,
-    to: teleported ? mirror : from,
-    teleported,
-    teleportBlocked: wantsTeleport && mirror !== from && !mirrorFree,
   };
 }
 

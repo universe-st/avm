@@ -62,6 +62,13 @@ function driveToPlayerTurn(setup: BattleSetup, seed: number): BattleState {
   for (let guard = 0; guard < 48; guard += 1) {
     if (state.phase === 'victory' || state.phase === 'defeat') return state;
 
+    // 攻击后的落点选择：预览自动选第一个落点（没有就留在原地）。
+    if (state.pendingMove) {
+      const slot = state.pendingMove.slots[0] ?? state.party[0]!.slot;
+      state = applyBattleAction(state, { kind: 'post-move', slot }, setup).state;
+      continue;
+    }
+
     if (state.activeId === null) {
       state = startNextTurn(state, setup).state;
       continue;
@@ -98,6 +105,12 @@ function drive(
 
   for (let guard = 0; guard < 240; guard += 1) {
     if (state.phase === 'victory' || state.phase === 'defeat') return state;
+
+    if (state.pendingMove) {
+      const slot = state.pendingMove.slots[0] ?? state.party[0]!.slot;
+      state = applyBattleAction(state, { kind: 'post-move', slot }, setup).state;
+      continue;
+    }
 
     if (state.activeId === null) {
       state = startNextTurn(state, setup).state;

@@ -33,6 +33,7 @@ export const CH01_FIRST_BATTLE: BattleSetup = {
       hp: 120,
       atk: 16,
       spd: 20,
+      defense: 4,
       skills: [...MINER_SKILLS],
       slot: 'center',
       art: 'miner',

@@ -57,10 +57,16 @@ export interface SkillDef {
   /** 背袭倍率；省略按 1.5。 */
   readonly backstabMultiplier?: number;
   /**
-   * 命中后的位移：
-   * - `mirror-if-front`：非背袭命中后闪现到**战场中心**的镜相对位（解离突刺）。
+   * 命中后的落点选择：
+   * - `near-target`：非背袭命中后进入 pendingMove，可选目标相邻的空闲点位。
+   * 不再有自动镜像闪现（2026-11-22 删除 `teleport`）。
    */
-  readonly teleport?: 'mirror-if-front';
+  readonly postHitMove?: 'near-target';
+  /**
+   * 背袭时无视目标防御的比例（0..1）；0.5 = 只扣一半防御。
+   * 只在 backstab 为 true 时生效；省略按 0。
+   */
+  readonly backstabDefensePierce?: number;
   /** 命中范围；玩家解离突刺是单一目标，不走这里的锥形集合。 */
   readonly hit: SkillHit;
   /** 使用后需要经过的怪物行动数（0/省略 = 无冷却）。 */
@@ -76,6 +82,8 @@ export interface BattleUnitSetup {
   readonly hp: number;
   readonly atk: number;
   readonly spd: number;
+  /** 平减防御；省略 0。 */
+  readonly defense?: number;
   /** 技能 id（来自 `data/skills.ts`）。 */
   readonly skills: readonly string[];
 }
@@ -143,6 +151,8 @@ export interface BattleUnit {
   readonly maxHp: number;
   readonly atk: number;
   readonly spd: number;
+  /** 平减防御（≥0）；伤害结算时先减它，再乘防御动作 0.5。 */
+  readonly defense: number;
   /** 行动条 0..1000，到达 1000 的单位行动。 */
   readonly gauge: number;
   readonly guarding: boolean;
@@ -199,6 +209,19 @@ export interface BattleLogEntry {
 
 export type BattlePhase = 'player' | 'enemy' | 'victory' | 'defeat';
 
+/**
+ * 攻击命中后的落点选择（解离突刺的非背袭命中）。
+ *
+ * `activeId` 仍是玩家、gauge 先不归零；玩家必须用 `post-move` 选一个
+ * `slots` 里的点位，或选自己当前点（留在原地）才结束这次行动。
+ */
+export interface PendingMove {
+  readonly actorId: string;
+  readonly targetId: string;
+  readonly targetSlot: SlotId;
+  readonly slots: readonly SlotId[];
+}
+
 export interface BattleState {
   readonly encounterId: string;
   readonly title: string;
@@ -210,6 +233,8 @@ export interface BattleState {
   readonly enemies: readonly BattleUnit[];
   /** 每只活着的怪物一条锁定意图。 */
   readonly intents: Readonly<Record<string, EnemyIntent>>;
+  /** 攻击命中后的落点选择；null = 没有待选落点。 */
+  readonly pendingMove: PendingMove | null;
   /** 所有怪物已经行动的次数（清除协议计数；技能/移动都算）。 */
   readonly enemyActions: number;
   /** 已经结算的行动数。 */
@@ -221,6 +246,7 @@ export interface BattleState {
 export type BattleAction =
   | { readonly kind: 'move'; readonly slot: SlotId }
   | { readonly kind: 'attack'; readonly skillId: string; readonly targetId: string }
+  | { readonly kind: 'post-move'; readonly slot: SlotId }
   | { readonly kind: 'guard' }
   | { readonly kind: 'enemy-act' };
 
@@ -250,8 +276,6 @@ export type BattleEvent =
       readonly backstab: boolean;
       readonly targetHp: number;
       readonly from: SlotId;
-      readonly to: SlotId;
-      readonly teleported: boolean;
       readonly text: string;
     }
   | {

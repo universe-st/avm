@@ -1799,6 +1799,14 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         tags: ['battle', 'character', 'head'],
       },
       {
+        key: 'img.char.battle.head_xiaobai',
+        kind: 'image',
+        url: 'assets/img/character/battle/heads/xiaobai.png',
+        required: false,
+        label: '战斗图鉴图标 · 小白（96×96，复用第一章小白图）',
+        tags: ['battle', 'character', 'head'],
+      },
+      {
         key: 'audio.sfx.battle_slash',
         kind: 'audio',
         url: 'assets/audio/sfx/battle_slash.mp3',

@@ -26,7 +26,7 @@ describe('battle preview states', () => {
       'player.jielitusi',
       target.id,
     );
-    expect(preview).toMatchObject({ zone: 'back', backstab: true, amount: 24 });
+    expect(preview).toMatchObject({ zone: 'back', backstab: true, amount: 23 });
   });
 
   it('starts the first-battle mid preview on a player turn with attack locked', () => {

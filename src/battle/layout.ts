@@ -6,8 +6,8 @@ import type { SlotId } from './types';
  * 7 个点位：6 个环位 + `center`。`center` 就是 v2 怪物站的红圈，
  * 现在也是合法点位；`slots.center` 和 `centerPoint` 是同一个脚底坐标。
  *
- * 顶部预留 = 页眉 118 + 行动表 rail（1–2 怪 96 / 3 怪 116）+ 间距 10。
- * 去掉 SPD 量条后，1–2 怪时 fieldTop 从上版的 244 上移到 224，战场略大。
+ * 顶部预留 = 页眉 118 + 行动表 rail 64 + 间距 10 = fieldTop 192。
+ * 行动表只剩标题 + 头像 chip 一行；不再有意图行，所以 rail 恒 64。
  */
 
 export interface BattlePoint {
@@ -15,13 +15,12 @@ export interface BattlePoint {
   readonly y: number;
 }
 
-export const RAIL_BASE_HEIGHT = 96;
-export const RAIL_INTENT_ROW_HEIGHT = 20;
+/** 行动表 rail 高度（标题 + 44px 头像 chip 一行）。 */
+export const BATTLE_RAIL_HEIGHT = 64;
 
-/** 行动表 rail 高度：至少有 2 行意图位（1–2 怪 96），3 怪 116。 */
-export function battleRailHeight(enemyCount: number): number {
-  const rows = Math.max(2, Math.min(3, Math.trunc(enemyCount) || 0));
-  return RAIL_BASE_HEIGHT + (rows - 2) * RAIL_INTENT_ROW_HEIGHT;
+/** 兼容旧调用：rail 恒 64，不再随怪物数量变化。 */
+export function battleRailHeight(): number {
+  return BATTLE_RAIL_HEIGHT;
 }
 
 export const BATTLE_LAYOUT = {
@@ -33,6 +32,8 @@ export const BATTLE_LAYOUT = {
   bottomHeight: 360,
   /** 玩家战斗立绘的屏显高度（用于算上方站位不能被页眉压住）。 */
   playerHeight: 170,
+  /** 最高怪物的屏显高度（御厨约 200）；上排站位要给它留头。 */
+  enemyHeight: 200,
   /** 左右两格的水平半径。 */
   radiusX: 250,
   /** 四斜格相对中心的水平偏移。 */
@@ -59,21 +60,18 @@ export interface BattleLayout {
   readonly playerHeadOffset: number;
 }
 
-export function planBattleLayout(
-  width = 720,
-  height = 1280,
-  intentRows = 2,
-): BattleLayout {
+export function planBattleLayout(width = 720, height = 1280): BattleLayout {
   const safeWidth = Math.max(360, Math.round(width));
   const safeHeight = Math.max(640, Math.round(height));
-  const railHeight = battleRailHeight(intentRows);
+  const railHeight = BATTLE_RAIL_HEIGHT;
   const railTop = BATTLE_LAYOUT.headerHeight;
   const fieldTop = railTop + railHeight + BATTLE_LAYOUT.fieldGap;
   const fieldBottom = Math.max(fieldTop + 240, safeHeight - BATTLE_LAYOUT.bottomHeight);
   const centerX = Math.round(safeWidth / 2);
   const centerY = Math.round(fieldTop + (fieldBottom - fieldTop) * 0.56);
 
-  const availableAbove = centerY - fieldTop - BATTLE_LAYOUT.playerHeight - 8;
+  const availableAbove =
+    centerY - fieldTop - Math.max(BATTLE_LAYOUT.playerHeight, BATTLE_LAYOUT.enemyHeight) - 8;
   const availableBelow = fieldBottom - 16 - centerY;
   const radiusY = Math.max(
     BATTLE_LAYOUT.minRadiusY,
