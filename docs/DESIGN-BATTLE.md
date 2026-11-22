@@ -1,6 +1,7 @@
-# 战斗系统设计（v2 · 六站位跑条制）
+# 战斗系统设计（v3 · 七点位 / 无转向行动 / 多怪）
 
-> 状态：**v2 已实现并接入第一章两场战斗**（金殿剧情战 + 御膳房遭遇战）。1v1；多人队伍 / 多敌人 / EP / 核心暴露 / Boss 阶段仍后置。
+> 状态：**v3 已实现并接入第一章两场战斗**。金殿剧情战仍为 1 怪必败；御膳房改为双怪。
+> 多人队伍（多个可操控角色）只做了数据结构预留，队伍 UI/换人仍后置。
 >
 > 本文是战斗规则的**唯一真值**，代码真值在 `src/battle/`；场景只消费事件，不自己算伤害/顺序/命中。
 >
@@ -8,195 +9,279 @@
 
 ## 0. 核心决策速览
 
-- **怪物居中，玩家在 6 个环形站位**（左上/左/左下/右上/右/右下），默认在左。
-- **跑条决定先后**：双方有 SPD，行动条 0–1000；先到 1000 者行动，行动后归零。
-- **怪物朝 8 方向**；相对角 `≥135°` 为背袭，解离突刺背袭 **×1.5**。
-- **解离突刺**：正面命中后闪现到怪物**镜相对位**；背袭伤害 +50% 且留在原地。
-- **转向是怪物的一次行动**；技能只打特定方向，意图提前锁定并公示。
-- **第一场只能移动/防御**（没有「解」）；**御膳房是有「解」的第一场完整战斗**。
+- **7 个点位**：6 个环位 + `center`；一个点位同时只站一个单位。中心空出后玩家/怪物都能进。
+- **跑条决定先后**：双方有 SPD，行动条 0–1000；行动后归零。**引擎保留，但顶部不再画 SPD 量条**，只画头像行动表。
+- **怪物没有单独的转身行动**：一次行动只有「技能」或「移动」。
+  - 技能可自由瞄准；执行时免费转身面向瞄准点。
+  - 受击后免费转身面向**攻击来向**（不是闪现后的落点）。
+  - 移动后免费面朝移动方向。
+- **攻击射程 = 相邻点位**：玩家解离突刺是单一目标，目标相邻才命中；怪物技能用 `hitPointsFor` 算命中集合。
+- **背袭**：相对目标朝向 `≥135°`；解离突刺背袭 **×1.5**。
+- **闪现**：非背袭命中后以**战场中心**为轴闪到镜相对位；落点被占则不闪、伤害照常。
+- **多怪**：`party[]` / `enemies[]` 按 N 单位设计；御膳房 2 怪，点敌人选目标；所有怪 HP 0 才胜利。
 - 手机竖屏：不做命中率/暴击/闪避/实时 ATB；伤害与顺序完全确定，可回放、可单测。
 
 ## 1. 战场结构
 
-### 1.1 站位
+### 1.1 七点位
 
-怪物固定在战场中心 `(360, fieldCenterY)`；玩家 6 个站位是一个椭圆环（设计坐标，720 宽）：
+```text
+          upperLeft ────── upperRight
+            /  \              /  \
+           /    \            /    \
+        left ─────── center ─────── right
+           \    /            \    /
+            \  /              \  /
+          lowerLeft ────── lowerRight
+```
 
-| 站位 | 角度（屏幕坐标，0°=右、90°=上） | 中心偏移 |
+| 点位 | 规范角度（屏幕坐标，0°=右、90°=上） | 说明 |
 | --- | --- | --- |
-| `right` 右 | 0° | `(+250, 0)` |
-| `upperRight` 右上 | 45° | `(+180, -radiusY)` |
-| `upperLeft` 左上 | 135° | `(-180, -radiusY)` |
-| `left` 左 | 180° | `(-250, 0)` |
-| `lowerLeft` 左下 | 225° | `(-180, +radiusY)` |
-| `lowerRight` 右下 | 315° | `(+180, +radiusY)` |
+| `right` 右 | 0° | 环位 |
+| `upperRight` 右上 | 45° | 环位 |
+| `upperLeft` 左上 | 135° | 环位 |
+| `left` 左 | 180° | 环位，玩家默认 |
+| `lowerLeft` 左下 | 225° | 环位 |
+| `lowerRight` 右下 | 315° | 环位 |
+| `center` 中 | — | 原点；等于 v2 怪物站的红圈 |
 
-- 布局唯一真值：`src/battle/layout.ts` 的 `planBattleLayout(720, designH)`。
-- 顶部预留 = 页眉 118 + 行动条 116 + 间距 10 = `fieldTop 244`（Compose 在页眉下再留 118px）；底部预留 = 指令面板 360。行动条从 104 加到 116 是为了给 44px 头像 chip 和意图行留出四行空间（2026-11-22）。
-- `radiusY` 按设计高（1100–1700）钳制在 96–190，保证上排角色的头不被跑条压住、下排脚不越过指令区。
-- 角色脚底锚点 `origin(0.5, 0.985)`；玩家屏显高约 170，矿工约 260，御厨约 200。
+- 布局唯一真值：`src/battle/layout.ts` 的 `planBattleLayout(720, designH, intentRows)`。
+- 相邻关系：`center` ↔ 6 环位全部相邻；每个环位 ↔ `center` + 左右两个环邻（3 个邻点）。
+- 占据互斥：一个点位最多一个单位。中心被占时不能进；怪物离开后玩家可以一步走进去。
+- `layout.slots.center` = `layout.centerPoint` = 原 v2 `layout.monster` 的脚底坐标。
+- 顶部预留 = 页眉 118 + 行动表 96（1–2 怪）/116（3 怪）+ 间距 10；底部指令面板 360。
+- 角色脚底锚点 `origin(0.5, 0.985)`；玩家屏显高约 170，矿工约 260（八向图 371 高），御厨约 200。
 
-### 1.2 为什么是 6 个环位而不是左右两排
+### 1.2 为什么是 7 点位
 
-竖屏 720 宽，三排（左/中/右）会让「背后」只有一个二进制朝向；6 个环位能同时表达**左/左上/左下都在它背后**、**正面/侧面/背面**三种关系，也让「转向」这个行动有真实代价。地图上的 120° 背后判定与战斗的环位判定是两套判定，不要混用。
+v2 的 6 环位能让「左/左上/左下都在它背后」，但中心只属于怪物，怪物也没有离开中心的理由。v3 让中心成为第 7 个合法点位：
+怪物可以走到环位，中心空出来后玩家可以占；玩家占中心时，怪物从环位打中心是「向内」、玩家打它是「背袭」——站位第一次同时影响双方的攻防。
 
-### 1.3 默认站位与朝向
+### 1.3 初始点位
 
-- 玩家默认 `left`；怪物默认 `facing='left'`（面向玩家）——所以第一刀是正面，想背袭必须自己绕。
-- 怪物转向以玩家**当前站位**为目标；转向后玩家变成正面。
-- 8 向美术只在转向/演出用；转向只会选 6 个有站位的方向，上下两向留给预览与脚本。
+- 玩家默认 `left`；怪物点位由剧情写死，或未写时用 seed 从空点位随机（不重叠、可复现）。
+- 怪物初始朝向 = 从它自己的点位指向第一个玩家角色；所以金殿/御膳房中心怪默认面向左。
+- 8 向美术只在朝向/移动/演出用；中心怪也可朝上/下，不再只限 6 个环位方向。
 
-## 2. 跑条（行动条）
+## 2. 跑条与行动表
 
 - 常量：`GAUGE_MAX = 1000`；每个单位每「tick」累积 `spd` 点。
 - 推进入口：`planNextActor(state)` 取所有存活单位到顶所需的最小 tick，统一推进；先到者行动。
 - 同 tick 到顶：SPD 高者优先 → 敌方优先 → id 字典序（稳定、可复现）。
-- 行动（攻击/移动/防御/转向）结束把行动者 gauge 归零。
+- 行动（攻击/移动/防御/怪物技能/怪物移动）结束把行动者 gauge 归零。
 - 防御持续到该单位**下一次行动开始**；期间受伤 ×0.5。
-- `previewOrder(state, n)` 给 HUD 的「接下来」条；纯模拟，不改 state。
-- **不是严格交替**：20 vs 14 在 7 次行动里大约 4:3，偶尔怪物连续行动两次——这是「它比你快」的直观表现。
+- `previewOrder(state, n)` 给 HUD 的行动表；纯模拟，不改 state。
+- **不是严格交替**：14 / 12 / 10 三只单位会出现「你→御厨→帮厨→你」的节奏。
 
 | 单位 | SPD | 说明 |
 | --- | --- | --- |
-| 周全（两场相同） | 14 | 基准 |
+| 周全（两场相同） | 14 | 基准；金殿先手在矿工之后 |
 | 矿工·清除单元 | 20 | 明显快于周全；第一场先手 |
-| 御厨·幻影 | 12 | 略慢于周全；御膳房可打赢 |
+| 御厨·幻影（甲） | 12 | 中心站桩；略慢于周全 |
+| 帮厨·幻影（乙） | 10 | 右上追击；最慢 |
 
-### 2.1 行动条表现
+### 2.1 顶部只画行动表（不画量条）
 
-- **连续量条，不画格子**：轨道底 → 按 `gauge / 1000` 连续填充 → 1px 描边；可有 ≤1px 的 10 等分刻度叠在填充上，**不得**用 cell + 3px gap（那正是「行动条断开」的来源）。左右两条各自连续，中间不出现背景色缝隙。位置/尺寸不变：左 x=24、右 x=372，300×10。
-- **「接下来」是头像 chip**：6 个直径 **44px** 的圆形头像，中心距 **52px**（仍落在旧的 6 个槽位上），当前行动者 **2px 白描边**；顺序不足 6 个时空位不画。头像由 `tools/make-battle-heads.py` 从各角色**正面全身图**裁「头顶 → 下巴略下」的方形区域（人物高 40%，128×128、四周 6px 透明边、预裁透明圆），玩家固定周全、敌人按 `setup.enemy.art` 对位（矿工/御厨）；缺图回退字母 chip。
-- **前移动画**：顺序刷新时对比上一次已画出的 order，交给纯函数 `railTransition(prev, next)` 输出每个 slot 的 `from/to/alpha` 与 `enter/exit`：最左滑出并渐隐 → 其余整体左移一格 → 新末位从右侧 +1 格渐现，**190ms**（位移 ease-out、alpha 线性铺满全程，动画结束才落定）。同一组 order 不重播；一次跨多格只播一轮（不是连播两次一格）；`prefers-reduced-motion` 直接落终态。
-- 实现：`src/battle/core/rail-transition.ts`（纯逻辑 + 单测）、`src/scenes/battle-ch01-scene.ts` 的 `createOrderChips / drawActionBar / drawGauge / playOrderTransition`；头像 key `img.char.battle.head_{zhou,miner,cook}` 分属 `battle.common` / `battle.ch01` / `battle.kitchen`，派生来源见 `docs/RESOURCE-SPEC.md`。
+- **删除**：标题「行动条」、两条 300×10 SPD 连续量条、顶部 `SPD 14 / 20` 文案、`drawGauges()`。
+- **保留**：标题「行动表」、头像 chip（直径 44、中心距 52、当前行动者 2px 白描边）、每只怪一行意图；协议计数在右上角。
+- `railHeight`：1–2 怪 **96**（`fieldTop=224`），3 怪 **116**（`fieldTop=244`）。`battle-hud.ts` 的 Spacer 从 layout 传入，不再写死。
+- 顺序刷新走 `railTransition(prev, next)`：最左滑出渐隐 → 其余整体左移一格 → 末位从右侧 +1 格渐现，190ms；同组不重播；reduced-motion 直接落终态。
+- 双御厨同头像时，chip 右下角与怪物名牌用 1/2 编号区分。
+- 跑条值只留在 `__avmBattle()` 调试快照里，不上屏。
 
-## 3. 朝向、区域与背袭
+## 3. 朝向、区域、背袭与命中集合
 
-相对角 `rel = normalize180(slotAngle - facingAngle)`：
+### 3.1 两点方向
+
+- `facingFromPoints(from, to)`：两点方向 → 最近 8 向。
+- 角度差必须先 `normalizeDegrees(angle(to) - angle(from))`；不能分别归一化后相减（180→-180 会漏掉左上/左下）。
+- 环位之间出现 67.5°/112.5° 这种正好夹在两向中间的方向（左→左上、右上→右等）；平局取 `|cos|` 更大的一向（环的切线/斜向）。
+
+### 3.2 区域
+
+`zoneOfPoint(attacker, target, targetFacing)`，`rel = normalize(angle(target→attacker) - targetFacing)`：
 
 | 区域 | 判定 | 效果 |
 | --- | --- | --- |
-| 正面 front | `-45 ≤ rel ≤ 45` | 无加成；解离突刺命中后闪现到镜相对位 |
-| 侧面 side | `45 < |rel| < 135` | 无背袭；可躲开只打正面的技能 |
-| 背面 back | `|rel| ≥ 135` | 背袭；解离突刺 ×1.5 且不位移 |
+| 正面 front | `|rel| ≤ 45°` | 无加成 |
+| 侧面 side | `45° < |rel| < 135°` | 无背袭；可躲开只打正面的技能 |
+| 背面 back | `|rel| ≥ 135°` | 背袭；解离突刺 ×1.5 且不位移 |
 
-- 面向左（180°）时：左/左上/左下是正面（rel 0/-45/+45），右/右上/右下是背面（rel ±180/∓135）。玩家默认在左，所以第一刀是正面；想背袭要自己绕到右边。完整 6×8 表见 `test/battle-slots.test.ts`。
-- 背面用**金色楔形**常显（`facing+135° ~ facing+225°`），并标「背袭」。
-- 怪物脚下有朝向箭头；转向时楔形/箭头/贴图一起变。
 - 背袭只影响伤害，不做暴击/命中率。
+- 怪物在中心、玩家默认在左时，第一刀是正面；想背袭要绕到右侧或用闪现。
+- 受击后怪物免费转向攻击来向，所以同一位置连续砍第二刀通常变正面；想连续背袭要绕位/利用闪现。
+
+### 3.3 命中集合
+
+```ts
+hitPointsFor(origin, aim, hit): SlotId[]
+```
+
+- 先取 `origin` 的相邻点，再按 `aim` 方向过滤：
+  - `single-front`：角差 ≤45°
+  - `front-arc`：角差 <135°（正好 135° 按背面排除）
+  - `all-slots`：全部 7 点
+- 参考真值：
+
+| origin | aim | single-front | front-arc |
+| --- | --- | --- | --- |
+| center | left | left / upperLeft / lowerLeft | 同左 |
+| center | upperRight | right / upperRight | right / upperRight / upperLeft / lowerRight |
+| center | right | right / upperRight / lowerRight | 同左 |
+| left | center | center | center / upperLeft / lowerLeft |
+| left | upperLeft | upperLeft | center / upperLeft |
+| upperRight | center | center / upperLeft | center / upperLeft / right |
+
+- **玩家解离突刺是单一目标**：目标相邻就命中，不走 `hitPointsFor` 的锥形集合。`hitPointsFor` 只服务怪物技能/意图。
+- 意图里保存 `origin / aim / targetId / targetSlot / hitSlots / aoe`；玩家在意图锁定后走出 `hitSlots` 就能看它打空。
+- AOE 只能靠防御减半，走位躲不掉。
 
 ## 4. 玩家操作
 
 | 操作 | 规则 | 消耗 |
 | --- | --- | --- |
-| **攻击（解离突刺）** | `round(atk × power × 背袭 1.5 × 防御 0.5)`；非背袭命中后闪现到镜相对位（左↔右、左上↔右下、左下↔右上）；背袭 +50% 留原地 | 1 行动 |
-| **移动** | 移动到**环上相邻的一格**（不能直接到对面）；弧线冲刺 + 残影 + 落地尘；不能停原格 | 1 行动 |
+| **攻击（解离突刺）** | 单一目标，目标必须相邻；`round(atk × power × 背袭 1.5)`；非背袭命中后以战场中心为轴闪现到镜相对位；落点被占则不闪、伤害照常 | 1 行动 |
+| **移动** | 移动到相邻空点位（中心也算）；不能停在原格 | 1 行动 |
 | **防御** | 到下一次行动前受伤 ×0.5；护盾环 + 格挡姿态 | 1 行动 |
 
-- 攻击按钮常显当前预览：`攻击 · 24`；提示行说明「背袭 ×1.5，命中后留在原地」或「正面命中后闪现到右」。
+- 目标选择：点敌人身体选中（目标脚下白环）；默认目标 = 相邻敌人里 HP 最低者。攻击按钮/提示带目标名。
+- 攻击按钮常显：`攻击 · 御厨·幻影 · 24`；目标不相邻时禁用并显示 `目标太远`。
 - **没有「解」时攻击按钮禁用**（第一场）：点击给「你还没有「解」——这一场只能移动或防御」。
-- v1 **不做** EP / 暴击 / 闪避 / 命中率：技能表按 `SkillDef` 数据化，后续加技能只加数据。
-- 移动只允许环上相邻一格：`adjacentSlots()` 是唯一判定；对面（left↔right、upperLeft↔lowerRight 等）只能靠解离突刺的闪现。绕背至少要两步，怪物有机会转向/震地，站位收益才值钱。
-- 行动条 HUD：顶部原生 rail 有「行动条」标题、双方**连续量条**（SPD + 当前进度）、「接下来」6 个**头像 chip**（周/矿/厨，当前行动者白描边）、意图行。不要退化成一行「你→它」文字；表现细节见 §2.1。
+- 闪现始终以**战场中心**为轴（左↔右、左上↔右下、左下↔右上；中心→中心）。目标离开中心后，落点与目标相对位置无关。
+- 移动只允许相邻：`adjacentSlots()` 是唯一判定；中心空出后才能进。绕背至少要两步，怪物有机会追击/震地。
 
 ## 5. 怪物技能、AI 与意图
 
-### 5.1 技能表
+### 5.1 怪物的行动
+
+| 行动 | 规则 | 消耗 |
+| --- | --- | --- |
+| **技能** | 自由选择瞄准点；执行时先免费转身面向瞄准方向，再出招；命中集合由 `origin + aim + hit` 算出 | 1 行动 |
+| **移动** | 移动到相邻空点位；移动后面朝移动方向；目标点被占则移动失败（空耗行动） | 1 行动 |
+
+- 不再有 `intent.kind='turn'`，也没有 `enemy-turn` 行动事件/380ms 大转向。
+- 受击后免费转身面向攻击来向（`from`），伤害结算之后；被打死则不转。
+- 进攻转身也免费：意图保存 `aim`，执行时转向它；玩家挪出命中集合就能看它打空。
+- 清除协议计数按**所有怪物行动数**（技能/移动都算），不是玩家回合数。
+
+### 5.2 技能表
 
 | 怪物 | 技能 | 命中 | 伤害（atk） | 冷却 |
 | --- | --- | --- | --- | --- |
-| 矿工·清除单元（atk 16） | 铁臂横扫 `miner.sweep` | 正面 + 侧面 | 10 | 0 |
-| | 钻头突进 `miner.thrust` | 仅正面，打空 0 伤害 | 18 | 2 次行动 |
-| | 核心脉冲 `miner.quake` | 全部 6 格 | 6 | 3 次行动 |
-| 御厨·幻影（atk 12） | 菜刀横扫 `cook.sweep` | 正面 + 侧面 | 9 | 0 |
-| | 热油泼洒 `cook.oil` | 仅正面 | 13 | 2 |
-| | 灶台震地 `cook.quake` | 全部 6 格 | 4 | 3 |
+| 矿工·清除单元（atk 16） | 铁臂横扫 `miner.sweep` | 瞄准方向 ±135° 的相邻点 | 10 | 0 |
+| | 钻头突进 `miner.thrust` | 瞄准方向 ±45° 的相邻点 | 18 | 2 次行动 |
+| | 核心脉冲 `miner.quake` | 全部 7 点 | 6 | 3 次行动 |
+| 御厨·幻影（atk 10） | 菜刀横扫 `cook.sweep` | 瞄准方向 ±135° 的相邻点 | 8 | 0 |
+| | 热油泼洒 `cook.oil` | 瞄准方向 ±45° 的相邻点 | 11 | 2 |
+| 帮厨·幻影（atk 7） | 菜刀横扫 `cook.sweep` | 同上 | 5 | 0 |
+| | 热油泼洒 `cook.oil` | 同上 | 8 | 2 |
 
-- 命中集合由 `hitSlotsFor(facing, hit)` 给出；HUD 提前把受击格染红。
-- **全站位技能（核心脉冲 / 灶台震地）是唯一不转向也能命中背后**的招式：它是砸地震荡，不是背刺。HUD 必须写「全站位（无法走位躲避）」、地面画盖住整个战场的红环、怪物砸地 + 双圈冲击波；不要把它读成「没转身就背刺」的 bug。AOE 的意图文案不要列 6 个站位，直接写「全站位」。
+- 命中集合由 `hitPointsFor(origin, aim, hit)` 给出；HUD 提前把受击点染红。
 - 目标不在命中集合内 → 打空（显示「打空」，不扣血）。
+- **全站位技能**（核心脉冲/灶台震地）唯一能从远处/背后命中：HUD 写「全站位（无法走位躲避）」、地面画盖住整个战场的红环、怪物砸地 + 双圈冲击波；意图文案不要列 7 个点位。
 - 冷却在怪物回合开始时 −1；使用后写回技能表的 `cooldown`。
 
-### 5.2 意图（锁定）
+### 5.3 意图（锁定）
 
-- 怪物每次行动**结束后**按当时站位计算并锁定 `state.intent`；玩家移动**不会**改它。
-- 意图两种：`turn`（转向某方向）或 `skill`（招式 + 命中格 + 是否覆盖玩家）。
-- 所以玩家可以「读出招式 → 挪到安全格 → 看它打空」；转向可以「骗」，因为它锁定的是旧站位。
-- HUD 常显：`意图：铁臂横扫 · 命中 左上/左/左下`；第一场额外显示 `清除协议 · 剩余 N 次行动`。
+- 每只怪物在**自己行动结束后**按当时站位/目标计算并锁定自己的意图；其他怪物与玩家的移动不改已锁定意图。
+- 意图两种：
+  - `skill`：`skillId / origin / aim / facing / targetId / targetSlot / hitSlots / hitsPlayer / aoe / text`
+  - `move`：`from / to / facing / targetId / text`
+- HUD 每只怪一行：`御厨·幻影：热油泼洒 · 命中 左/左上/左下`、`帮厨·幻影：移动 · 左上（面朝左）`。
+- 受击转向不重算意图；下一次出招仍转向 `aim`。
 
-### 5.3 AI 优先级（确定性）
+### 5.4 追击 AI（确定性）
 
-1. 玩家在侧面/背面：`quake` 冷却好 → 震地；否则 → 转向玩家当前站位。
-2. 玩家在正面：`thrust` 冷却好 → 突进；否则 → 横扫。
-3. 兜底：转向。
+1. 目标 = 最近的玩家角色（7 点图 BFS 步数）；平局取 HP 低者 → id 字典序。
+2. 目标相邻：`single-front` → `front-arc` → `all-slots` 选冷却好的技能；都有冷却用第一个 0 冷却技能。
+3. 目标不相邻：
+   - `all-slots` 冷却好 → 直接 AOE；
+   - `chaser` 用 BFS 走一步缩短距离（避开占位）；无路可走 → 仍出技能瞄准目标（会打空，文案带「够不着」）。
+4. `behavior:'stationary'` 永不移动（第一场教程战）；默认 `chaser`。
 
-`planEnemyIntent()` 是纯函数；同 state 同意图，可单测。
+`planEnemyIntent(s)` 是纯函数；同 state 同意图，可单测。玩家可以「读两只怪的意图 → 走到两只都打不到的点 / 堵住移动落点 → 看它们打空或撞住」。
 
-## 6. 两场战斗
+## 6. 多怪
 
-### 6.1 金殿·矿工（`battle.ch01.first`）
+- 核心：`state.party[]` + `state.enemies[]`；行动表、跑条、意图、HP 全部按单位 id 处理；按 `activeId` 找当前行动者。
+- 站位互斥：一个点位最多一个单位；玩家/怪物都不能移到被占点；怪物移动失败也消耗行动。
+- 目标选择：点敌人选中；默认相邻最低 HP；只杀一只不结束，所有怪 HP 0 才胜利。
+- 御膳房双怪：
+  - 御厨·幻影：`center`、stationary、HP 40 / ATK 10 / SPD 12、sweep + oil。
+  - 帮厨·幻影：`upperRight`、chaser、HP 24 / ATK 7 / SPD 10、sweep + oil。
+  - 都复用厨子八向/头像/技能帧；chip 与名牌用 1/2 编号。
+- 多怪沙盒：`battle.sandbox.multi`，厨房舞台、3 只厨系幻影、随机点位，用来验收随机/追击/堵路/目标切换。
+- 未来多玩家：数据结构 N-ready；本轮只实现 1 个玩家角色，不做队伍 UI/换人。
+
+## 7. 两场战斗
+
+### 7.1 金殿·矿工（`battle.ch01.first`）
 
 | 项 | 值 |
 | --- | --- |
-| 周全 | HP 90 / ATK 16 / SPD 14；**无技能**（没有「解」） |
-| 矿工 | HP 120 / ATK 16 / SPD 20 / 初始面向左 |
-| 玩家可做 | 移动、防御；攻击禁用 |
-| 结束 | 第 4 次怪物行动后「清除协议」999 伤害 → 战败；HP 0 也战败 |
-| 存档 | 战败写 `dorm.after`（保持现有剧情） |
-| 时长 | 约 15–20 秒，4 次怪物行动 / 2–3 次玩家行动 |
+| 周全 | HP 90 / ATK 16 / SPD 14；**无技能** |
+| 矿工 | HP 120 / ATK 16 / SPD 20 / center / stationary |
+| 结束 | 第 4 次怪物行动后「清除协议」999 → 战败；HP 0 也战败 |
+| 存档 | 战败写 `dorm.after` |
+| 时长 | 约 15–20 秒 |
 
-设计意图：这不是一场能赢的战斗。玩家只学会「看意图、移动、防御」和「它比你快」。
+设计意图：不能赢。玩家只学会「看意图、移动、防御」和「它比你快」。怪物没有转向行动，所以每一动都在攻击；清除协议按行动数收尾。
 
-### 6.2 御膳房·幻影（`battle.ch01.kitchen`）
+### 7.2 御膳房·双幻影（`battle.ch01.kitchen`）
 
 | 项 | 值 |
 | --- | --- |
 | 周全 | HP 90 / ATK 16 / SPD 14；**解离突刺**已解锁 |
-| 御厨幻影 | HP 56 / ATK 12 / SPD 12 / 初始面向左 |
-| 结束 | 幻影 HP 0 → 胜利，回御膳房并标记该巡逻已清除；HP 0 → 战败回检查点 |
-| 存档 | **不写** `dorm.after`（修复 v1 的跨场写档 bug） |
-| 时长 | 3–5 次玩家行动 / 约 30–50 秒 |
+| 御厨·幻影 | HP 40 / ATK 10 / SPD 12 / center / stationary |
+| 帮厨·幻影 | HP 24 / ATK 7 / SPD 10 / upperRight / chaser |
+| 结束 | 两只都 HP 0 → 胜利，回御膳房并标记巡逻清除；玩家 HP 0 → 战败回检查点 |
+| 存档 | **不写** `dorm.after` |
+| 目标 | 4–6 次玩家行动，胜利 HP ≥20（`test/battle-balance.test.ts`） |
 
-伤害路径：正面 16 → 闪现到右（背后）→ 24 → 24 / 或再正面 16，刚好 56 血三刀。
+伤害路径：正面 16 → 闪现到右（背后）→ 24；两只合计 64 血，约 4–5 刀。帮厨第一动通常在右上往左上追击，给玩家一个读「移动意图」的窗口。
 
-## 7. 表现与音效
+## 8. 表现与音效
 
 | 事件 | 表现 | 音效 |
 | --- | --- | --- |
 | 待机 | 呼吸 scaleY 1.0↔1.015（不位移） | — |
-| 移动 | 弧线冲刺 + 2 个残影 + 落地环 + 尘（只走相邻一格） | `battle_blink`（低音量） |
-| 怪物技能 | 每个技能一条左向 12 帧 strip；右侧三方位 flip；宽帧用 `originX` 保持脚底中心 | 对应技能音 |
-| 解离突刺 | 12 帧 × 55ms + 命中冻结 60ms + 斩击弧 + 金字伤害 | `battle_slash` → `battle_hit` / `battle_backstab` |
+| 玩家移动 | 弧线冲刺 + 2 个残影 + 落地环 + 尘（只走相邻一格） | `battle_blink`（低音量） |
+| 玩家攻击 | 12 帧 × 55ms + 命中冻结 60ms + 斩击弧 + 金字伤害 | `battle_slash` → `battle_hit` / `battle_backstab` |
 | 闪现 | 旧格残影 → 白闪 → 新格出现 + 冲击环 | `battle_blink` |
 | 防御 | 格挡姿态 + 护盾弧 + 冷白粒子 | `battle_guard` |
-| 怪物转向 | 8 向贴图交叠 + 白扫光 + 朝向箭头 | `battle_turn` |
-| 横扫/突进/震地 | 前冲/挥击/震地环 + 受击格火花 | `battle_sweep` / `battle_quake` |
+| 怪物出招 | 快速转身（8 向贴图 + 白扫光 + 箭头，160ms）→ 技能 strip；flip 由 `aim` 左右决定 | 对应技能音 |
+| 怪物受击转身 | 命中/伤害数字之后 160ms 转身；死亡不转 | `battle_turn`（低音量） |
+| 怪物移动 | 260ms 弧线/踏步 + 落地尘 + 朝向切到移动方向；被堵则原地撞一下 + 「被挡住」 | `battle_blink`（低音量） |
+| 横扫/突进/震地 | 前冲/挥击/震地环 + 受击点火花 | `battle_sweep` / `battle_quake` |
 | 清除协议 | 压暗 + 红协议环 + 大字 + 震屏 | `battle_protocol` |
 | 胜利/战败 | 怪物碎裂 / 玩家倒地 → 结算卡 | `battle_victory` / 命中音 |
 
-- `prefers-reduced-motion`：去掉位移/震屏/白闪/残影，动画缩短，但伤害数字/意图/结果完整保留。
-- BGM：第一章战斗共用《刺王杀驾》（`audio.bgm.ch01_battle`）；金殿过场仍在裂皮时切《清除协议》。
+- `prefers-reduced-motion`：去掉位移/震屏/白闪/残影，动画缩短；伤害数字/意图/结果完整保留。
+- BGM：第一章战斗共用《刺王杀驾》（`audio.bgm.ch01_battle`）。
 - 音效在 `battle.common`（打击/闪现）与 `battle.ch01`（矿工技能/协议/胜利）分组；御膳房复用共享打击音 + 厨子八向。
+- 双御厨同头像：行动表 chip 与场上名牌加 1/2 徽标；目标脚下白环。
 
-## 8. 代码结构与数据契约
+## 9. 代码结构与数据契约
 
 ```
 src/battle/
-  types.ts                # SlotId / Facing8 / Zone / SkillDef / BattleState / BattleEvent
-  layout.ts               # 六站位 + 怪物 + 安全区（纯坐标）
+  types.ts                # SlotId(7 点)/Facing8/Zone/SkillDef/BattleSetup[party,enemies]
+  layout.ts               # 7 点位 + centerPoint + railHeight(intentRows)
   core/
-    slots.ts              # 角度/区域/背袭/镜像/命中集合
-    gauge.ts              # 跑条推进、并列裁决、未来顺序预览
-    rail-transition.ts    # 「接下来」chip 的 prev→next 位移（纯逻辑）
+    slots.ts              # 角度/区域/背袭/相邻/命中集合/镜像/BFS 一步
+    gauge.ts              # 跑条推进、并列裁决、N actor 顺序预览
+    rail-transition.ts    # 行动表 chip 的 prev→next 位移（纯逻辑）
     damage.ts             # 伤害公式（正面/背袭/防御）
-    ai.ts                 # 意图锁定与 AI 优先级
+    placement.ts          # 初始点位：剧情指定 / seed 随机不重叠
+    ai.ts                 # 每怪意图：无 turn、追击、AOE、移动
     battle.ts             # createBattle / startNextTurn / applyBattleAction / 预览
     frame-sequence.ts     # 帧时钟（纯函数）
     preview.ts            # 舞台预览：opening/mid/victory/defeat
-  ../assets/keys.ts       # BATTLE_MINER_ATTACKS / BATTLE_COOK_ATTACKS 帧元数据
   data/
     skills.ts             # 技能表
-    ch01-first.ts         # 金殿剧情战
-    ch01-kitchen.ts       # 御膳房遭遇战
+    ch01-first.ts         # 金殿剧情战（1 怪 stationary）
+    ch01-kitchen.ts       # 御膳房（2 怪）
+    sandbox-multi.ts      # DEV 多怪沙盒（3 怪随机点位）
 src/scenes/battle-ch01-scene.ts   # 只消费事件：动画队列 / 输入 / HUD 同步
 src/actors/battle-actor.ts        # 贴图/朝向/帧序列/受击/倒地
 src/ui/battle-hud.ts              # Compose：顶栏 + 底部指令区
@@ -204,37 +289,39 @@ src/ui/battle-fx.ts               # 背袭扇区/意图高亮/斩击/残影/护�
 ```
 
 - `core/` 不 import Phaser；场景不自己算伤害/顺序/命中。
-- 随机：v1 判定**不用 RNG**；表现层的尘/火花用 `seed`（`src/dev/random.ts`），同 seed 同画面。
-- 事件：`turn-start / move / attack / guard / enemy-turn / enemy-skill / protocol / victory / defeat / intent / log`；场景按队列播，播完再推进。
-- 布尔闩/异步回调统一走 `SceneLifecycle`（`beginRun / isLive / close`），SHUTDOWN 事件里 cleanup（不是依赖子类 `shutdown()`）。
+- 随机：判定不用 RNG；只有未写 `slot` 的初始点位用 seed（`mulberry32`/`hashSeed`），同 seed 同画面。
+- 事件：`turn-start / move / attack / guard / enemy-face / enemy-move / enemy-skill / protocol / victory / defeat / log`；场景按队列播，播完再推进。
+- 场景生命周期统一走 `SceneLifecycle`；SHUTDOWN 事件里 cleanup（不是依赖子类 `shutdown()`）。
 
-## 9. 舞台预览与验收
+## 10. 舞台预览与验收
 
-```
+```text
 /?stage=battle.ch01.first&phase=opening|mid|defeat&hud=0
-/?stage=battle.ch01.first&skip=1&facing=upRight&hud=0   # 8 向验收要配 skip=1
 /?stage=battle.ch01.kitchen&phase=opening|mid|victory|defeat&hud=0
-/?stage=battle.ch01.kitchen&skip=1&hud=0      # 跳过开场卡，直接玩家回合
+/?stage=battle.sandbox.multi&phase=opening|mid&hud=0
+/?stage=battle.ch01.kitchen&skip=1&hud=0
 ```
 
-- DEV 后门：`__avmBattle()` 返回 `{phase, activeId, seq, enemyActions, playerHp, enemyHp, slot, facing, intent, gauges, log, busy, actionsDisabled}`。
+- DEV 后门：`__avmBattle()` 返回 `{phase, activeId, party, enemies, intents, order, gauges, selectedTargetId, playerHp, enemyHp, slot, facing, intent, log, busy, actionsDisabled, attackDisabled}`。
 - 验收要点：
-  - 第一场：攻击按钮禁用；怪物先手；第 4 次怪物行动后协议战败；不能赢。
-  - 第二场：正面 16 → 闪现到右；背袭 24 留原地；三刀胜利回御膳房。
-  - 意图锁定：记录意图后移动，怪物仍打旧格；打空不扣血。
-  - `prefers-reduced-motion`：无震屏/残影，结算完整。
-  - 390×844 / 1200×648 / 360–430 宽：站位/按钮/HUD 不重叠，console 0 error。
-- 单测：`test/battle-slots/gauge/damage/ai/flow/layout/frame-sequence/rail-transition.test.ts`（59 项，纯逻辑）。
+  - 顶部没有量条，但有「行动表」、当前行动者白描边、每怪一行意图；
+  - 玩家能走进空出来的中心；怪物能移动到相邻点并面朝移动方向；
+  - 怪物受击后转身面向攻击来向（包括玩家闪现走的场合）；没有单独的转向回合；
+  - 双怪：点选目标、只杀一只不结束、全灭胜利；帮厨追击/被堵；
+  - 第一场仍在第 4 次怪物行动触发清除协议，战败回寝室；
+  - `prefers-reduced-motion` 下无位移/白闪但信息完整。
+- 布局：390×844、1200×648，另测 360/394/430/788 宽；canvas 填满、无黑边、按钮/行动表不重叠、console 0 error。
+- 单测：`test/battle-slots/ai/flow/gauge/preview/layout/rail-transition/multi/balance/damage/frame-sequence/assets.test.ts`。
 
-## 10. 未来扩展（不在本轮）
+## 11. 未来扩展（不在本轮）
 
-- 4 人小队 / 多敌人：站位环可扩展为「每格 1 人」，命中集合/背袭判定不变；需要目标选择 UI 与行动顺序条多头像。
-- EP / 技能上限 / 冷却型玩家技能：`SkillDef` 已有 `cooldown`，加 `ep` 即可；UI 需要资源条。
-- 核心暴露 / 破核：在 `damage` 里加 ×1.5 与处决标记；HUD 加核心图标。
-- 地图接敌四档（背袭/侧袭/正面/被袭）：在 `createBattle` 里加先制/初始朝向/初始站位参数，不改 reducer。
-- Boss 心防规则：`BattleSetup` 加 `rules`，在回合钩子里生效。
+- 多个可操控角色：`party[]` 已 N-ready；需要队伍 UI/换人/多角色立绘与技能目标（友方/自身）。
+- EP / 技能上限 / 冷却型玩家技能：`SkillDef` 已有 `cooldown`，加 `ep` 即可。
+- 核心暴露 / 破核 / Boss 阶段：在 `damage` 里加 ×1.5 与处决标记。
+- 地图接敌四档（背袭/侧袭/正面/被袭）：在 `createBattle` 里加先制/初始点位/初始朝向参数，不改 reducer。
 
-## 11. 版本
+## 12. 版本
 
 - v1.0（2026-10-25）：三排/换位/夹击/核心/EP 的完整回合制设计（未实现）。
-- v2.0（2026-11-21）：**本文件重写为六站位跑条制**；1v1、跑条、方向性技能、背袭/镜像位移、意图锁定；第一章两场战斗接入。
+- v2.0（2026-11-21）：六站位跑条制；1v1、跑条、方向性技能、背袭/镜像位移、意图锁定；第一章两场接入。
+- v3.0（2026-11-22）：七点位（中心可站）、删除转向行动、怪物自由瞄准/受击转身/移动追击、御膳房双怪、点选目标、顶部只留行动表；多人队伍数据结构预留。
