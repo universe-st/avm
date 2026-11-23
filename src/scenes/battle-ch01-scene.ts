@@ -200,6 +200,9 @@ export class BattleCh01Scene extends UIScene {
   /** 当前选中敌人的脚下绿圈：唯一常驻地面圈，独立脉冲层。 */
   private targetRingGraphics: Phaser.GameObjects.Graphics | null = null;
   private targetRingTween: Phaser.Tweens.Tween | null = null;
+  /** 选目标阶段：所有可选的相邻敌人脚下黄圈（闪烁）。 */
+  private validTargetsGraphics: Phaser.GameObjects.Graphics | null = null;
+  private validTargetsTween: Phaser.Tweens.Tween | null = null;
   /** 非法目标的红圈与理由闪烁（选目标阶段点距离不够的怪）。 */
   private invalidRingGraphics: Phaser.GameObjects.Graphics | null = null;
   private invalidRingTween: Phaser.Tweens.Tween | null = null;
@@ -428,6 +431,9 @@ export class BattleCh01Scene extends UIScene {
     this.targetRingTween?.remove();
     this.targetRingTween = null;
     this.targetRingGraphics = null;
+    this.validTargetsTween?.remove();
+    this.validTargetsTween = null;
+    this.validTargetsGraphics = null;
     this.invalidRingTween?.stop();
     this.invalidRingTween = null;
     this.invalidPromptTween?.stop();
@@ -526,6 +532,22 @@ export class BattleCh01Scene extends UIScene {
       .graphics()
       .setDepth(LAYERS.markers + 6)
       .setVisible(false);
+    this.validTargetsGraphics = this.add
+      .graphics()
+      .setDepth(LAYERS.markers + 4)
+      .setVisible(false);
+    if (this.reduced) {
+      this.validTargetsGraphics.setAlpha(0.9);
+    } else {
+      this.validTargetsTween = this.tweens.add({
+        targets: this.validTargetsGraphics,
+        alpha: { from: 0.3, to: 1 },
+        duration: 650,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    }
     if (this.reduced) {
       this.targetRingGraphics.setAlpha(0.95);
     } else {
@@ -1904,6 +1926,7 @@ export class BattleCh01Scene extends UIScene {
 
   private drawHighlights(): void {
     this.drawTargetRing();
+    this.drawValidTargetRings();
     const graphics = this.highlightGraphics;
     if (!graphics) return;
     graphics.clear();
@@ -1974,6 +1997,41 @@ export class BattleCh01Scene extends UIScene {
       lineWidth: 3,
     });
     graphics.setVisible(true);
+  }
+
+  /** 选目标阶段：所有可选的相邻敌人脚下黄圈闪烁；已选中的绿圈不重复画。 */
+  private drawValidTargetRings(): void {
+    const graphics = this.validTargetsGraphics;
+    if (!graphics) return;
+    graphics.clear();
+    if (
+      !this.targetingSkillId ||
+      this.state.pendingMove ||
+      this.ended ||
+      this.state.phase === 'victory' ||
+      this.state.phase === 'defeat'
+    ) {
+      graphics.setVisible(false);
+      return;
+    }
+
+    const player = this.playerUnit();
+    let any = false;
+    for (const enemy of this.state.enemies) {
+      if (enemy.hp <= 0 || enemy.id === this.selectedTargetId) continue;
+      if (!isAdjacentSlot(player.slot, enemy.slot)) continue;
+      drawSlotRing(graphics, this.layout.slots[enemy.slot], {
+        color: GOLD,
+        alpha: 0.9,
+        fillColor: GOLD,
+        fillAlpha: 0.05,
+        radiusX: 58,
+        radiusY: 18,
+        lineWidth: 3,
+      });
+      any = true;
+    }
+    graphics.setVisible(any);
   }
 
   private syncActorPositions(): void {
@@ -2313,6 +2371,9 @@ export class BattleCh01Scene extends UIScene {
     this.targetRingTween?.remove();
     this.targetRingTween = null;
     this.targetRingGraphics = null;
+    this.validTargetsTween?.remove();
+    this.validTargetsTween = null;
+    this.validTargetsGraphics = null;
     this.invalidRingTween?.stop();
     this.invalidRingTween = null;
     this.invalidPromptTween?.stop();
