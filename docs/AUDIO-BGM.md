@@ -11,7 +11,7 @@
 | `src/audio/bgm-plan.ts` | 绑定 → 播放器动作（`start` / `continue` / `resume` / `silence` / `hold`）的纯判定 | 无（可 Node 单测） |
 | `src/audio/bgm-manager.ts` | 执行：建实例、入场重头、场景内续播、交叉淡化、音量记账、运行时改绑、解锁补播 | Phaser |
 
-场景只做两件事：`create()` 里 `bgmManager.enterScene(this)`；剧情/阶段切曲用 `bgmManager.play(id)`（cue）或 `bgmManager.applySceneBinding()`（回到场景绑定）。
+场景只做两件事：`create()` 里 `bgmManager.enterScene(this)`；剧情/阶段切曲用 `bgmManager.play(id)`（cue）或 `bgmManager.applySceneBinding()`（回到场景绑定）。**战斗场景例外：开场卡期间不提前起战斗曲（沿用上一场景 BGM），`intro` 关闭/`skip=1` 后才 `enterScene` 从 0 起播。**
 
 ## 2. 绑定三态
 
@@ -38,7 +38,7 @@ type SceneBinding =
 | `ch01-dorm` | 《午后小憩》`ch01Dorm` | 寝室日常 |
 | `ch01-kitchen` | 《危机来临》`ch01Crisis` | 潜入戏的冷脉冲底子（`P2-KITCHEN-ASSETS.md`：复用现有曲目，不新增整首 BGM） |
 | `ch01-palace` | 《小皇帝的早朝》`ch01Palace` | 前半是荒诞早朝（诙谐宫廷古风）；太监裂皮那一刻由剧本 cue 硬切《清除协议》，进战斗切《刺王杀驾》并从 0 起播 |
-| `battle-ch01` | 《刺王杀驾》`ch01Battle` | 金殿剧情战/御膳房遭遇战共用；每个战斗场景入场都从 0 开始 |
+| `battle-ch01` | 《刺王杀驾》`ch01Battle` | 金殿剧情战/御膳房遭遇战共用；**开场卡期间不起播，intro 关闭/跳过开场后从 0 开始**，两场之间不续播 |
 | `cg-stage` | 沿用（hold） | 调试用 CG 查看器，不要打断当前曲目 |
 | `battle-sandbox` | 沿用（hold） | 调试用战斗沙盒 |
 
@@ -59,6 +59,7 @@ bgmManager.enterScene(this, this.isOpening() ? SCENE_SILENT : undefined);
 用户口径（2026-11-22）：**每个场景的 BGM 进入场景时从 0 开始，整首循环到尾。**
 
 - 场景 `create()` 里的 `enterScene` 传 `restart: true`：`track` 绑定即使与当前同曲也 `start` 新实例，旧实例直接 stop + destroy（不走淡出，避免同曲两轨叠响），进度从 0。
+- **战斗开场卡例外**：`battle-ch01` 在 `create()` 时不调用 `enterScene`；开场卡期间沿用上一场景 BGM，`intro` 的 `onClose` / `skip=1` 路径才 `startBattleBgm()` → `enterScene` 从 0 起战斗曲，第一回合紧随其后。
 - 场景内 `play` / `bindScene` / `applySceneBinding` 不传 `restart`：同曲 `continue` / `resume`，换曲 `start`。
 - `hold` 场景（CG 预览 / 沙盒）沿用前曲；`silence` 淡出。
 
@@ -142,3 +143,4 @@ __avmBgm.bindingOf('ch01-dorm')  // 某场景当前生效的绑定（含改绑�
 
 验收口径：标题 →「继续游戏」进任一检查点后，`currentId` 必须是该场景的曲目、`audio.bgm.title` 不能再响；
 **每次进场景 `positionMs` 应从 0 开始、`instanceId` 变化**；同一首跨场景（如两场战斗）不续播。`hold` 场景（CG 预览/沙盒）除外。
+**战斗开场卡**：`introOpen=true` 时 `currentId` 不应是 `ch01Battle`；关闭 `intro` 后 `currentId=ch01Battle`、`positionMs≈0`，1 秒后约 1000ms。

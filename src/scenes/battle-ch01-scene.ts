@@ -228,6 +228,8 @@ export class BattleCh01Scene extends UIScene {
   private transitioning = false;
   private introOpen = false;
   private moveMode = false;
+  /** 战斗曲是否已起播；开场卡期间不提前起，关掉卡/跳过开场才从 0 开始。 */
+  private battleBgmStarted = false;
 
   private introModal: ModalHandle | null = null;
   private defeatModal: ModalHandle | null = null;
@@ -337,8 +339,16 @@ export class BattleCh01Scene extends UIScene {
 
     super.create();
     audioDirector.attach(this);
-    bgmManager.enterScene(this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cleanup());
+
+    // 有开场卡时，战斗曲等卡关掉再起播；开场卡期间沿用上一场景 BGM。
+    const noIntro =
+      this.context?.skip === true ||
+      (this.preview &&
+        (this.phaseParam === 'mid' ||
+          this.phaseParam === 'victory' ||
+          this.phaseParam === 'defeat'));
+    if (noIntro) this.startBattleBgm();
 
     this.syncActorPositions();
     this.clearTargeting();
@@ -414,6 +424,7 @@ export class BattleCh01Scene extends UIScene {
     this.transitioning = false;
     this.introOpen = false;
     this.moveMode = false;
+    this.battleBgmStarted = false;
     this.selectedTargetId = null;
     this.targetingSkillId = null;
     this.introModal = null;
@@ -1024,9 +1035,24 @@ export class BattleCh01Scene extends UIScene {
       onClose: () => {
         this.introOpen = false;
         this.introModal = null;
-        if (!this.ended) this.beginTurn();
+        if (!this.ended) {
+          this.startBattleBgm();
+          this.beginTurn();
+        }
       },
     });
+  }
+
+  private startBattleBgm(): void {
+    if (
+      this.battleBgmStarted ||
+      this.ended ||
+      !this.lifecycle.isLive(this.runId)
+    ) {
+      return;
+    }
+    this.battleBgmStarted = true;
+    bgmManager.enterScene(this);
   }
 
   private beginTurn(): void {
