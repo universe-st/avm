@@ -200,6 +200,10 @@ export class BattleCh01Scene extends UIScene {
   /** 当前选中敌人的脚下绿圈：唯一常驻地面圈，独立脉冲层。 */
   private targetRingGraphics: Phaser.GameObjects.Graphics | null = null;
   private targetRingTween: Phaser.Tweens.Tween | null = null;
+  /** 非法目标的红圈与理由闪烁（选目标阶段点距离不够的怪）。 */
+  private invalidRingGraphics: Phaser.GameObjects.Graphics | null = null;
+  private invalidRingTween: Phaser.Tweens.Tween | null = null;
+  private invalidPromptTween: Phaser.Tweens.Tween | null = null;
 
   private protocolText: Phaser.GameObjects.Text | null = null;
   private selectedTargetId: string | null = null;
@@ -424,6 +428,11 @@ export class BattleCh01Scene extends UIScene {
     this.targetRingTween?.remove();
     this.targetRingTween = null;
     this.targetRingGraphics = null;
+    this.invalidRingTween?.stop();
+    this.invalidRingTween = null;
+    this.invalidPromptTween?.stop();
+    this.invalidPromptTween = null;
+    this.invalidRingGraphics = null;
     this.selectionPrompt = null;
     this.protocolText = null;
     this.orderChips.length = 0;
@@ -512,6 +521,10 @@ export class BattleCh01Scene extends UIScene {
     this.targetRingGraphics = this.add
       .graphics()
       .setDepth(LAYERS.markers + 5)
+      .setVisible(false);
+    this.invalidRingGraphics = this.add
+      .graphics()
+      .setDepth(LAYERS.markers + 6)
       .setVisible(false);
     if (this.reduced) {
       this.targetRingGraphics.setAlpha(0.95);
@@ -890,8 +903,73 @@ export class BattleCh01Scene extends UIScene {
   }
 
   private clearTargeting(): void {
+    this.clearInvalidTarget();
     this.targetingSkillId = null;
     this.selectedTargetId = null;
+  }
+
+  /** 非法目标：不写入 selectedTargetId；红圈闪 3 次、顶部闪原因，然后恢复未选中。 */
+  private targetInvalidReason(enemy: BattleUnit): string | null {
+    if (enemy.hp <= 0) return '目标已倒下';
+    if (!isAdjacentSlot(this.playerUnit().slot, enemy.slot)) return '距离不够';
+    return null;
+  }
+
+  private clearInvalidTarget(): void {
+    this.invalidRingTween?.stop();
+    this.invalidRingTween = null;
+    this.invalidRingGraphics?.clear();
+    this.invalidRingGraphics?.setVisible(false);
+    this.invalidPromptTween?.stop();
+    this.invalidPromptTween = null;
+    this.selectionPrompt?.setAlpha(1).setVisible(false);
+  }
+
+  private playInvalidTarget(enemy: BattleUnit, reason: string): void {
+    this.clearInvalidTarget();
+    const point = this.layout.slots[enemy.slot];
+    const ring = this.invalidRingGraphics;
+    if (ring) {
+      ring.clear();
+      drawSlotRing(ring, point, {
+        color: DANGER,
+        alpha: 1,
+        fillColor: DANGER,
+        fillAlpha: 0.06,
+        radiusX: 62,
+        radiusY: 20,
+        lineWidth: 3,
+      });
+      ring.setVisible(true).setAlpha(1);
+      this.invalidRingTween = this.tweens.add({
+        targets: ring,
+        alpha: { from: 1, to: 0.12 },
+        duration: 120,
+        yoyo: true,
+        repeat: 2,
+        onComplete: () => {
+          this.invalidRingTween = null;
+          ring.clear();
+          ring.setVisible(false);
+        },
+      });
+    }
+
+    const prompt = this.selectionPrompt;
+    if (prompt) {
+      prompt.setText(reason).setVisible(true).setAlpha(1);
+      this.invalidPromptTween = this.tweens.add({
+        targets: prompt,
+        alpha: { from: 1, to: 0.12 },
+        duration: 120,
+        yoyo: true,
+        repeat: 2,
+        onComplete: () => {
+          this.invalidPromptTween = null;
+          this.syncHud();
+        },
+      });
+    }
   }
 
   private enemyActorFor(id: string): BattleActor | undefined {
@@ -1070,6 +1148,7 @@ export class BattleCh01Scene extends UIScene {
       }
       const skillId = this.targetingSkillId;
       this.targetingSkillId = null;
+      this.clearInvalidTarget();
       this.playerAction({ kind: 'attack', skillId, targetId: target.id });
       return;
     }
@@ -1158,6 +1237,12 @@ export class BattleCh01Scene extends UIScene {
     const enemy = this.state.enemies.find((unit) => unit.id === id && unit.hp > 0);
     if (!enemy) return;
     audioDirector.playClick();
+    const reason = this.targetInvalidReason(enemy);
+    if (reason) {
+      this.playInvalidTarget(enemy, reason);
+      return;
+    }
+    this.clearInvalidTarget();
     this.selectedTargetId = id;
     this.syncHud();
   }
@@ -2228,6 +2313,11 @@ export class BattleCh01Scene extends UIScene {
     this.targetRingTween?.remove();
     this.targetRingTween = null;
     this.targetRingGraphics = null;
+    this.invalidRingTween?.stop();
+    this.invalidRingTween = null;
+    this.invalidPromptTween?.stop();
+    this.invalidPromptTween = null;
+    this.invalidRingGraphics = null;
     this.selectionPrompt = null;
     this.enemyIndex.clear();
     this.enemyTargetZones.clear();
