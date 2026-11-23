@@ -38,7 +38,7 @@ interface AssetDef {
 | `cutscene.ch01palace.walk` | 郑卿 / 楚公公 八方向行走 sheet（各 8 张 × 16 帧 × 200×420，WebP） | 12 MB | `cutscene.ch01palace` | 只在金殿过场加载；走位时播帧，停下回静态图 |
 | `cutscene.ch01palace.sfx` | 金殿音效 14 条（环境/脚步/跪地/裂皮/心跳…，mp3 24kHz 单声道，共约 300 KB） | 1 MB | `cutscene.ch01palace` | 过场音效；缺失时静默跳过，不阻断 |
 | `ch.01` | 33×54 寝室整图（重组窗光版）、郑卿睡床 4 帧、周全 Q 版八向/行走、小白/郑卿、沉睡症新闻 CG、呼噜/拳击/手机 SFX、寝室环境音与木地板脚步 A/B；`img.char.ch01.zhou_sit_right`（坐地朝右正式图 160×400）+ `img.char.ch01.zhou_stand_up`（起身 8 帧 × 160×400 横排）+ `img.char.ch01.zhou_idle_right`（正侧面站立 idle 160×400，t39 入库、暂未接场景）；依赖 `ch01.bgm`（寝室曲 + 回忆 cue） | 12 MB | — | 进入第一章 |
-| `ch01.bgm` | 第一章共享 BGM 五首：《午后小憩》`ch01_dorm`（寝室）、《危机来临》`ch01_crisis`（回忆/御膳房）、《清除协议》`ch01_dream`（裂皮之后/金殿过场）、《小皇帝的早朝》`ch01_palace`（金殿过场前半）、《刺王杀驾》`ch01_battle`（两场战斗），约 6.7 MB | 8 MB | — | `ch.01` / `battle.ch01` / `battle.kitchen` 依赖它；`ch01Kitchen` / `ch01Palace` 显式 requires |
+| `ch01.bgm` | 第一章共享 BGM 五首：《午后小憩》`ch01_dorm`（寝室）、《危机来临》`ch01_crisis`（回忆/御膳房）、《清除协议》`ch01_dream`（裂皮之后/金殿过场）、《小皇帝的早朝》`ch01_palace`（金殿过场前半）、《刺王杀驾》`ch01_battle`（两场战斗，**完整 180s 版**），约 8.2 MB | 10 MB | — | `ch.01` / `battle.ch01` / `battle.kitchen` 依赖它；`ch01Kitchen` / `ch01Palace` 显式 requires |
 | `battle.common` | 战斗 v3.1 公共：周全起手式/格挡/解离突刺 12 帧横排（320×400）、行动表头像 `head_zhou`（128×128）、图鉴按钮 `head_xiaobai`（96×96，复用第一章小白图）、打击/背袭/格挡/闪现 SFX；依赖 `ui` | 4 MB | — | 两场战斗共用（周全是两场都上场的角色，头像放公共包，避免同一 key 在两个包重复登记；小白图鉴按钮也两场共用） |
 | `battle.ch01` | 金殿战斗舞台 `miner_hall.webp`、矿工战斗八向（272×400 × 8）、矿工三技能左向 12 帧（272/336×400）、行动条头像 `head_miner`（128×128）、旧单面兜底、矿工技能/协议/胜利 SFX；依赖 `battle.common` + `ch01.bgm` | 6 MB | — | 金殿剧情战 |
 | `battle.kitchen` | 御膳房战斗舞台 `kitchen_hall.webp`（720×1280，本地从 `kitchen.webp` 合成）、御厨三技能左向 10 帧（400×400 → 4000×400）、行动表头像 `head_cook`（128×128）、依赖 `battle.common` + `ch01.kitchen`（御厨八向）+ `ch01.bgm` | 1.5 MB | — | 御膳房双怪遭遇战；第二只帮厨复用同一套厨子八向/头像/技能帧，不新增 key |
@@ -80,7 +80,7 @@ interface AssetDef {
     `head_miner` ← `assets/img/character/battle/miner/miner_down.png`、`head_cook` ← `assets/img/character/ch01/kitchen/cook/cook_down.png`。
     裁切规则：alpha bbox 定人物头顶/身高 → 取人物高 40% 的方形（水平以头部 alpha 带中心对齐）→ 116px + 6px 边。
     游戏里按 44px 圆形显示（中心距 52px），LINEAR 采样；缺图时场景回退为「周/矿/厨」字母 chip。
-  - `ch01.bgm`：`audio.bgm.ch01_battle.mp3`（《刺王杀驾》，89.22s，128kbps 立体声，-16.4 LUFS；循环段 74.74–163.96s）。
+  - `ch01.bgm`：`audio.bgm.ch01_battle.mp3`（《刺王杀驾》，**180.01s 完整版**，128kbps 立体声，-15.8 LUFS；整曲循环，不裁剪）。
 - 2026-11-21（战后黑场胁迫段音效）：`ch.01` 新增 4 条 `required:false` 音效 →
   `assets/audio/sfx/ch01_dark_pressure.mp3`（10.55s 无缝循环，127 KB）、
   `ch01_dark_grip.mp3`（1.41s，18 KB）、`ch01_dark_release.mp3`（1.91s，24 KB）、

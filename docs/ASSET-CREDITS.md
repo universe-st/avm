@@ -739,10 +739,10 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
 
 ### 15.1 战斗 BGM《刺王杀驾》
 
-- 文件：`public/assets/audio/bgm/ch01_battle.mp3`（89.22s，128 kbps / 44.1 kHz 立体声，-16.4 LUFS，峰值 -4.6 dBFS）
+- 文件：`public/assets/audio/bgm/ch01_battle.mp3`（**180.01s 完整版**，128 kbps / 44.1 kHz 立体声，-15.8 LUFS，峰值 -1.7 dBFS）
 - 来源：游戏素材大师 · 音乐生成（Suno `chirp-v6`，纯音乐）；任务 **`amwqibc97a8b76d`**
 - 方向：中国古风战斗、节奏轻快激动、约 112 BPM（实测 115.6 BPM）；战鼓/梆子 + 琵琶/古筝/二胡/唢呐/铜锣；刺客夜闯宫城、以下犯上；可循环
-- 后期：选 1 首 → 截循环段 **74.74–163.96s**（89.22s；`-ss` 必须在 `-i` 前，输出侧 seek 只解出 14.4s）→ 首 0.3s / 尾 0.6s 淡化 → `loudnorm I=-16 TP=-1.5` → MP3 128 kbps
+- 后期：选 **82fc296a 全曲 180.01s → 不裁剪**；仅 `loudnorm I=-16 TP=-1.5` → MP3 128 kbps。2026-11-23 用户明确「游戏里用完整版，没让你剪辑」，撤销此前 74.74–163.96s 的 89.22s 剪辑。
 - 试听/编辑入口：[音乐任务 amwqibc97a8b76d](http://localhost/?dsh-gmm=1&module=music&job=amwqibc97a8b76d&stage=generate)
 - 复核：上架前按谱乐 AI / Suno 条款复核，商店页注明「AI 生成音乐」
 
