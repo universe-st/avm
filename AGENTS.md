@@ -77,11 +77,11 @@ pnpm android:release
 - 改第一章/地图：`?stage=scene.ch01.dorm&phase=explore&hud=0`；验移动/碰撞/交互/目标/对话/返回标题；`debug=1` 看碰撞格。
 - 改战斗（v3.1）：
   - 金殿剧情战：`?stage=battle.ch01.first&phase=opening|mid|defeat&hud=0`（`victory` 会回退 mid）；验攻击禁用、怪物先手、第 4 次怪物行动后清除协议必败、战败回寝室、预览可重开/返回。
-  - 御膳房双怪：`?stage=battle.ch01.kitchen&phase=opening|mid|victory|defeat&hud=0`；验点敌人选目标（场上无圈/无名牌/无 HP）、攻击先弹技能窗（一个技能也弹）、未知怪不显示预计伤害、命中后非背袭进入落点选择（画当前点 + 目标相邻空位）、背袭留在原地、平减防御、只杀一只不结束、全灭胜利、回御膳房（不写 `dorm.after`）。
+  - 御膳房双怪：`?stage=battle.ch01.kitchen&phase=opening|mid|victory|defeat&hud=0`；验「攻击」按钮只显示“攻击”（不带目标名/伤害）→ 先弹技能窗 → 选好技能后点敌人选目标（可取消，取消键是移动键）→ 再点「攻击」发动；场上无圈/无名牌/无 HP、未知怪不显示预计伤害、命中后非背袭进入落点选择（画当前点 + 目标相邻空位，红字「请选择移动位置」）、背袭留在原地、平减防御、只杀一只不结束、全灭胜利、回御膳房（不写 `dorm.after`）。
   - 小白图鉴：底部 HP 行右侧「小白」按钮；未攻击过的怪显示 `？？？`，攻击命中一次后显示 HP/攻击/防御/速度/技能；预览命中只更新内存不写盘；跨战斗/跨会话持久。
   - 多怪沙盒：`?stage=battle.sandbox.multi&phase=opening|mid&hud=0`；验随机点位/追击/堵路/落点选择。
   - 8 向美术：`&facing=up|upRight|right|downRight|down|downLeft|left|upLeft`。
-  - DEV 后门：`__avmBattle()` 读 `{phase, activeId, party, enemies, intents, pendingMove, knownEnemies, order, gauges, selectedTargetId, playerHp, enemyHp, slot, facing, intent, log}`；别靠截图猜回合数。
+  - DEV 后门：`__avmBattle()` 读 `{phase, activeId, party, enemies, intents, pendingMove, knownEnemies, order, gauges, selectedTargetId, targetingSkillId, playerHp, enemyHp, slot, facing, intent, log}`；别靠截图猜回合数。
   - `?stage=...&skip=1` 跳过开场卡直接玩家回合；`hud=0` 关预览 HUD。
   - 改战斗数据/判定必须同时跑 `test/battle-*.test.ts`；意图锁定（内部）、七点位/命中集合、跑条序列、防御平减、pending 落点、图鉴、双怪平衡都有纯逻辑护栏。
 - 改战后黑场胁迫（小白压制周全）：`?stage=scene.ch01.dorm&phase=dark&hud=0` 从「呃……」那一拍直接开始；
@@ -144,7 +144,7 @@ pnpm android:release
 - **攻击射程 = 相邻点位**：玩家解离突刺是单一目标（目标相邻即命中，不要用 `hitPointsFor` 当锥形 AOE）；怪物技能用 `hitPointsFor(origin, aim, hit)`。伤害是**平减防御**：`max(1, round(atk×power×背袭 − 防御×(背袭?1−穿防:1)))`，防御动作最后 ×0.5；`SkillDef.backstabDefensePierce` 当前解离突刺 0.5。非背袭命中进入 `pendingMove` 落点选择，背袭不进入；不再有自动镜像闪现。
 - **多怪是数组**：`state.party[]` / `state.enemies[]`，按 `activeId` 找行动者；行动表/目标/图鉴全部按 id 处理。御膳房双怪、`battle.sandbox.multi` 三怪都走同一套；只杀一只不结束，所有怪 HP 0 才胜利。场上不画敌人名字/HP；点击敌人 sprite 选目标，选中目标脚下有**闪烁绿圈**，属性只在「小白」图鉴里（未知 `？？？`，命中一次解锁）。
 - **选中目标绿圈是唯一常驻地面圈**：独立 `targetRingGraphics` + alpha 脉冲（650ms yoyo；reduced-motion 静态），不要跟移动/落点高亮共用 `highlightGraphics`（后者每次 sync 会 `clear()`，绿圈会被一起清掉）。绿圈画在选中敌人脚下，目标死亡/胜负后隐藏；深度 `LAYERS.markers + 5`。
-- **技能弹窗/图鉴/落点选择**：点攻击先弹 `openBattleSkill`（一个技能也弹；第一场无技能不弹、按钮禁用）；未知怪攻击按钮/提示不显示预计伤害，已知怪可以显示；落点选择时 `pendingMove` 保持 `activeId=玩家`、gauge 不归零，攻击/防御/换目标禁用，移动键变「留在原地」，只点亮当前点 + 目标相邻空位；`post-move` 后才归零并进入下一动。图鉴走 `src/battle/codex.ts` 的 localStorage `avm.battle.codex.v1`，预览只更新内存不写盘。
+- **技能弹窗/图鉴/落点选择**：点攻击先弹 `openBattleSkill`（一个技能也弹；第一场无技能不弹、按钮禁用但文字始终是「攻击」）；选好技能后进入选目标阶段（技能窗不显示目标），点敌人选中，点「攻击」发动；选目标阶段移动键变「取消」，攻击/防御禁用，可取消；未选中目标/目标不相邻时攻击按钮禁用，提示说明。目标不再自动预选。未知怪提示不显示预计伤害，已知怪可以显示。落点选择时 `pendingMove` 保持 `activeId=玩家`、gauge 不归零，攻击/防御/换目标禁用，移动键变「留在原地」，只点亮当前点 + 目标相邻空位；与「你的回合」同位置显示红色常驻「请选择移动位置」；`post-move` 后才归零并进入下一动。图鉴走 `src/battle/codex.ts` 的 localStorage `avm.battle.codex.v1`，预览只更新内存不写盘。
 - **BGM 进场景必须从头**：每个内容场景 `create()` 的 `bgmManager.enterScene(this)` 会重建该场景 `track` 实例（同曲也从 0），整首 `loop:true` 循环到尾；只有场景内 `play`/`bindScene`/`applySceneBinding` 同曲才 `continue/resume`，`hold` 场景（CG 预览/沙盒）沿用前曲。不要退回「同曲跨场景续播」（用户 2026-11-22 明确要求每场景从头到尾循环）；细节见 `docs/AUDIO-BGM.md` §4。
 - **解离突刺的 320 宽已经是上限**：12 帧 × 320 = 3840 < 4096；改 400 宽会到 4800，真机纹理创建失败变黑块。源视频在突刺峰值把光刃推到自己画幅外，成品第 3–10 帧刃尖被右缘裁掉；**不要靠加宽帧解决**，表现层用 `ui/battle-fx.ts` 的 `bladeTrail()` 从手部向目标补光刃（命中帧起 320ms）。矿工八向是 272×400，别为了「凑整 240」把钻井臂压矮——八向会一缩一胀。
 

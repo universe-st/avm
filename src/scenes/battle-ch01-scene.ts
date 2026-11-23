@@ -203,6 +203,8 @@ export class BattleCh01Scene extends UIScene {
 
   private protocolText: Phaser.GameObjects.Text | null = null;
   private selectedTargetId: string | null = null;
+  /** 选好技能后等待玩家点敌人选目标；null = 不在选目标阶段。 */
+  private targetingSkillId: string | null = null;
   private knownEnemies: Set<string> = new Set();
 
   private readonly orderChips: OrderChipView[] = [];
@@ -231,6 +233,8 @@ export class BattleCh01Scene extends UIScene {
   private readonly turnLabel = ref('战斗');
   private readonly playerLabel = ref('');
   private readonly hintText = ref('');
+  /** 落点选择时，与「你的回合」同位置的红色常驻提示。 */
+  private pendingPrompt: Phaser.GameObjects.Text | null = null;
   private readonly logText = ref('');
   private readonly attackLabel = ref('攻击');
   private readonly moveLabel = ref('移动');
@@ -320,6 +324,7 @@ export class BattleCh01Scene extends UIScene {
     this.createArena();
     this.createActors();
     this.createBarsAndRail();
+    this.createPendingPrompt();
 
     super.create();
     audioDirector.attach(this);
@@ -327,7 +332,7 @@ export class BattleCh01Scene extends UIScene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cleanup());
 
     this.syncActorPositions();
-    this.ensureTarget();
+    this.clearTargeting();
     this.syncHud();
     this.installDebugHook();
     this.cameras.main.fadeIn(this.reduced ? 160 : 380, 5, 6, 10);
@@ -399,6 +404,7 @@ export class BattleCh01Scene extends UIScene {
     this.introOpen = false;
     this.moveMode = false;
     this.selectedTargetId = null;
+    this.targetingSkillId = null;
     this.introModal = null;
     this.defeatModal = null;
     this.victoryModal = null;
@@ -414,6 +420,7 @@ export class BattleCh01Scene extends UIScene {
     this.targetRingTween?.remove();
     this.targetRingTween = null;
     this.targetRingGraphics = null;
+    this.pendingPrompt = null;
     this.protocolText = null;
     this.orderChips.length = 0;
     this.displayedOrder = [];
@@ -527,6 +534,23 @@ export class BattleCh01Scene extends UIScene {
       zone.input!.enabled = false;
       this.slotZones.set(slot, zone);
     }
+  }
+
+  private createPendingPrompt(): void {
+    const plan = getViewportPlan();
+    this.pendingPrompt = makeSceneText(
+      this,
+      plan.designWidth / 2,
+      plan.designHeight * 0.3,
+      '请选择移动位置',
+      {
+        size: 32,
+        color: DANGER,
+        depth: LAYERS.effects + 70,
+        stroke: 6,
+        bold: true,
+      },
+    ).setVisible(false);
   }
 
   private createActors(): void {
@@ -861,52 +885,9 @@ export class BattleCh01Scene extends UIScene {
     return isAdjacentSlot(this.playerUnit().slot, target.slot) ? target : null;
   }
 
-  private ensureTarget(): void {
-    if (this.state.phase === 'defeat' || this.state.phase === 'victory') return;
-    const player = this.playerUnit();
-    const living = this.livingEnemies();
-    if (living.length === 0) {
-      this.selectedTargetId = null;
-      return;
-    }
-
-    const current = this.selectedEnemyUnit();
-    if (current && isAdjacentSlot(player.slot, current.slot)) return;
-
-    const adjacent = living
-      .filter((enemy) => isAdjacentSlot(player.slot, enemy.slot))
-      .sort((a, b) => a.hp - b.hp || (a.id < b.id ? -1 : 1));
-    if (adjacent[0]) {
-      this.selectedTargetId = adjacent[0].id;
-      return;
-    }
-
-    const nearest = [...living].sort((a, b) => {
-      const da = this.slotDistance(player.slot, a.slot);
-      const db = this.slotDistance(player.slot, b.slot);
-      return da - db || a.hp - b.hp || (a.id < b.id ? -1 : 1);
-    })[0];
-    this.selectedTargetId = nearest?.id ?? null;
-  }
-
-  private slotDistance(from: SlotId, to: SlotId): number {
-    const seen = new Set<SlotId>([from]);
-    let frontier: SlotId[] = [from];
-    let distance = 0;
-    while (frontier.length > 0) {
-      if (frontier.includes(to)) return distance;
-      const next: SlotId[] = [];
-      for (const slot of frontier) {
-        for (const adjacent of adjacentSlots(slot)) {
-          if (seen.has(adjacent)) continue;
-          seen.add(adjacent);
-          next.push(adjacent);
-        }
-      }
-      frontier = next;
-      distance += 1;
-    }
-    return Number.POSITIVE_INFINITY;
+  private clearTargeting(): void {
+    this.targetingSkillId = null;
+    this.selectedTargetId = null;
   }
 
   private enemyActorFor(id: string): BattleActor | undefined {
@@ -959,7 +940,7 @@ export class BattleCh01Scene extends UIScene {
     }
     this.state = turn.state;
     const active = this.unitById(this.state.activeId);
-    if (active?.team === 'party') this.ensureTarget();
+    if (active?.team === 'party') this.clearTargeting();
     this.syncHud();
 
     if (this.state.phase === 'victory') {
@@ -986,7 +967,7 @@ export class BattleCh01Scene extends UIScene {
   private refreshTurnState(): void {
     const active = this.unitById(this.state.activeId);
     if (active?.team === 'party') {
-      this.ensureTarget();
+      this.clearTargeting();
       this.syncHud();
       this.busy = false;
       this.actionsDisabled.value = false;
@@ -1048,7 +1029,7 @@ export class BattleCh01Scene extends UIScene {
       return;
     }
 
-    this.ensureTarget();
+    this.clearTargeting();
     this.syncHud();
 
     if (this.state.phase === 'victory') {
@@ -1072,12 +1053,20 @@ export class BattleCh01Scene extends UIScene {
       this.flashHint('你还没有「解」——这一场只能移动或防御。', '还没有「解」');
       return;
     }
-    const target = this.attackTarget();
-    if (!target) {
-      this.flashHint(
-        this.selectedTargetId ? '目标不在相邻点位。' : '先点敌人选择目标。',
-        this.selectedTargetId ? '够不着' : '选目标',
-      );
+
+    // 已经选好技能：这次点「攻击」是确认目标并发动。
+    if (this.targetingSkillId) {
+      const target = this.attackTarget();
+      if (!target) {
+        this.flashHint(
+          this.selectedTargetId ? '目标不在相邻点位。' : '请点击敌人选择目标。',
+          this.selectedTargetId ? '够不着' : '选目标',
+        );
+        return;
+      }
+      const skillId = this.targetingSkillId;
+      this.targetingSkillId = null;
+      this.playerAction({ kind: 'attack', skillId, targetId: target.id });
       return;
     }
 
@@ -1092,11 +1081,13 @@ export class BattleCh01Scene extends UIScene {
       };
     });
     this.skillModal = openBattleSkill(this.mvvm, {
-      targetName: target.name,
       skills,
       onSelect: (skillId) => {
         this.skillModal = null;
-        this.playerAction({ kind: 'attack', skillId, targetId: target.id });
+        this.targetingSkillId = skillId;
+        this.selectedTargetId = null;
+        this.syncHud();
+        this.flashHint('请选择攻击目标：点敌人；点「取消」返回。', '选择目标');
       },
       onClose: () => {
         this.skillModal = null;
@@ -1109,6 +1100,12 @@ export class BattleCh01Scene extends UIScene {
     if (this.busy || this.ended || this.actionsDisabled.value) return;
     if (this.skillModal?.open === true || this.codexModal?.open === true) return;
     if (this.state.activeId !== this.playerUnit().id) return;
+    if (this.targetingSkillId) {
+      this.clearTargeting();
+      this.syncHud();
+      this.flashHint('已取消选择目标；点「攻击」重新选择技能。', '已取消');
+      return;
+    }
     if (this.state.pendingMove) {
       this.playerAction({ kind: 'post-move', slot: this.playerUnit().slot });
       return;
@@ -1150,6 +1147,10 @@ export class BattleCh01Scene extends UIScene {
     if (this.ended || this.busy || this.state.pendingMove) return;
     if (this.skillModal?.open === true || this.codexModal?.open === true) return;
     if (this.menuModal?.open === true) return;
+    if (!this.targetingSkillId) {
+      this.flashHint('先点「攻击」选择技能，再选目标。', '先选技能');
+      return;
+    }
     const enemy = this.state.enemies.find((unit) => unit.id === id && unit.hp > 0);
     if (!enemy) return;
     audioDirector.playClick();
@@ -1691,12 +1692,15 @@ export class BattleCh01Scene extends UIScene {
       .slice(-2)
       .map((entry) => entry.text)
       .join('\n');
-    this.attackLabel.value = this.computeAttackLabel();
+    // 用户口径：按钮只显示「攻击」两个字；目标名/预计伤害只在提示里。
+    this.attackLabel.value = '攻击';
     this.moveLabel.value = this.state.pendingMove
       ? '留在原地'
-      : this.moveMode
-        ? '取消移动'
-        : '移动';
+      : this.targetingSkillId
+        ? '取消'
+        : this.moveMode
+          ? '取消移动'
+          : '移动';
 
     this.actionsDisabled.value = !playerTurn;
     this.attackDisabled.value =
@@ -1704,9 +1708,13 @@ export class BattleCh01Scene extends UIScene {
       this.moveMode ||
       this.state.pendingMove !== null ||
       !playerCanAttack(this.setup, this.playerUnit().id) ||
-      !this.attackTarget();
+      (this.targetingSkillId !== null && !this.attackTarget());
     this.guardDisabled.value =
-      !playerTurn || this.moveMode || this.state.pendingMove !== null;
+      !playerTurn ||
+      this.moveMode ||
+      this.state.pendingMove !== null ||
+      this.targetingSkillId !== null;
+    this.pendingPrompt?.setVisible(this.state.pendingMove !== null && !this.ended);
 
     this.syncTargetZones();
     if (this.protocolText) {
@@ -1732,7 +1740,10 @@ export class BattleCh01Scene extends UIScene {
       const point = this.enemyPoint(enemy);
       zone.setPosition(point.x, point.y - 80);
       zone.input.enabled =
-        enemy.hp > 0 && !this.ended && this.state.pendingMove === null;
+        enemy.hp > 0 &&
+        !this.ended &&
+        this.state.pendingMove === null &&
+        this.targetingSkillId !== null;
     }
   }
 
@@ -1753,37 +1764,26 @@ export class BattleCh01Scene extends UIScene {
     }
     if (this.state.activeId !== this.playerUnit().id) return '等待它行动……';
 
-    const selected = this.selectedEnemyUnit();
-    if (!selected) return '点敌人选择目标；只打相邻点位。';
-    const target = this.attackTarget();
-    if (!target) return `目标${selected.name}不在相邻点位——先移动靠近。`;
-
-    const skillId = this.playerSetup()?.skills[0];
-    if (!skillId) return '选择行动。';
-    const preview = previewPlayerAttack(this.state, this.setup, skillId, target.id);
-    if (!preview) return '选择行动。';
-    // 未知怪只给机制提示；已知怪（图鉴已解锁）才显示预计伤害。
-    const expected = this.knownEnemies.has(target.id) ? ` 预计 ${preview.amount}。` : '';
-    if (preview.backstab) {
-      return `目标：${target.name} · 背袭（无视一半防御），命中后留在原地。${expected}`;
+    // 新流程：先选技能，再点敌人选目标；可取消。目标不再自动预选。
+    if (this.targetingSkillId) {
+      const selected = this.selectedEnemyUnit();
+      if (!selected) return '请选择攻击目标：点敌人；点「取消」返回。';
+      const target = this.attackTarget();
+      if (!target) {
+        return `目标${selected.name}不在相邻点位——点「取消」返回后先移动。`;
+      }
+      const skillId = this.targetingSkillId;
+      const preview = previewPlayerAttack(this.state, this.setup, skillId, target.id);
+      if (!preview) return `目标：${selected.name}；点「攻击」发动，点「取消」返回。`;
+      // 未知怪只给机制提示；已知怪（图鉴已解锁）才显示预计伤害。
+      const expected = this.knownEnemies.has(target.id) ? ` 预计 ${preview.amount}。` : '';
+      if (preview.backstab) {
+        return `目标：${selected.name} · 背袭（无视一半防御），命中后留在原地；点「攻击」发动，点「取消」返回。${expected}`;
+      }
+      return `目标：${selected.name} · 命中后可选择附近落点；点「攻击」发动，点「取消」返回。${expected}`;
     }
-    return `目标：${target.name} · 命中后可选择附近落点。${expected}`;
-  }
 
-  private computeAttackLabel(): string {
-    if (this.state.pendingMove) return '攻击 · 落点选择';
-    if (!playerCanAttack(this.setup, this.playerUnit().id)) return '攻击 · 无「解」';
-    const selected = this.selectedEnemyUnit();
-    if (!selected) return '攻击 · 选目标';
-    const target = this.attackTarget();
-    if (!target) return '攻击 · 目标太远';
-    const skillId = this.playerSetup()?.skills[0];
-    if (!skillId) return '攻击';
-    const preview = previewPlayerAttack(this.state, this.setup, skillId, target.id);
-    if (!preview) return '攻击';
-    return this.knownEnemies.has(target.id)
-      ? `攻击 · ${target.name} · ${preview.amount}`
-      : `攻击 · ${target.name}`;
+    return '点「攻击」选择技能；只打相邻点位。';
   }
 
   private drawActionBar(): void {
@@ -2173,6 +2173,7 @@ export class BattleCh01Scene extends UIScene {
         [...state.party, ...state.enemies].map((unit) => [unit.id, unit.gauge]),
       ),
       selectedTargetId: this.selectedTargetId,
+      targetingSkillId: this.targetingSkillId,
       playerHp: state.party[0]?.hp,
       enemyHp: state.enemies[0]?.hp,
       slot: state.party[0]?.slot,
@@ -2211,6 +2212,7 @@ export class BattleCh01Scene extends UIScene {
     this.targetRingTween?.remove();
     this.targetRingTween = null;
     this.targetRingGraphics = null;
+    this.pendingPrompt = null;
     this.enemyIndex.clear();
     this.enemyTargetZones.clear();
     this.protocolText = null;

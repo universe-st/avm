@@ -168,7 +168,7 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     status: 'ready',
     requires: ['core', 'battle.common', 'battle.kitchen', 'ch01.bgm'],
     description:
-      '有「解」之后的第一场完整战斗：御厨·幻影（中心）+ 帮厨·幻影（右上追击），双怪可点选目标；' +
+      '有「解」之后的第一场完整战斗：御厨·幻影（中心）+ 帮厨·幻影（右上追击），双怪先选技能再点选目标；' +
       '攻击先弹技能窗；非背袭命中进入落点选择（不再自动闪现），背袭 +50% 且无视一半防御；平减防御；只打相邻点位。' +
       '底部「小白」图鉴可看已命中怪的属性。phase=opening|mid|victory|defeat；facing 可用于验收第一只厨子的朝向。',
     tags: ['ch01', 'encounter', 'positions'],

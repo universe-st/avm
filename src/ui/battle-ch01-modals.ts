@@ -215,11 +215,10 @@ export interface BattleSkillOption {
   readonly desc: string;
 }
 
-/** 点「攻击」先选技能；一个技能也走这个窗口。 */
+/** 点「攻击」先选技能；一个技能也走这个窗口。目标在技能选好后再点敌人选择。 */
 export function openBattleSkill(
   mvvm: MVVMPlugin,
   options: {
-    readonly targetName: string;
     readonly skills: readonly BattleSkillOption[];
     readonly onSelect: (skillId: string) => void;
     readonly onClose: () => void;
@@ -230,7 +229,7 @@ export function openBattleSkill(
     () => {
       Panel({ width: 620, padding: 28, gap: 12, variant: 'surface' }, () => {
         Text('选择技能', { size: 'xl', tone: 'primary', align: 'center' });
-        Text(`目标：${options.targetName}`, { size: 'md', align: 'center' });
+        Text('选好技能后，点敌人选择目标', { size: 'md', align: 'center' });
         Divider({});
         if (options.skills.length === 0) {
           Text('没有可用技能。', { size: 'sm', tone: 'muted', align: 'center' });
