@@ -233,10 +233,12 @@ export class BattleCh01Scene extends UIScene {
   private readonly turnLabel = ref('战斗');
   private readonly playerLabel = ref('');
   private readonly hintText = ref('');
-  /** 落点选择时，与「你的回合」同位置的红色常驻提示。 */
-  private pendingPrompt: Phaser.GameObjects.Text | null = null;
+  /** 选目标 / 落点选择时，与「你的回合」同位置的红色常驻提示。 */
+  private selectionPrompt: Phaser.GameObjects.Text | null = null;
   private readonly logText = ref('');
   private readonly attackLabel = ref('攻击');
+  /** 已选中有效目标：攻击键变「确认攻击」并红色发光。 */
+  private readonly confirming = ref(false);
   private readonly moveLabel = ref('移动');
   private readonly actionsDisabled = ref(true);
   private readonly attackDisabled = ref(true);
@@ -324,7 +326,7 @@ export class BattleCh01Scene extends UIScene {
     this.createArena();
     this.createActors();
     this.createBarsAndRail();
-    this.createPendingPrompt();
+    this.createSelectionPrompt();
 
     super.create();
     audioDirector.attach(this);
@@ -376,6 +378,8 @@ export class BattleCh01Scene extends UIScene {
       hintText: this.hintText,
       logText: this.logText,
       attackLabel: this.attackLabel,
+      confirming: this.confirming,
+      reduced: this.reduced,
       moveLabel: this.moveLabel,
       actionsDisabled: this.actionsDisabled,
       attackDisabled: this.attackDisabled,
@@ -420,7 +424,7 @@ export class BattleCh01Scene extends UIScene {
     this.targetRingTween?.remove();
     this.targetRingTween = null;
     this.targetRingGraphics = null;
-    this.pendingPrompt = null;
+    this.selectionPrompt = null;
     this.protocolText = null;
     this.orderChips.length = 0;
     this.displayedOrder = [];
@@ -536,9 +540,9 @@ export class BattleCh01Scene extends UIScene {
     }
   }
 
-  private createPendingPrompt(): void {
+  private createSelectionPrompt(): void {
     const plan = getViewportPlan();
-    this.pendingPrompt = makeSceneText(
+    this.selectionPrompt = makeSceneText(
       this,
       plan.designWidth / 2,
       plan.designHeight * 0.3,
@@ -1692,8 +1696,10 @@ export class BattleCh01Scene extends UIScene {
       .slice(-2)
       .map((entry) => entry.text)
       .join('\n');
-    // 用户口径：按钮只显示「攻击」两个字；目标名/预计伤害只在提示里。
-    this.attackLabel.value = '攻击';
+    // 基础「攻击」；选中有效目标后变红色发光的「确认攻击」。
+    const canConfirm = this.targetingSkillId !== null && this.attackTarget() !== null;
+    this.attackLabel.value = canConfirm ? '确认攻击' : '攻击';
+    this.confirming.value = canConfirm;
     this.moveLabel.value = this.state.pendingMove
       ? '留在原地'
       : this.targetingSkillId
@@ -1714,7 +1720,17 @@ export class BattleCh01Scene extends UIScene {
       this.moveMode ||
       this.state.pendingMove !== null ||
       this.targetingSkillId !== null;
-    this.pendingPrompt?.setVisible(this.state.pendingMove !== null && !this.ended);
+
+    const prompt = this.state.pendingMove
+      ? '请选择移动位置'
+      : this.targetingSkillId !== null && !canConfirm
+        ? '请选择攻击目标'
+        : null;
+    if (this.selectionPrompt) {
+      this.selectionPrompt
+        .setText(prompt ?? '请选择移动位置')
+        .setVisible(prompt !== null && !this.ended);
+    }
 
     this.syncTargetZones();
     if (this.protocolText) {
@@ -1767,20 +1783,20 @@ export class BattleCh01Scene extends UIScene {
     // 新流程：先选技能，再点敌人选目标；可取消。目标不再自动预选。
     if (this.targetingSkillId) {
       const selected = this.selectedEnemyUnit();
-      if (!selected) return '请选择攻击目标：点敌人；点「取消」返回。';
+      if (!selected) return '点敌人选择目标；点「取消」返回。';
       const target = this.attackTarget();
       if (!target) {
         return `目标${selected.name}不在相邻点位——点「取消」返回后先移动。`;
       }
       const skillId = this.targetingSkillId;
       const preview = previewPlayerAttack(this.state, this.setup, skillId, target.id);
-      if (!preview) return `目标：${selected.name}；点「攻击」发动，点「取消」返回。`;
+      if (!preview) return `目标：${selected.name}；点「确认攻击」，点「取消」返回。`;
       // 未知怪只给机制提示；已知怪（图鉴已解锁）才显示预计伤害。
       const expected = this.knownEnemies.has(target.id) ? ` 预计 ${preview.amount}。` : '';
       if (preview.backstab) {
-        return `目标：${selected.name} · 背袭（无视一半防御），命中后留在原地；点「攻击」发动，点「取消」返回。${expected}`;
+        return `目标：${selected.name} · 背袭穿半防、留在原地；点「确认攻击」，点「取消」返回。${expected}`;
       }
-      return `目标：${selected.name} · 命中后可选择附近落点；点「攻击」发动，点「取消」返回。${expected}`;
+      return `目标：${selected.name} · 选落点；点「确认攻击」，点「取消」返回。${expected}`;
     }
 
     return '点「攻击」选择技能；只打相邻点位。';
@@ -2212,7 +2228,7 @@ export class BattleCh01Scene extends UIScene {
     this.targetRingTween?.remove();
     this.targetRingTween = null;
     this.targetRingGraphics = null;
-    this.pendingPrompt = null;
+    this.selectionPrompt = null;
     this.enemyIndex.clear();
     this.enemyTargetZones.clear();
     this.protocolText = null;

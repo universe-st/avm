@@ -17,7 +17,7 @@ import type {
   WidgetState,
 } from '@phaser-mvvm/phaser';
 import { ProceduralSkin, Widget } from '@phaser-mvvm/phaser';
-import { buttonSkinStyles, buttonTextColor, paintFocusRing } from './appearance';
+import { buttonSkinStyles, buttonTextColor, fillBox, paintFocusRing } from './appearance';
 import { buttonLabel, resolveButtonActivation, resolveButtonState } from './button-state';
 import { toCssColor } from './color';
 import { centeredOffset, contentBox, fitIcon } from './geometry';
@@ -38,6 +38,12 @@ export interface ButtonOptions extends LayoutParams, PointerChainOptionHooks {
   size?: ButtonSize;
   /** Starts disabled; `setDisabled` toggles the same flag. */
   disabled?: boolean;
+  /** Overrides the themed label colour (0xRRGGBB); `null`/omitted = theme. */
+  labelColor?: number | null;
+  /** Draws an animated glow behind the button (a red confirm highlight, etc.). */
+  glow?: boolean;
+  /** Glow colour; defaults to the theme's `danger`. */
+  glowColor?: number;
   /** Toggle mode: activation flips `value` and emits `change` instead of running `onClick`. */
   toggle?: boolean;
   /** Initial toggle value. */
@@ -61,6 +67,9 @@ const BUTTON_KEYS = [
   'variant',
   'size',
   'disabled',
+  'labelColor',
+  'glow',
+  'glowColor',
   'toggle',
   'value',
   'loading',
@@ -129,10 +138,18 @@ export class Button extends Widget {
   size: ButtonSize;
   toggle: boolean;
   loading: boolean;
+  /** Overrides the themed label colour; `null` = theme. */
+  labelColor: number | null;
+  /** Whether the animated glow is on. */
+  glow: boolean;
+  /** Glow colour; `null` = theme danger. */
+  glowColor: number | null;
   /** Runs on activation of a non-toggle button. */
   onClick: ((button: Button) => void) | null;
 
   private readonly bodyGraphics: Phaser.GameObjects.Graphics;
+  private readonly glowGraphics: Phaser.GameObjects.Graphics;
+  private glowTween: Phaser.Tweens.Tween | null = null;
   private iconObject: IconLike | null = null;
   /**
    * The icon's size as it was handed in, kept so every fit is computed from the same starting point.
@@ -161,6 +178,9 @@ export class Button extends Widget {
     this.size = widget.size ?? 'md';
     this.toggle = widget.toggle === true;
     this.loading = widget.loading === true;
+    this.labelColor = widget.labelColor ?? null;
+    this.glow = widget.glow === true;
+    this.glowColor = widget.glowColor ?? null;
     this.value = widget.value === true;
     this.labelText = widget.text ?? '';
     this.onClick = widget.onClick ?? null;
@@ -179,6 +199,8 @@ export class Button extends Widget {
     };
 
     this.bodyGraphics = new Phaser.GameObjects.Graphics(scene);
+    this.glowGraphics = new Phaser.GameObjects.Graphics(scene);
+    this.add(this.glowGraphics);
     this.add(this.bodyGraphics);
 
     if (widget.icon !== undefined) {
@@ -196,6 +218,9 @@ export class Button extends Widget {
       this.setEnabled(false);
     }
     this.refreshAppearance();
+    if (this.glow) {
+      this.startGlowTween();
+    }
   }
 
   // ------------------------------------------------------------------ value & flags
@@ -275,6 +300,32 @@ export class Button extends Widget {
     return this;
   }
 
+  /** Overrides the themed label colour (0xRRGGBB); `null` restores the theme. */
+  setLabelColor(color: number | null): this {
+    if (this.labelColor === color) {
+      return this;
+    }
+    this.labelColor = color;
+    this.applyThemeStyle();
+    this.markDirty();
+    return this;
+  }
+
+  /** Turns the animated glow on/off. The glow is drawn behind the button body. */
+  setGlow(value: boolean): this {
+    if (this.glow === value) {
+      return this;
+    }
+    this.glow = value;
+    this.refreshAppearance();
+    if (value) {
+      this.startGlowTween();
+    } else {
+      this.stopGlowTween();
+    }
+    return this;
+  }
+
   setLoading(value: boolean): this {
     if (this.loading === value) {
       return this;
@@ -317,8 +368,8 @@ export class Button extends Widget {
     }
     this.iconObject = next;
     this.iconNatural = naturalIconSize(next);
-    // Behind the label but in front of the background graphics.
-    this.addAt(next, Math.min(1, this.length));
+    // Behind the label but in front of the background/glow graphics.
+    this.addAt(next, Math.min(2, this.length));
     this.markDirty();
     return this;
   }
@@ -391,10 +442,27 @@ export class Button extends Widget {
       value: this.value,
     });
 
+    const radius = Math.max(0, Math.min(theme.radius.md, Math.min(width, height) / 2));
+    this.glowGraphics.clear();
+    if (this.glow && width > 0 && height > 0) {
+      const color = this.glowColor ?? theme.colors.danger;
+      for (let layer = 3; layer >= 1; layer -= 1) {
+        const grow = layer * 5;
+        this.glowGraphics.fillStyle(color, 0.09);
+        fillBox(
+          this.glowGraphics,
+          -grow,
+          -grow,
+          width + grow * 2,
+          height + grow * 2,
+          radius + grow,
+        );
+      }
+    }
+
     this.bodyGraphics.clear();
     this.skinFor(theme).paint(this.bodyGraphics, width, height, state);
 
-    const radius = Math.max(0, Math.min(theme.radius.md, Math.min(width, height) / 2));
     // `focusVisible`, not `focused`: a button the user clicked with the mouse is focused (so `Tab`
     // continues from it) but is not left with a frame around it (`Widget#focusRingOnPointer`).
     if (this.focusVisible) {
@@ -402,6 +470,30 @@ export class Button extends Widget {
     }
 
     this.applyThemeStyle();
+  }
+
+  private startGlowTween(): void {
+    this.stopGlowTween();
+    this.glowGraphics.setAlpha(1);
+    this.glowTween = this.scene.tweens.add({
+      targets: this.glowGraphics,
+      alpha: { from: 1, to: 0.35 },
+      duration: 720,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+  }
+
+  private stopGlowTween(): void {
+    this.glowTween?.stop();
+    this.glowTween = null;
+    this.glowGraphics.setAlpha(1);
+  }
+
+  override destroy(fromScene?: boolean): void {
+    this.stopGlowTween();
+    super.destroy(fromScene);
   }
 
   // ------------------------------------------------------------------ internals
@@ -441,7 +533,11 @@ export class Button extends Widget {
       toggle: this.toggle,
       value: this.value,
     });
-    const color = toCssColor(buttonTextColor(theme, this.variant, state));
+    const color = toCssColor(
+      this.labelColor !== null && state !== 'disabled'
+        ? this.labelColor
+        : buttonTextColor(theme, this.variant, state),
+    );
     // Same reasoning as `Label`: the baking ratio is part of the style key, so a display whose ratio
     // changed re-bakes the glyph texture instead of keeping the soft one.
     const resolution = this.textResolution;

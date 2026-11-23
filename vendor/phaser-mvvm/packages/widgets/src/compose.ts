@@ -626,13 +626,17 @@ export function Text(value: ReactiveSource<string>, options: TextOptions = {}): 
  * is the `onClick` option.
  */
 export type ButtonDslOptions = Slotted<
-  Omit<ButtonOptions, 'variant' | 'disabled' | 'loading' | 'value'>,
+  Omit<ButtonOptions, 'variant' | 'disabled' | 'loading' | 'value' | 'labelColor' | 'glow'>,
   SlotKeys<ButtonOptions>
 > & {
   variant?: ReactiveSource<ButtonVariant>;
   disabled?: ReactiveSource<boolean>;
   loading?: ReactiveSource<boolean>;
   value?: ReactiveSource<boolean>;
+  /** Red/highlighted confirm label; `null` restores the theme colour. */
+  labelColor?: ReactiveSource<number | null>;
+  /** Animated glow behind the button. */
+  glow?: ReactiveSource<boolean>;
   onValueChange?: (value: boolean, button: ButtonWidget) => void;
 } & DslOptions;
 
@@ -642,13 +646,15 @@ export function Button(
   options: ButtonDslOptions = {},
 ): ButtonWidget {
   const scene = currentUiScene();
-  const { variant, disabled, loading, value, onValueChange, ...rest } = options;
+  const { variant, disabled, loading, value, labelColor, glow, onValueChange, ...rest } = options;
   const button = new ButtonWidget(scene, {
     ...resolveSlots<ButtonOptions>(optionBag(rest)),
     ...(variant === undefined ? {} : { variant: readReactive(variant) }),
     ...(disabled === undefined ? {} : { disabled: readReactive(disabled) === true }),
     ...(loading === undefined ? {} : { loading: readReactive(loading) === true }),
     ...(value === undefined ? {} : { value: readReactive(value) === true }),
+    ...(labelColor === undefined ? {} : { labelColor: readReactive(labelColor) }),
+    ...(glow === undefined ? {} : { glow: readReactive(glow) === true }),
     text: readReactive(label),
   });
   scene.add.existing(button);
@@ -660,6 +666,8 @@ export function Button(
   bindOption(button, variant, (host, next) => host.setVariant(next));
   bindOption(button, disabled, (host, next) => host.setDisabled(next === true));
   bindOption(button, loading, (host, next) => host.setLoading(next === true));
+  bindOption(button, labelColor, (host, next) => host.setLabelColor(next));
+  bindOption(button, glow, (host, next) => host.setGlow(next === true));
 
   if (value !== undefined) {
     const store = isWritableSource(value)

@@ -3,6 +3,9 @@ import type { Ref } from '@phaser-mvvm/core';
 import { buildStageHeader } from './hud-kit';
 import { BATTLE_HEAD_KEYS } from '../assets/keys';
 
+/** 「确认攻击」的红色高亮/发光。 */
+const CONFIRM_RED = 0xff5c4d;
+
 export interface BattleHudModel {
   /** 顶栏右上角的短信息（行动数 / 敌方数量）。 */
   readonly turnLabel: Ref<string>;
@@ -10,13 +13,16 @@ export interface BattleHudModel {
   readonly hintText: Ref<string>;
   readonly logText: Ref<string>;
   readonly attackLabel: Ref<string>;
+  /** 已选中有效目标：攻击键变成红色发光的「确认攻击」。 */
+  readonly confirming: Ref<boolean>;
   readonly moveLabel: Ref<string>;
   /** 非玩家回合/动画中：三个按钮都灰。 */
   readonly actionsDisabled: Ref<boolean>;
-  /** 没有「解」/移动选择中：只灰攻击。 */
+  /** 没有「解」/移动选择中/未选目标：只灰攻击。 */
   readonly attackDisabled: Ref<boolean>;
   /** 移动选择中：灰防御（移动按钮保留为「取消移动」）。 */
   readonly guardDisabled: Ref<boolean>;
+  readonly reduced: boolean;
   readonly onAttack: () => void;
   readonly onMove: () => void;
   readonly onGuard: () => void;
@@ -92,7 +98,10 @@ export function buildBattleHud(model: BattleHudModel): void {
             });
             Row({ width: 'fill', gap: 12, justifyContent: 'center' }, () => {
               Button(() => model.attackLabel.value, {
-                variant: 'primary',
+                variant: () => (model.confirming.value ? 'secondary' : 'primary'),
+                labelColor: () => (model.confirming.value ? CONFIRM_RED : null),
+                glow: () => model.confirming.value && !model.reduced,
+                glowColor: CONFIRM_RED,
                 size: 'lg',
                 width: 208,
                 disabled: () => model.attackDisabled.value,
