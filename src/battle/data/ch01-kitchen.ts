@@ -36,7 +36,7 @@ export const CH01_KITCHEN_BATTLE: BattleSetup = {
       atk: 10,
       spd: 12,
       defense: 3,
-      dodge: 5,
+      dodge: 2,
       skills: [COOK_SKILLS[0]!, COOK_SKILLS[1]!],
       slot: 'center',
       art: 'cook',

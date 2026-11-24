@@ -42,6 +42,8 @@ describe('dodge（闪避）', () => {
     expect(dodgeChance(1)).toBeCloseTo(1 - 200 / 203, 8);
     expect(dodgeChance(5)).toBeCloseTo(1 - 200 / 215, 8);
     expect(dodgePercent(1)).toBe(1);
+    expect(dodgeChance(2)).toBeCloseTo(1 - 200 / 206, 8);
+    expect(dodgePercent(2)).toBe(3);
     expect(dodgePercent(5)).toBe(7);
     expect(dodgeChance(100)).toBeCloseTo(0.6, 8);
     expect(dodgePercent(100)).toBe(100 - 40);
@@ -103,10 +105,10 @@ describe('dodge（闪避）', () => {
     expect(found!.state.party[0]!.hp).toBe(setup.party[0]!.hp);
   });
 
-  it('lets a 5-dodge cook evade a player attack and move to a free neighbour', () => {
+  it('lets a 2-dodge cook evade a player attack and move to a free neighbour', () => {
     const setup = withPartySlot(CH01_KITCHEN_BATTLE, 'left');
     let found: { before: BattleState; result: ReturnType<typeof applyBattleAction> } | null = null;
-    for (let seed = 1; seed <= 300 && !found; seed += 1) {
+    for (let seed = 1; seed <= 500 && !found; seed += 1) {
       let state = startNextTurn(createBattle(setup, seed), setup).state;
       if (state.activeId !== state.party[0]!.id) continue;
       const target = state.enemies.find((enemy) => enemy.id === 'cook-phantom-a')!;
