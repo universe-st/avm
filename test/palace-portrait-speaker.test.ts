@@ -114,10 +114,16 @@ describe('金殿：每句台词开口时，立绘就是说话人本人', () => {
     }
   });
 
-  it('旁白不在对位表里（旁白不换脸），未知说话人也不动立绘', () => {
+  it('旁白不在对位表里，且开口时收脸（旁白不挂立绘）；未登记的人同样不动立绘', () => {
     expect(palacePortraitForSpeaker('旁白')).toBeUndefined();
     expect(palacePortraitForSpeaker(undefined)).toBeUndefined();
     expect(palacePortraitForSpeaker('没有登记的人')).toBeUndefined();
+    expect(reducePortraitForSay('旁白', { key: PALACE_TEXTURES.portraitZheng })).toEqual({
+      action: 'hide',
+    });
+    expect(reducePortraitForSay('没有登记的人', { key: PALACE_TEXTURES.portraitZheng })).toEqual({
+      action: 'hide',
+    });
   });
 });
 
@@ -165,9 +171,16 @@ describe('金殿：2026-11-18 实机串脸的那几句（回归）', () => {
     expect(line.portrait?.key).toBe(PALACE_TEXTURES.portraitMiner);
   });
 
-  it('周全顶完嘴之后镜头交回郑卿：「青筋暴起」这句时挂郑卿，气泡也才落在他头上', () => {
-    const after = playPortraits().find((line) => line.text.includes('青筋暴起'));
-    expect(after?.portrait?.key).toBe(PALACE_TEXTURES.portraitZheng);
+  it('「青筋暴起」是旁白：这句收脸，下一句郑卿开口才重新挂他的脸', () => {
+    const lines = playPortraits();
+    const narrationAt = lines.findIndex((line) => line.text.includes('青筋暴起'));
+    expect(narrationAt).toBeGreaterThanOrEqual(0);
+    expect(lines[narrationAt]?.portrait).toBeNull();
+    const nextZheng = lines
+      .slice(narrationAt + 1)
+      .find((line) => line.speaker === '郑卿');
+    // 这一句带 portraitEmotion happy（得意），所以挂的是情绪差分而不是基础脸。
+    expect(nextZheng?.portrait?.key).toBe('img.char.portrait.zheng_happy');
   });
 });
 

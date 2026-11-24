@@ -113,6 +113,8 @@ export class Ch01PalaceScene extends UIScene {
   private readonly walking = new Map<PalaceActorId, { timer: Phaser.Time.TimerEvent; base: string }>();
   private director: CinematicDirector | null = null;
   private portrait: PortraitLayer | null = null;
+  /** 上一次真正上过脸的说话人（旁白收脸后再开口时用 soft 淡回来）。 */
+  private lastPortraitSpeaker: string | null = null;
   /** 郑卿愤怒 / 周全震惊的表情气泡（世界层，跟着镜头推拉）。 */
   private emotionBubble: EmotionBubble | null = null;
   /** 世界层（地图 + 角色）：镜头推拉通过缩放它实现，不碰相机，所以 DOM/Compose 的对话框不会被带走。 */
@@ -697,8 +699,13 @@ export class Ch01PalaceScene extends UIScene {
       currentKey ? { key: currentKey } : null,
       emotion,
     );
-    if (step.action === 'show') this.portrait?.show(step.key, step.side);
-    else if (step.action === 'hide') this.portrait?.hide();
+    if (step.action === 'show') {
+      const soft = this.lastPortraitSpeaker !== null && this.lastPortraitSpeaker === speaker;
+      this.portrait?.show(step.key, step.side, { soft });
+      this.lastPortraitSpeaker = speaker ?? null;
+    } else if (step.action === 'hide') {
+      this.portrait?.hide();
+    }
   }
 
   private runAction(action: PalaceAction): void {

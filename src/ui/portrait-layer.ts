@@ -46,11 +46,27 @@ export class PortraitLayer {
     }
 
     if (options.soft === true && this.image) {
-      this.image.setTexture(key);
-      this.image.setDisplaySize(metrics.width, metrics.height);
-      this.image.setPosition(metrics.anchorX, metrics.baseY);
-      this.image.setFlipX(side === 'left');
+      const image = this.image;
+      image.setTexture(key);
+      image.setDisplaySize(metrics.width, metrics.height);
+      image.setPosition(metrics.anchorX, metrics.baseY);
+      image.setFlipX(side === 'left');
       this.key = key;
+      this.scene.tweens.killTweensOf(image);
+      if (this.reduced) {
+        image.setAlpha(1);
+      } else {
+        this.scene.tweens.add({
+          targets: image,
+          alpha: 1,
+          y: metrics.baseY,
+          duration: 160,
+          ease: 'Sine.easeOut',
+          onComplete: () => this.startBreath(),
+        });
+        return;
+      }
+      this.startBreath();
       return;
     }
 
@@ -87,14 +103,19 @@ export class PortraitLayer {
     });
   }
 
+  /**
+   * 收脸：淡出但**保留 image 对象**（alpha=0、key 置空）。
+   *
+   * 保留的理由是旁白：2026-11-25 起旁白不挂立绘，旁白结束同一个人再开口时要原地淡回来
+   * （`soft`），不能每次从画面外滑进来。换人时 `show()` 会把旧 image 销毁重建。
+   */
   hide(ms = 180): void {
     const image = this.image;
     if (!image) return;
     this.stopBreath();
-    this.image = null;
     this.key = null;
     if (this.reduced) {
-      image.destroy();
+      image.setAlpha(0);
       return;
     }
     this.scene.tweens.add({
@@ -102,7 +123,6 @@ export class PortraitLayer {
       alpha: 0,
       y: image.y + 26,
       duration: ms,
-      onComplete: () => image.destroy(),
     });
   }
 

@@ -22,7 +22,7 @@ import { reducePortraitForSay } from '../src/story/ch01-palace';
  *
  * 1. 每个剧本里出现过的说话人都在 `SPEAKER_PORTRAITS` 里表过态（有脸给 key，没脸给 null）；
  * 2. 那个 key 所在的 bundle **真的被该场景加载**（不是画了图却没打进去）；
- * 3. 归约语义：旁白保持、换人换脸、没脸收脸、CG/黑场不叠图。
+ * 3. 归约语义：旁白收脸、换人换脸、没脸收脸、CG/黑场不叠图。
  */
 
 const STORY_SOURCES = [
@@ -135,9 +135,11 @@ describe('reducePortraitForLine：谁开口谁上脸', () => {
     });
   });
 
-  it('旁白不换脸（避免每句旁白闪一下）', () => {
-    expect(reducePortraitForLine({ speaker: '旁白' }, zhou)).toEqual({ action: 'keep' });
-    expect(reducePortraitForLine({}, xiaobai)).toEqual({ action: 'keep' });
+  it('旁白不挂立绘（有脸就收掉；本来没脸则什么都不做）', () => {
+    expect(reducePortraitForLine({ speaker: '旁白' }, zhou)).toEqual({ action: 'hide' });
+    expect(reducePortraitForLine({}, xiaobai)).toEqual({ action: 'hide' });
+    expect(reducePortraitForLine({ speaker: '旁白' }, null)).toEqual({ action: 'keep' });
+    expect(reducePortraitForLine({}, null)).toEqual({ action: 'keep' });
   });
 
   it('明确没立绘的人（新闻主持人）开口：收脸，不顶别人的脸', () => {

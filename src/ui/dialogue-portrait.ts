@@ -1,6 +1,10 @@
 import Phaser from 'phaser';
 import type { DialogueLine } from '../story/dialogue';
-import { reducePortraitForLine, type SpeakerPortrait } from '../story/portraits';
+import {
+  portraitOwnerOfKey,
+  reducePortraitForLine,
+  type SpeakerPortrait,
+} from '../story/portraits';
 import { PortraitLayer } from './portrait-layer';
 
 /** 一句台词里能影响立绘的字段（场景只把 `DialogueLine` 的子集交给它）。 */
@@ -23,6 +27,13 @@ export class DialoguePortrait {
   private readonly scene: Phaser.Scene;
   private readonly layer: PortraitLayer;
   private current: SpeakerPortrait | null = null;
+  /**
+   * 上一次真正上过脸的角色。
+   *
+   * 旁白会收脸（`current=null`），但「旁白前是谁」要记住：同一人紧接旁白再开口时，
+   * 走 soft 原地淡回来，而不是又从画面外滑进来。
+   */
+  private lastOwner: string | null = null;
 
   constructor(scene: Phaser.Scene, reduced: boolean) {
     this.scene = scene;
@@ -48,8 +59,12 @@ export class DialoguePortrait {
       this.hide();
       return;
     }
-    this.layer.show(step.key, step.side, { soft: step.soft === true });
+    const owner = portraitOwnerOfKey(step.key);
+    const soft =
+      step.soft === true || (this.current === null && owner !== null && owner === this.lastOwner);
+    this.layer.show(step.key, step.side, { soft });
     this.current = { key: step.key, side: step.side };
+    this.lastOwner = owner;
   }
 
   hide(ms = 180): void {

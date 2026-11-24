@@ -326,6 +326,7 @@
 | 郑卿 | 平常（现有）/ 震惊 / 得意 / 尴尬 四张，只在金殿过场使用 |
 | 切换机制 | `DialogueLine.portraitEmotion`（expressive 行 cue）+ `SPEAKER_PORTRAIT_EMOTIONS` + `reducePortraitForLine`；缺省回落默认脸，同角色换表情 `soft` 原地换图（不滑入） |
 | 标注 | 按台词内容标注：dorm/after/kitchen/palace 的周全与郑卿，以及第一场教程对话（`ch01-first-battle.ts` 的 `zhou(text, emotion)`） |
-| 特殊规则 | 黑场/压迫/趴地起身（`getUp`）/ CG 行不挂立绘；金殿周全用被按跪慌张特写，不套差分 |
+| 特殊规则 | **旁白不挂立绘**（收脸，下一位说话人再上脸；同人 soft 淡回来）；黑场/压迫/趴地起身（`getUp`）/ CG 行不挂立绘；金殿周全用被按跪慌张特写，不套差分 |
+| 绿边修复 | 全部 16 张立绘跑 `tools/despill-portrait.py`（深色头发绿幕残留，2026-11-25 实机指出） |
 | 护栏 | `test/dialogue-portrait-registry.test.ts`（21 条）+ `test/palace-five-items.test.ts`（17 张立绘规格）+ `test/palace-portrait-speaker.test.ts`（逐句带情绪对位） |
 | `pnpm check` | 通过（787 tests / 79 files，assets 271 key） |

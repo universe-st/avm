@@ -615,6 +615,9 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
 - 验收：`test/palace-five-items.test.ts`（17 张立绘按 文件→key→bundle 校验）、
   `test/dialogue-portrait-registry.test.ts`（差分登记 / 缺省回落 / soft 换图 / 起身不挂脸 / 金殿郑卿差分）；
   实机脚本 `.evidence/scripts/capture-emotions-2026-11-25.mjs`。
+- 2026-11-25 返工（用户实机指出「头发里都有点绿」）：`keyImageJob` 的 `despill 0.65` 对深色头发不够，
+  抠像边缘残留绿幕。新增 `tools/despill-portrait.py`（green-limit：`g = min(g, max(r,b))`，半透明边缘再收一档，
+  alpha 完全不动），对全部 16 张立绘（含 11-24 之前的 6 张）统一去绿边；不是重新生成、不重新抠像。
 - 复核：上架前按火山方舟商用条款复核，商店页注明「AI 生成美术」。
 
 ## 12. 御膳房 P2 B1 地图风格样张（2026-10-31）

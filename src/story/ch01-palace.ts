@@ -119,8 +119,10 @@ export function reducePortraitForSay(
   emotion?: PortraitEmotion,
 ): PalacePortraitStep {
   const entry = palacePortraitForSpeaker(speaker, emotion);
-  if (entry === undefined) return { action: 'keep' };
-  if (entry === null) return current ? { action: 'hide' } : { action: 'keep' };
+  // 旁白/未登记（undefined）同样收脸：旁白不挂立绘。
+  if (entry === undefined || entry === null) {
+    return current ? { action: 'hide' } : { action: 'keep' };
+  }
   if (current?.key === entry.key) return { action: 'keep' };
   return { action: 'show', key: entry.key, side: entry.side };
 }
@@ -378,13 +380,8 @@ export const PALACE_BEATS: readonly PalaceBeat[] = [
   },
   { kind: 'say', speaker: '郑卿', text: '你这刺客，好大的胆子！竟敢跟朕称兄道弟起来了？', portraitEmotion: 'shocked' },
   { kind: 'say', speaker: '周全', text: '谁和你称兄道弟了？你想当我儿子我还不乐意呢！' },
-  {
-    // 周全顶完嘴把镜头交回郑卿：下一句旁白要「看到青筋」、气泡也挂在他头上，
-    // 所以先换回他的脸，别让周全的慌张特写一直挂到郑卿开口（上一版就是这样串的脸）。
-    kind: 'act',
-    actions: [{ kind: 'portrait', key: PALACE_TEXTURES.portraitZheng, side: 'right' }],
-    ms: 240,
-  },
+  // 旁白不挂立绘（2026-11-25 用户要求）：这一拍不再提前把郑卿的脸换上来，
+  // 「青筋暴起」只靠世界层的表情气泡表达；下一句郑卿开口时立绘会 soft 淡回来。
   { kind: 'say', speaker: '旁白', text: '你看到郑卿脸上青筋暴起。' },
   {
     // 旁白说完才冒气泡：先看见青筋、再听见他发火，因果顺序不能倒。

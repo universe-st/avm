@@ -67,12 +67,12 @@ pnpm android:release
     改用与剧情同一个底部 `buildDialoguePanel`（672×300、打字机、分页、点任意位置补全/继续）。
     - 对位唯一真值是 `src/story/portraits.ts` 的 `SPEAKER_PORTRAITS` + `reducePortraitForLine()`；
       场景只调 `DialoguePortrait.alignForLine(line)`，**不许在场景里写「谁说话挂哪张脸」的 if**。
-    - 旁白保持上一张脸；明确没立绘的人（新闻主持人＝CG 里的人）给 `null` 收脸；**未登记的说话人一律收脸**，
+    - **旁白不挂立绘**（2026-11-25 用户要求）：有脸就收；下一位说话人重新上脸，同一个人紧接着再开口时走 soft 原地淡回来（不滑入）。明确没立绘的人（新闻主持人＝CG 里的人）给 `null` 收脸；**未登记的说话人一律收脸**，
       并由 `test/dialogue-portrait-registry.test.ts` 报错——加角色必须先在表里表态。
     - 带 `cg` / `blackout` / `dark` 的行不叠立绘（画面已经由 CG / 暗场承载）。
     - 立绘是**屏幕层**：`PortraitLayer` 必须 `setScrollFactor(0)`。御膳房相机跟着玩家滚动，
       漏了这行立绘会被滚出画面（2026-11-24 实测：寝室/金殿正常、御膳房只剩黑边）。
-    - 立绘 PNG 720×900 RGBA、透明底、左右留边；按角色共用程度分三个 bundle：
+    - 立绘 PNG 720×900 RGBA、透明底、左右留边；**抠像后必须跑 `tools/despill-portrait.py`**（深色头发的绿幕残留会泛绿，2026-11-25 实机指出）；按角色共用程度分三个 bundle：
       `ch01.portraits`（周全/小白/矿工，四个场景共用）、`ch01.kitchen`（老麦/老肯）、
       `cutscene.ch01palace`（郑卿/楚公公/侍卫/周全慌张）。key 统一 `img.char.portrait.*`。
     - 对话结束/跳过/进菜单必须 `portrait.hide()`，SHUTDOWN 必须 `destroy()`（场景实例会复用）。

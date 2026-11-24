@@ -185,7 +185,7 @@ function lineSuppressesPortrait(
  * - 同一个人已经在场 → `keep`：保留显式站位，不要每句都从画面边上滑回来；
  * - 换人 → `show` 该角色的立绘与默认站位；
  * - 说话人明确没有立绘 / 未登记的陌生人 → `hide`（宁可空着，也不挂别人的脸）；
- * - 旁白 → `keep`（不闪）；
+ * - 旁白 → `hide`（旁白不挂立绘，2026-11-25 用户要求）；
  * - CG/黑场行 → `hide`，CG 结束后的旁白也保持收脸，直到下一位有脸的人开口。
  */
 export function reducePortraitForLine(
@@ -197,8 +197,11 @@ export function reducePortraitForLine(
 ): PortraitStep {
   if (lineSuppressesPortrait(line)) return current ? { action: 'hide' } : { action: 'keep' };
   const entry = portraitForSpeaker(line.speaker, line.role, line.portraitEmotion);
-  if (entry === undefined) return { action: 'keep' };
-  if (entry === null) return current ? { action: 'hide' } : { action: 'keep' };
+  // 旁白（undefined）与「明确没立绘」（null）都收脸：2026-11-25 用户明确「旁白时候不需要有立绘」。
+  // 下一位说话人会重新入场；同一个人再开口时由 `DialoguePortrait` 走 soft 淡回来（不滑入）。
+  if (entry === undefined || entry === null) {
+    return current ? { action: 'hide' } : { action: 'keep' };
+  }
   if (current?.key === entry.key) return { action: 'keep' };
   const soft =
     current !== null &&

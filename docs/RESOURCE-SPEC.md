@@ -104,6 +104,7 @@ interface AssetDef {
 
 
 - 2026-11-25（t58 情绪差分立绘）：周全 4 张（`img.char.portrait.zhou` 换成新画的平常图，原皱眉图改名 `portrait_zhou_frown.png` 并赐 key `img.char.portrait.zhou_frown`；新增 `zhou_shocked / zhou_happy / zhou_awkward`），全部在共享 `ch01.portraits`（budget 3072 → 6144，实测约 5.5 MB）；郑卿 3 张（`zheng_shocked / zheng_happy / zheng_awkward`）在 `cutscene.ch01palace`（budget 保持 8192，实测约 6 MB）。文件：`assets/img/character/ch01/portrait_zhou_{neutral,frown,shocked,happy,awkward}.png`、`assets/img/character/palace/portrait_zheng_{shocked,happy,awkward}.png`，都是 720×900 RGBA 透明底。切换由台词行 cue `DialogueLine.portraitEmotion` + `SPEAKER_PORTRAIT_EMOTIONS` 决定，见 `docs/ASSET-CREDITS.md` §11.19。
+- 2026-11-25（立绘去绿边）：全部 16 张半身立绘用 `tools/despill-portrait.py` 重做一次去绿边（key/文件名/bundle 不变，只是像素修正，体积略有变化），并重跑 `assets:scan`。根因与做法见 `docs/ASSET-CREDITS.md` §11.19 末尾。
 
 ## 3. 场景资源作用域（核心机制）
 
