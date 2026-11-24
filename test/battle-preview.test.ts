@@ -30,7 +30,11 @@ describe('battle preview states', () => {
   });
 
   it('starts the first-battle mid preview on a player turn with attack locked', () => {
-    const state = buildPreviewState(CH01_FIRST_BATTLE, 'mid');
+    const noDodge = {
+      ...CH01_FIRST_BATTLE,
+      party: CH01_FIRST_BATTLE.party.map((unit) => ({ ...unit, dodge: 0 })),
+    };
+    const state = buildPreviewState(noDodge, 'mid');
     expect(state.activeId).toBe(state.party[0]!.id);
     expect(state.party[0]!.slot).toBe('upperLeft');
   });

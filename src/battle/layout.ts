@@ -3,8 +3,9 @@ import type { SlotId } from './types';
 /**
  * 战斗战场的纯布局（设计坐标，720 宽基准）。
  *
- * 7 个点位：6 个环位 + `center`。`center` 就是 v2 怪物站的红圈，
- * 现在也是合法点位；`slots.center` 和 `centerPoint` 是同一个脚底坐标。
+ * 7 个点位：6 个环位 + `center`，按**正六边形**布置。
+ * 正六边形外接半径 = 边长，因此中心↔6 环位、相邻环位↔环位的 12 条相邻边
+ * 视觉距离全部等于同一个半径；不要退回椭圆/45° 环。`center` 是几何中心。
  *
  * 顶部预留 = 页眉 118 + 行动表 rail 64 + 间距 10 = fieldTop 192。
  * 行动表只剩标题 + 头像 chip 一行；不再有意图行，所以 rail 恒 64。
@@ -36,9 +37,7 @@ export const BATTLE_LAYOUT = {
   enemyHeight: 200,
   /** 左右两格的水平半径。 */
   radiusX: 250,
-  /** 四斜格相对中心的水平偏移。 */
-  diagonalX: 180,
-  /** 上下两格的垂直半径上限/下限。 */
+  /** 上下两格的垂直半径上限/下限（正六边形 dy = R×√3/2）。 */
   maxRadiusY: 190,
   minRadiusY: 96,
 } as const;
@@ -70,33 +69,32 @@ export function planBattleLayout(width = 720, height = 1280): BattleLayout {
   const centerX = Math.round(safeWidth / 2);
   const centerY = Math.round(fieldTop + (fieldBottom - fieldTop) * 0.56);
 
+  const halfHeight = Math.sqrt(3) / 2;
   const availableAbove =
     centerY - fieldTop - Math.max(BATTLE_LAYOUT.playerHeight, BATTLE_LAYOUT.enemyHeight) - 8;
   const availableBelow = fieldBottom - 16 - centerY;
-  const radiusY = Math.max(
+  // 正六边形：中心↔环位 = 环位边 = radius；垂直偏移 = radius×√3/2。
+  // 所有相邻边共用同一个 radius，保证视觉等距。
+  const radius = Math.max(
     BATTLE_LAYOUT.minRadiusY,
-    Math.min(BATTLE_LAYOUT.maxRadiusY, availableAbove, availableBelow),
+    Math.min(
+      BATTLE_LAYOUT.radiusX,
+      BATTLE_LAYOUT.maxRadiusY / halfHeight,
+      availableAbove / halfHeight,
+      availableBelow / halfHeight,
+    ),
   );
-
-  const diagonalX = Math.min(BATTLE_LAYOUT.diagonalX, BATTLE_LAYOUT.radiusX);
-  const leftX = centerX - BATTLE_LAYOUT.radiusX;
-  const rightX = centerX + BATTLE_LAYOUT.radiusX;
-  const upperLeftX = centerX - diagonalX;
-  const upperRightX = centerX + diagonalX;
-
-  // 中心脚底略偏前，不跟环位角色抢同一条线。
-  const centerPoint: BattlePoint = {
-    x: centerX,
-    y: Math.min(fieldBottom - 24, centerY + Math.round(radiusY * 0.45)),
-  };
+  const dx = radius / 2;
+  const dy = radius * halfHeight;
+  const centerPoint: BattlePoint = { x: centerX, y: centerY };
 
   const slots: Record<SlotId, BattlePoint> = {
-    right: { x: rightX, y: centerY },
-    upperRight: { x: upperRightX, y: centerY - radiusY },
-    upperLeft: { x: upperLeftX, y: centerY - radiusY },
-    left: { x: leftX, y: centerY },
-    lowerLeft: { x: upperLeftX, y: centerY + radiusY },
-    lowerRight: { x: upperRightX, y: centerY + radiusY },
+    right: { x: Math.round(centerX + radius), y: centerY },
+    upperRight: { x: Math.round(centerX + dx), y: Math.round(centerY - dy) },
+    upperLeft: { x: Math.round(centerX - dx), y: Math.round(centerY - dy) },
+    left: { x: Math.round(centerX - radius), y: centerY },
+    lowerLeft: { x: Math.round(centerX - dx), y: Math.round(centerY + dy) },
+    lowerRight: { x: Math.round(centerX + dx), y: Math.round(centerY + dy) },
     center: centerPoint,
   };
 

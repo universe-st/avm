@@ -284,6 +284,7 @@ export interface BattleCodexEntry {
   readonly atk: number;
   readonly defense: number;
   readonly spd: number;
+  readonly dodge: number;
   readonly skills: readonly string[];
 }
 
@@ -314,7 +315,7 @@ export function openBattleCodex(
             });
             if (entry.known) {
               Text(
-                `HP ${entry.hp}/${entry.maxHp} · 攻击 ${entry.atk} · 防御 ${entry.defense} · 速度 ${entry.spd}`,
+                `HP ${entry.hp}/${entry.maxHp} · 攻击 ${entry.atk} · 防御 ${entry.defense} · 速度 ${entry.spd} · 闪避 ${entry.dodge}`,
                 { size: 'sm', tone: 'muted', wrap: true },
               );
               Text(`技能：${entry.skills.length > 0 ? entry.skills.join(' / ') : '—'}`, {
@@ -324,7 +325,7 @@ export function openBattleCodex(
                 maxLines: 2,
               });
             } else {
-              Text('HP ？？？ · 攻击 ？？？ · 防御 ？？？ · 速度 ？？？', {
+              Text('HP ？？？ · 攻击 ？？？ · 防御 ？？？ · 速度 ？？？ · 闪避 ？？？', {
                 size: 'sm',
                 tone: 'muted',
                 wrap: true,

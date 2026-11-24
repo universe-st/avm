@@ -111,6 +111,7 @@ describe('first battle: no 解, scripted defeat', () => {
 
   it('lets the player move without taking a turn away from the monster', () => {
     let state = createBattle(CH01_FIRST_BATTLE);
+    state = { ...state, party: state.party.map((unit) => ({ ...unit, dodge: 0 })) };
     state = startNextTurn(state, CH01_FIRST_BATTLE).state;
     state = applyBattleAction(state, { kind: 'enemy-act' }, CH01_FIRST_BATTLE).state;
     state = startNextTurn(state, CH01_FIRST_BATTLE).state;
@@ -270,7 +271,7 @@ describe('kitchen battle: 解离突刺 / 双怪 / 受击转身', () => {
     });
   });
 
-  it('fails a monster move when the destination is occupied', () => {
+  it('does not execute a monster move into an occupied point', () => {
     const created = createBattle(CH01_KITCHEN_BATTLE);
     const b = created.enemies.find((enemy) => enemy.id === 'cook-phantom-b')!;
     const player = created.party[0]!;
@@ -292,12 +293,13 @@ describe('kitchen battle: 解离突刺 / 双怪 / 受击转身', () => {
       },
     };
     const result = applyBattleAction(state, { kind: 'enemy-act' }, CH01_KITCHEN_BATTLE);
+    const move = result.events.find((event) => event.kind === 'enemy-move');
+    if (move) {
+      expect(move.to).not.toBe('upperLeft');
+      expect(move.blocked).toBe(false);
+    }
     const moved = result.state.enemies.find((enemy) => enemy.id === b.id)!;
-    expect(moved.slot).toBe('upperRight');
-    expect(result.events.find((event) => event.kind === 'enemy-move')).toMatchObject({
-      blocked: true,
-      to: 'upperLeft',
-    });
+    expect(moved.slot).not.toBe('upperLeft');
     expect(result.state.enemyActions).toBe(1);
   });
 
@@ -350,6 +352,7 @@ describe('kitchen battle: 解离突刺 / 双怪 / 受击转身', () => {
   it('halves incoming damage while guarding', () => {
     const setup = withPartySlot(CH01_KITCHEN_BATTLE, 'left');
     let state = atPlayerTurn(setup);
+    state = { ...state, party: state.party.map((unit) => ({ ...unit, dodge: 0 })) };
     state = applyBattleAction(state, { kind: 'guard' }, setup).state;
     state = startNextTurn(state, setup).state;
     expect(state.activeId).toBe(

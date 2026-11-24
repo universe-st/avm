@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { battleRailHeight, planBattleLayout } from '../src/battle/layout';
-import { SLOT_ORDER } from '../src/battle/core/slots';
+import { SLOT_ORDER, adjacentSlots } from '../src/battle/core/slots';
 
 const HEIGHTS = [1100, 1180, 1280, 1440, 1558, 1700] as const;
 
@@ -61,6 +61,26 @@ describe('battle layout (7 points)', () => {
           const dy = points[i]!.y - points[j]!.y;
           expect(Math.hypot(dx, dy), `h=${height} slot ${i}/${j}`).toBeGreaterThan(90);
         }
+      }
+    }
+  });
+
+  it('puts every adjacent pair at the same visual distance (regular hexagon)', () => {
+    for (const height of HEIGHTS) {
+      const layout = planBattleLayout(720, height);
+      const distances: number[] = [];
+      for (const slot of SLOT_ORDER) {
+        for (const next of adjacentSlots(slot)) {
+          if (slot < next) continue;
+          const a = layout.slots[slot];
+          const b = layout.slots[next];
+          distances.push(Math.hypot(a.x - b.x, a.y - b.y));
+        }
+      }
+      expect(distances.length, `h=${height}`).toBe(12);
+      const first = distances[0]!;
+      for (const distance of distances) {
+        expect(Math.abs(distance - first), `h=${height}`).toBeLessThanOrEqual(1.01);
       }
     }
   });

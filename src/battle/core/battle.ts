@@ -16,6 +16,8 @@ import type {
 } from '../types';
 import { planEnemyIntent, planEnemyIntents } from './ai';
 import { computeDamage, zoneLabel } from './damage';
+import { dodgeChance } from './dodge';
+import { battleRandom } from './rng';
 import { planNextActor } from './gauge';
 import { getSkill, resolveSkill } from '../data/skills';
 import { placeUnits } from './placement';
@@ -25,6 +27,7 @@ import {
   facingLabel,
   isAdjacentSlot,
   isBackstabPoint,
+  pointDistance,
   slotLabel,
   zoneOfPoint,
 } from './slots';
@@ -48,6 +51,7 @@ function makeUnit(
     readonly atk: number;
     readonly spd: number;
     readonly defense?: number;
+    readonly dodge?: number;
   },
   team: 'party' | 'enemy',
   extras: {
@@ -66,6 +70,7 @@ function makeUnit(
     atk: setup.atk,
     spd: setup.spd,
     defense: Math.max(0, setup.defense ?? 0),
+    dodge: Math.max(0, Math.round(setup.dodge ?? 0)),
     gauge: 0,
     guarding: false,
     slot: extras.slot,
@@ -164,6 +169,45 @@ function livingEnemies(state: BattleState): readonly BattleUnit[] {
 
 export function isSlotOccupied(state: BattleState, slot: SlotId): boolean {
   return [...state.party, ...state.enemies].some((unit) => unit.hp > 0 && unit.slot === slot);
+}
+
+interface DodgeResult {
+  readonly to: SlotId;
+  readonly chance: number;
+  readonly roll: number;
+}
+
+/**
+ * 闪避判定：先确认有相邻空位（没有就不掷骰），再按
+ * `1 - 200/(3x+200)` 用战斗 seed 掷骰。成功后向远离攻击者的空位移动。
+ */
+function tryDodge(
+  state: BattleState,
+  defender: BattleUnit,
+  attacker: BattleUnit,
+  skillId: string,
+  aoe: boolean,
+): DodgeResult | null {
+  const chance = dodgeChance(defender.dodge);
+  if (chance <= 0) return null;
+  const candidates = adjacentSlots(defender.slot).filter(
+    (slot) => !isSlotOccupied(state, slot),
+  );
+  if (candidates.length === 0) return null;
+
+  const ordered = [...candidates].sort((a, b) => {
+    const da = pointDistance(attacker.slot, a);
+    const db = pointDistance(attacker.slot, b);
+    if (da !== db) return db - da;
+    return a < b ? -1 : a > b ? 1 : 0;
+  });
+  const to = ordered[0]!;
+  const roll = battleRandom(
+    state.seed,
+    state.seq + 1,
+    `${defender.id}:${attacker.id}:${skillId}:${aoe ? 'aoe' : 'hit'}`,
+  );
+  return roll < chance ? { to, chance, roll } : null;
 }
 
 function partySetup(setup: BattleSetup, id: string): BattlePartySetup | undefined {
@@ -452,6 +496,52 @@ function applyPartyAction(
   const targetFacing = target.facing ?? facingFromPoints(target.slot, from);
   const zone: Zone = zoneOfPoint(from, target.slot, targetFacing);
   const backstab = skill.positional && isBackstabPoint(from, target.slot, targetFacing);
+
+  const dodge = tryDodge(state, target, actor, skill.id, false);
+  if (dodge) {
+    const seq = state.seq + 1;
+    const text = `${skill.name}擦过——${target.name}闪到${slotLabel(dodge.to)}。`;
+    const enemies = state.enemies.map((unit) =>
+      unit.id === target.id ? { ...unit, slot: dodge.to } : unit,
+    );
+    const events: BattleEvent[] = [
+      {
+        kind: 'dodge',
+        actorId: target.id,
+        attackerId: actor.id,
+        skillId: skill.id,
+        from: target.slot,
+        to: dodge.to,
+        aoe: false,
+        text: `${target.name}闪到${slotLabel(dodge.to)}。`,
+      },
+      {
+        kind: 'attack',
+        actorId: actor.id,
+        targetId: target.id,
+        targetSlot: target.slot,
+        skillId: skill.id,
+        skillName: skill.name,
+        amount: 0,
+        zone,
+        backstab,
+        targetHp: target.hp,
+        from,
+        dodged: true,
+        text,
+      },
+    ];
+    return finishPartyAction(
+      state,
+      { ...actor, slot: from },
+      enemies,
+      seq,
+      appendLog(state.log, seq, text, 'enemy'),
+      events,
+      state.intents,
+    );
+  }
+
   const amount = computeDamage({
     atk: actor.atk,
     power: skill.power,
@@ -604,15 +694,26 @@ function applyEnemyAction(
     };
   }
 
-  let intent = state.intents[enemy.id];
-  if (!intent) {
-    const planned = planEnemyIntent(state, setup, enemy.id);
-    if (!planned) {
-      return { state: { ...state, activeId: null, pendingMove: null }, events: [] };
-    }
-    intent = planned;
-    state = { ...state, intents: { ...state.intents, [enemy.id]: planned } };
+  // 执行时按当前站位重新选目标：玩家移动后不会朝旧点位空放。
+  const planned = planEnemyIntent(state, setup, enemy.id);
+  if (!planned) {
+    const seq = state.seq + 1;
+    const text = `${enemy.name}找不到能攻击到的目标，按住阵脚。`;
+    const next: BattleState = {
+      ...state,
+      activeId: null,
+      pendingMove: null,
+      enemies: state.enemies.map((unit) =>
+        unit.id === enemy.id ? { ...unit, gauge: 0 } : unit,
+      ),
+      enemyActions: state.enemyActions + 1,
+      seq,
+      log: appendLog(state.log, seq, text, 'enemy'),
+    };
+    return finishEnemyAction(next, setup, [{ kind: 'log', text, tone: 'enemy' }], enemy.id);
   }
+  const intent = planned;
+  state = { ...state, intents: { ...state.intents, [enemy.id]: planned } };
 
   const seq = state.seq + 1;
 
@@ -655,6 +756,72 @@ function applyEnemyAction(
   const target = state.party.find((unit) => unit.id === intent.targetId && unit.hp > 0) ?? null;
   const targetSlot = target?.slot ?? intent.targetSlot;
   const hit = target !== null && intent.hitSlots.includes(target.slot);
+
+  const dodge = hit && target ? tryDodge(state, target, enemy, skill.id, intent.aoe) : null;
+  if (dodge && target) {
+    const nextEnemy: BattleUnit = {
+      ...enemy,
+      facing: intent.facing,
+      gauge: 0,
+      cooldowns:
+        skill.cooldown === undefined || skill.cooldown <= 0
+          ? { ...enemy.cooldowns }
+          : { ...enemy.cooldowns, [skill.id]: skill.cooldown },
+    };
+    const party = state.party.map((unit) =>
+      unit.id === target.id ? { ...unit, slot: dodge.to } : unit,
+    );
+    const text = `${skill.name}擦过——你闪到${slotLabel(dodge.to)}。`;
+    const events: BattleEvent[] = [
+      {
+        kind: 'enemy-face',
+        actorId: enemy.id,
+        facing: intent.facing,
+        reason: 'aim',
+        text: `${enemy.name}转身，面朝${slotLabel(intent.aim)}。`,
+      },
+      {
+        kind: 'dodge',
+        actorId: target.id,
+        attackerId: enemy.id,
+        skillId: skill.id,
+        from: targetSlot,
+        to: dodge.to,
+        aoe: intent.aoe,
+        text: `你闪到${slotLabel(dodge.to)}。`,
+      },
+      {
+        kind: 'enemy-skill',
+        actorId: enemy.id,
+        targetId: target.id,
+        targetSlot,
+        skillId: skill.id,
+        skillName: skill.name,
+        from: enemy.slot,
+        aim: intent.aim,
+        facing: intent.facing,
+        hitSlots: intent.hitSlots,
+        hit: false,
+        amount: 0,
+        targetHp: target.hp,
+        aoe: intent.aoe,
+        dodged: true,
+        text,
+      },
+    ];
+    const next: BattleState = {
+      ...state,
+      activeId: null,
+      pendingMove: null,
+      party,
+      enemies: state.enemies.map((unit) => (unit.id === enemy.id ? nextEnemy : unit)),
+      enemyActions: state.enemyActions + 1,
+      seq,
+      log: appendLog(state.log, seq, text, 'player'),
+    };
+    return finishEnemyAction(next, setup, events, enemy.id);
+  }
+
   const amount =
     hit && target
       ? computeDamage({

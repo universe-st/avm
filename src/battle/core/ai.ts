@@ -24,12 +24,13 @@ import {
  * 规则见 `docs/DESIGN-BATTLE.md` §5：
  * 1. 目标 = 最近的玩家角色（BFS 步数）；平局取 HP 低者 → id 字典序。
  * 2. 目标相邻：按 single-front → front-arc → all-slots 选冷却好的技能；
- *    自由瞄准目标点位，执行时免费转身。
+ *    瞄准确切目标点位，执行时免费转身。
  * 3. 目标不相邻：AOE 冷却好 → AOE；否则 chaser 沿 7 点图走一步缩短距离
- *    （避开占位）；无路可走 → 仍出技能瞄准（会打空）。
- * 4. stationary 永不移动。
+ *    （避开占位）；无路可走 → **返回 null（本动等待）**，绝不瞄无人点位空放。
+ * 4. stationary 永不移动；没有可命中的目标就等待。
  *
- * 每只怪物的意图在**它自己行动结束后**重算；玩家移动不改已锁定意图。
+ * 意图不上屏；执行时 `applyEnemyAction` 会按当前站位重新计划，避免玩家移动后
+ * 打向旧点位。这里返回的 intent 只是计划/调试，不是锁死目标。
  */
 export function planEnemyIntents(
   state: BattleState,
@@ -80,13 +81,8 @@ export function planEnemyIntent(
     if (step) return moveIntent(enemy, target, step);
   }
 
-  const fallback = single ?? arc ?? aoe ?? anyReady;
-  if (fallback) {
-    const intent = skillIntent(fallback, enemy, target, target.slot);
-    return { ...intent, text: `${intent.text}（够不着）` };
-  }
-
-  return moveIntentToFreeNeighbour(state, enemy, target);
+  // 够不着、没有 AOE、也没有可走的追击步：本动等待，绝不空放。
+  return null;
 }
 
 function nearestPartyTarget(state: BattleState, enemy: BattleUnit): BattleUnit | null {

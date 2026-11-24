@@ -355,7 +355,7 @@ CG 构图要求见 `docs/ART-STYLE.md`：主体放中心 4:5 安全区；查看�
 - `facing=up|upRight|right|downRight|down|downLeft|left|upLeft`：覆盖**第一只怪物**的初始朝向（双怪/沙盒也只改第一只），用来逐个验收八向图。**请和 `skip=1` 一起用**：`phase=mid` 会模拟回合，怪物可能已经转向，看到的就不是你指定的朝向。
 - `skip=1`：跳过开场卡，直接进玩家回合（`/battle.ch01.kitchen&skip=1`）。
 - DEV 后门：`__avmBattle()` 返回 `{phase, activeId, party, enemies, intents, pendingMove, knownEnemies, order, gauges, selectedTargetId, playerHp, enemyHp, slot, facing, intent, log}`；点一下前后各读一次，直接断言 seq/enemyActions/HP/目标/落点的变化，不靠截图猜。
-- v3.1 战场只画角色/行动表 chip/伤害数字/技能动画；**不画意图、常驻名牌、HP、点位圈、朝向/背袭、目标白圈**；**当前选中敌人脚下有闪烁绿圈、头顶有名字/血条**；其他地面圈只在普通移动/落点选择出现。属性只在「小白」图鉴。
+- v3.1/v3.2 战场只画角色/行动表 chip/伤害数字/技能动画；**不画常驻名牌、HP、点位圈、朝向/背袭、目标白圈**；**当前选中敌人脚下有闪烁绿圈、头顶有名字/血条（受击下降动画）**；玩家受击临时头顶血条；七点位视觉正六边形等距；御膳房纯地面无墙；其他地面圈只在普通移动/落点选择出现。属性/闪避只在「小白」图鉴。
 - 攻击先弹技能窗（一个技能也弹）；未知怪不显示预计伤害，已知怪才显示；非背袭命中进入落点选择（移动键「留在原地」）。
 - 规则真值：`docs/DESIGN-BATTLE.md`；单测 `test/battle-*.test.ts`（含 `battle-pending`、`battle-codex`）。
 
@@ -377,7 +377,7 @@ CG 构图要求见 `docs/ART-STYLE.md`：主体放中心 4:5 安全区；查看�
 | `scene.placeholder` | 场景 | 序章占位页（仅预览；正常流程不再进入） |
 | `scene.ch01.dorm` | 场景 | 第一章 · 第一节 寝室；phase=opening/explore/after/dark/complete，debug=1 显示碰撞（`dark` 从战后黑场胁迫那一拍开始） |
 | `battle.ch01.first` | 战斗 | 第一章剧情战 v3.1（七点位/行动表 64）；phase=opening/mid/defeat（victory 回退 mid）；没有「解」、攻击禁用、无技能窗、第 4 次怪物行动清除协议必败；场上无圈/无名牌；`facing=` 预览第一只怪八向 |
-| `battle.ch01.kitchen` | 战斗 | 御膳房双怪 v3.1；phase=opening/mid/victory/defeat；「攻击」基础只显示攻击，先弹技能窗、再点敌人选目标（顶部红字「请选择攻击目标」、可取消；可选相邻敌人脚下黄圈闪烁；非法目标红圈闪 3 次 + 「距离不够」后消失不选中），选中有效目标后变红色发光「确认攻击」，选中目标头顶名字/血条；未知怪不显示预计伤害、非背袭命中进入落点选择（红色「请选择移动位置」）、背袭留在原地、平减防御、只杀一只不结束、全灭胜利；「小白」图鉴在底部 HP 行右侧；`facing=` 预览第一只厨子八向 |
+| `battle.ch01.kitchen` | 战斗 | 御膳房双怪 v3.2；phase=opening/mid/victory/defeat；「攻击」基础只显示攻击，先弹技能窗、再点敌人选目标（顶部红字「请选择攻击目标」、可取消；可选相邻敌人脚下黄圈闪烁；非法目标红圈闪 3 次 + 「距离不够」后消失不选中），选中有效目标后变红色发光「确认攻击」，选中目标头顶名字/血条（受击有下降动画）；玩家闪避 100（60%）、闪到相邻空位、AoE 也可闪；敌人执行时重选目标/不空放；七点位视觉正六边形等距；战场纯地面无墙；未知怪不显示预计伤害、非背袭命中进入落点选择（红色「请选择移动位置」）、背袭留在原地、平减防御、只杀一只不结束、全灭胜利；「小白」图鉴在底部 HP 行右侧、显示闪避；`facing=` 预览第一只厨子八向 |
 | `cg.ch01.phone` | CG | 第一章 · 手机白光 |
 | `cg.ch01.xiaobai` | CG | 第一章 · 小白登场 |
 | `cg.ch01.wake` | CG | 第一章 · 醒来 |

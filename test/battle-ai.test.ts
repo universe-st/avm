@@ -71,7 +71,7 @@ describe('enemy AI intent（v3 追击 / 无转向行动）', () => {
     if (intent.kind === 'skill') expect(intent.hitSlots).toHaveLength(7);
   });
 
-  it('stationary monsters never move; they aim at the target and may miss', () => {
+  it('stationary monsters wait instead of aiming at an empty point', () => {
     const state = {
       ...enemyAt('upperRight'),
       enemies: base.enemies.map((unit) => ({
@@ -80,13 +80,7 @@ describe('enemy AI intent（v3 追击 / 无转向行动）', () => {
         cooldowns: { 'miner.quake': 3 },
       })),
     };
-    const intent = intentOf(state, CH01_FIRST_BATTLE);
-    expect(intent.kind).toBe('skill');
-    if (intent.kind === 'skill') {
-      expect(intent.aim).toBe('left');
-      expect(intent.hitSlots).not.toContain('left');
-      expect(intent.text).toContain('够不着');
-    }
+    expect(planEnemyIntent(state, CH01_FIRST_BATTLE, minerId)).toBeNull();
   });
 
   it('chases one free step toward a non-adjacent target', () => {

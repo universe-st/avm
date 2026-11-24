@@ -23,6 +23,7 @@ export const CH01_KITCHEN_BATTLE: BattleSetup = {
       hp: 90,
       atk: 16,
       spd: 14,
+      dodge: 100,
       skills: [PLAYER_SKILL_JIE],
       slot: 'left',
     },

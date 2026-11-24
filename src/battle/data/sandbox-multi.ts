@@ -20,6 +20,7 @@ export const BATTLE_SANDBOX_MULTI: BattleSetup = {
       hp: 90,
       atk: 16,
       spd: 14,
+      dodge: 100,
       skills: [PLAYER_SKILL_JIE],
       slot: 'left',
     },

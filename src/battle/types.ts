@@ -9,7 +9,8 @@
  * - 跑条决定先后（gauge 0..1000），顶部只显示头像行动表，不画量条；
  * - 攻击/技能只打相邻点位；怪物技能可自由瞄准，执行时免费转身；
  * - 怪物不再有单独的转向行动；受击后免费转向攻击来向；
- * - 怪物可以移动到相邻点位并面朝移动方向；意图提前锁定并公示；
+ * - 怪物可以移动到相邻点位并面朝移动方向；意图不上屏，执行时按当前目标重选；
+ * - 闪避：有相邻空位时按 1-200/(3x+200) 判定，成功则移动到空位并免伤；
  * - party / enemies 都是数组，按 activeId 找当前行动者（当前 party 只有 1 人）。
  */
 
@@ -84,6 +85,8 @@ export interface BattleUnitSetup {
   readonly spd: number;
   /** 平减防御；省略 0。 */
   readonly defense?: number;
+  /** 闪避点（整数）；省略 0。闪避率 = 1 - 200/(3x+200)。 */
+  readonly dodge?: number;
   /** 技能 id（来自 `data/skills.ts`）。 */
   readonly skills: readonly string[];
 }
@@ -153,6 +156,8 @@ export interface BattleUnit {
   readonly spd: number;
   /** 平减防御（≥0）；伤害结算时先减它，再乘防御动作 0.5。 */
   readonly defense: number;
+  /** 闪避点（≥0）；闪避率 = 1 - 200/(3x+200)。 */
+  readonly dodge: number;
   /** 行动条 0..1000，到达 1000 的单位行动。 */
   readonly gauge: number;
   readonly guarding: boolean;
@@ -231,7 +236,7 @@ export interface BattleState {
   readonly activeId: string | null;
   readonly party: readonly BattleUnit[];
   readonly enemies: readonly BattleUnit[];
-  /** 每只活着的怪物一条锁定意图。 */
+  /** 每只活着的怪物一条计划意图；执行时重算。 */
   readonly intents: Readonly<Record<string, EnemyIntent>>;
   /** 攻击命中后的落点选择；null = 没有待选落点。 */
   readonly pendingMove: PendingMove | null;
@@ -276,6 +281,8 @@ export type BattleEvent =
       readonly backstab: boolean;
       readonly targetHp: number;
       readonly from: SlotId;
+      /** 目标是否闪避了这次攻击。 */
+      readonly dodged?: boolean;
       readonly text: string;
     }
   | {
@@ -314,6 +321,18 @@ export type BattleEvent =
       readonly hit: boolean;
       readonly amount: number;
       readonly targetHp: number;
+      readonly aoe: boolean;
+      /** 目标是否闪避了这次技能。 */
+      readonly dodged?: boolean;
+      readonly text: string;
+    }
+  | {
+      readonly kind: 'dodge';
+      readonly actorId: string;
+      readonly attackerId: string;
+      readonly skillId: string;
+      readonly from: SlotId;
+      readonly to: SlotId;
       readonly aoe: boolean;
       readonly text: string;
     }

@@ -203,6 +203,13 @@ export class BattleCh01Scene extends UIScene {
   /** 选中目标头顶的名字/血条；只有选中目标显示，取消/死亡/胜负后隐藏。 */
   private targetNameText: Phaser.GameObjects.Text | null = null;
   private targetHpBar: Phaser.GameObjects.Graphics | null = null;
+  private targetHpFill: Phaser.GameObjects.Rectangle | null = null;
+  private targetHpFillTween: Phaser.Tweens.Tween | null = null;
+  /** 玩家受击时临时出现的头顶血条；动画结束后隐藏。 */
+  private playerHpBar: Phaser.GameObjects.Graphics | null = null;
+  private playerHpFill: Phaser.GameObjects.Rectangle | null = null;
+  private playerHpFillTween: Phaser.Tweens.Tween | null = null;
+  private playerHpHideTimer: Phaser.Time.TimerEvent | null = null;
   /** 选目标阶段：所有可选的相邻敌人脚下黄圈（闪烁）。 */
   private validTargetsGraphics: Phaser.GameObjects.Graphics | null = null;
   private validTargetsTween: Phaser.Tweens.Tween | null = null;
@@ -450,6 +457,18 @@ export class BattleCh01Scene extends UIScene {
     this.targetNameText = null;
     this.targetHpBar?.setVisible(false);
     this.targetHpBar = null;
+    this.targetHpFillTween?.stop();
+    this.targetHpFillTween = null;
+    this.targetHpFill?.setVisible(false);
+    this.targetHpFill = null;
+    this.playerHpFillTween?.stop();
+    this.playerHpFillTween = null;
+    this.playerHpHideTimer?.remove();
+    this.playerHpHideTimer = null;
+    this.playerHpBar?.setVisible(false);
+    this.playerHpBar = null;
+    this.playerHpFill?.setVisible(false);
+    this.playerHpFill = null;
     this.validTargetsTween?.remove();
     this.validTargetsTween = null;
     this.validTargetsGraphics = null;
@@ -617,16 +636,31 @@ export class BattleCh01Scene extends UIScene {
       .graphics()
       .setDepth(LAYERS.effects + 19)
       .setVisible(false);
+    this.targetHpFill = this.add
+      .rectangle(0, 0, 1, 8, DANGER, 0.95)
+      .setOrigin(0, 0.5)
+      .setDepth(LAYERS.effects + 20)
+      .setVisible(false);
     this.targetNameText = makeSceneText(this, 0, 0, '', {
       size: 18,
       color: PAPER,
       align: 'center',
       originX: 0.5,
       originY: 1,
-      depth: LAYERS.effects + 20,
+      depth: LAYERS.effects + 21,
       stroke: 4,
       bold: true,
     }).setVisible(false);
+
+    this.playerHpBar = this.add
+      .graphics()
+      .setDepth(LAYERS.effects + 19)
+      .setVisible(false);
+    this.playerHpFill = this.add
+      .rectangle(0, 0, 1, 8, DANGER, 0.95)
+      .setOrigin(0, 0.5)
+      .setDepth(LAYERS.effects + 20)
+      .setVisible(false);
   }
 
   private createActors(): void {
@@ -1337,6 +1371,7 @@ export class BattleCh01Scene extends UIScene {
         atk: setupEnemy.atk,
         defense: setupEnemy.defense ?? 0,
         spd: setupEnemy.spd,
+        dodge: setupEnemy.dodge ?? 0,
         skills: setupEnemy.skills.map((skillId) => resolveSkill(skillId).name),
       };
     });
@@ -1407,6 +1442,8 @@ export class BattleCh01Scene extends UIScene {
         return (next) => this.animateEnemyMove(event, next);
       case 'enemy-skill':
         return (next) => this.animateEnemySkill(event, next);
+      case 'dodge':
+        return (next) => this.animateDodge(event, next);
       case 'protocol':
         return (next) => this.animateProtocol(next);
       case 'victory':
@@ -1501,18 +1538,26 @@ export class BattleCh01Scene extends UIScene {
     }
     this.playSfx(BATTLE_ASSET_KEYS.sfx.slash, 0.9);
     const fromPoint = this.layout.slots[event.from];
-    const targetPoint =
-      targetActor?.headPoint ??
-      {
-        x: this.layout.slots[event.targetSlot].x,
-        y: this.layout.slots[event.targetSlot].y - 180,
-      };
+    const targetPoint = event.dodged
+      ? {
+          x: this.layout.slots[event.targetSlot].x,
+          y: this.layout.slots[event.targetSlot].y - 180,
+        }
+      : targetActor?.headPoint ??
+        {
+          x: this.layout.slots[event.targetSlot].x,
+          y: this.layout.slots[event.targetSlot].y - 180,
+        };
     const facesRight = targetPoint.x >= fromPoint.x;
     actor.setMirror(!facesRight);
 
     actor.playAttack(
       { reduced: this.reduced },
       () => {
+        if (event.dodged) {
+          // 目标在 dodge 事件里已经闪到相邻空位；攻击只落空，不结算伤害/图鉴。
+          return;
+        }
         targetActor?.flash(0xffffff, 70);
         // 命中即解锁图鉴；预览只更新内存，不写盘。
         // markEnemyKnown 会从 storage 重新读；预览没有写盘，必须和当前内存集合求并，
@@ -1539,6 +1584,13 @@ export class BattleCh01Scene extends UIScene {
           event.backstab ? GOLD : DANGER,
           event.backstab ? '背袭 ×1.5' : event.zone === 'side' ? '侧面' : '正面',
         );
+        const enemy = this.state.enemies.find((unit) => unit.id === event.targetId);
+        this.animateTargetHp(
+          event.targetId,
+          Math.min(enemy?.maxHp ?? Number.POSITIVE_INFINITY, event.targetHp + event.amount),
+          event.targetHp,
+          enemy?.maxHp ?? event.targetHp + event.amount,
+        );
         this.playSfx(
           event.backstab ? BATTLE_ASSET_KEYS.sfx.backstab : BATTLE_ASSET_KEYS.sfx.hit,
           event.backstab ? 1 : 0.85,
@@ -1561,6 +1613,45 @@ export class BattleCh01Scene extends UIScene {
         next();
       },
     );
+  }
+
+  private animateDodge(
+    event: Extract<BattleEvent, { kind: 'dodge' }>,
+    next: () => void,
+  ): void {
+    const isPlayer = event.actorId === this.playerUnit().id;
+    const actor = isPlayer ? this.playerActor : this.enemyActorFor(event.actorId);
+    const from = this.layout.slots[event.from];
+    const to = this.layout.slots[event.to];
+    if (!actor) {
+      next();
+      return;
+    }
+    this.playSfx(BATTLE_ASSET_KEYS.sfx.blink, 0.35, 1.2);
+    this.floatLabel('闪避', to.x, to.y - 150, GOLD);
+    if (this.reduced) {
+      actor.setPosition(to.x, to.y);
+      if (isPlayer) actor.setMirror(this.playerFlipForSlot(event.to));
+      next();
+      return;
+    }
+    afterimage(this, actor.display.texture.key, from.x, from.y, {
+      scale: actor.display.scaleX,
+      flipX: actor.display.flipX,
+      alpha: 0.32,
+      ms: 240,
+      depth: LAYERS.effects + 4,
+    });
+    actor.setPosition(to.x, to.y);
+    if (isPlayer) actor.setMirror(this.playerFlipForSlot(event.to));
+    impactRing(this, to.x, to.y - 46, {
+      color: GOLD,
+      radius: 48,
+      ms: 180,
+      reduced: this.reduced,
+      depth: LAYERS.effects - 10,
+    });
+    this.time.delayedCall(140, next);
   }
 
   private animateGuard(next: () => void): void {
@@ -1692,8 +1783,10 @@ export class BattleCh01Scene extends UIScene {
     targetPoint: { readonly x: number; readonly y: number },
   ): void {
     if (!this.lifecycle.isLive(this.runId)) return;
+    if (event.dodged) return;
     const target = this.state.party.find((unit) => unit.id === event.targetId);
     if (event.hit) {
+      this.showPlayerHp(event.targetHp + event.amount, event.targetHp);
       this.playerActor?.flash(0xffffff, 90);
       this.floatNumber(
         `-${event.amount}`,
@@ -1728,7 +1821,8 @@ export class BattleCh01Scene extends UIScene {
     const angle = FACING_ANGLES[facing];
     const isQuake = event.skillId.endsWith('quake');
     const target = this.state.party.find((unit) => unit.id === event.targetId);
-    const targetPoint = this.layout.slots[target?.slot ?? event.targetSlot];
+    const targetSlot = event.dodged ? event.targetSlot : target?.slot ?? event.targetSlot;
+    const targetPoint = this.layout.slots[targetSlot];
     const strip = this.enemyStrikeStrip(this.unitById(event.actorId)?.art, event.skillId);
 
     if (actor && strip && this.textures.exists(strip.key)) {
@@ -1847,7 +1941,7 @@ export class BattleCh01Scene extends UIScene {
       this.state.activeId === player.id;
 
     this.turnLabel.value = `第 ${this.state.seq + 1} 动 · 敌方 ${living.length}`;
-    this.playerLabel.value = `${player.name}  HP ${player.hp}/${player.maxHp}${
+    this.playerLabel.value = `${player.name}  HP ${player.hp}/${player.maxHp} · 闪避 ${player.dodge}${
       player.guarding ? ' · 防御中' : ''
     }`;
     this.hintText.value = this.computeHint();
@@ -2104,6 +2198,9 @@ export class BattleCh01Scene extends UIScene {
     ) {
       name.setVisible(false);
       bar.clear().setVisible(false);
+      this.targetHpFillTween?.stop();
+      this.targetHpFillTween = null;
+      this.targetHpFill?.setVisible(false);
       return;
     }
 
@@ -2117,17 +2214,95 @@ export class BattleCh01Scene extends UIScene {
     bar.clear();
     bar.fillStyle(INK, 0.82).fillRoundedRect(x, y, barWidth, barHeight, 3);
     bar.lineStyle(1, GOLD, 0.45).strokeRoundedRect(x, y, barWidth, barHeight, 3);
-    const ratio = Math.max(0, Math.min(1, target.hp / target.maxHp));
-    if (ratio > 0) {
-      bar.fillStyle(DANGER, 0.95).fillRoundedRect(
-        x + 1,
-        y + 1,
-        Math.max(0, (barWidth - 2) * ratio),
-        barHeight - 2,
-        2,
-      );
-    }
     bar.setVisible(true);
+    const fill = this.targetHpFill;
+    if (fill) {
+      this.targetHpFillTween?.stop();
+      this.targetHpFillTween = null;
+      const ratio = Math.max(0, Math.min(1, target.hp / target.maxHp));
+      fill
+        .setPosition(x + 1, y + barHeight / 2)
+        .setSize(Math.max(1, (barWidth - 2) * ratio), barHeight - 2)
+        .setDisplaySize(Math.max(1, (barWidth - 2) * ratio), barHeight - 2)
+        .setVisible(true);
+    }
+  }
+
+  /** 敌人被命中后，血条从旧值滑到新值。 */
+  private animateTargetHp(
+    targetId: string,
+    oldHp: number,
+    newHp: number,
+    maxHp: number,
+  ): void {
+    const fill = this.targetHpFill;
+    const actor = this.enemyActors.get(targetId);
+    if (!fill || !actor) return;
+    const barWidth = 130;
+    const barHeight = 10;
+    const head = actor.headPoint;
+    const x = head.x - barWidth / 2;
+    const y = head.y - 20;
+    const ratio = (hp: number): number =>
+      Math.max(0, Math.min(1, hp / Math.max(1, maxHp)));
+    fill
+      .setPosition(x + 1, y + barHeight / 2)
+      .setSize(Math.max(1, (barWidth - 2) * ratio(oldHp)), barHeight - 2)
+      .setDisplaySize(Math.max(1, (barWidth - 2) * ratio(oldHp)), barHeight - 2)
+      .setVisible(true);
+    this.targetHpFillTween?.stop();
+    if (this.reduced) {
+      fill.setDisplaySize(Math.max(1, (barWidth - 2) * ratio(newHp)), barHeight - 2);
+      return;
+    }
+    this.targetHpFillTween = this.tweens.add({
+      targets: fill,
+      displayWidth: Math.max(1, (barWidth - 2) * ratio(newHp)),
+      duration: 360,
+      ease: 'Cubic.easeOut',
+    });
+  }
+
+  /** 玩家受击时头顶临时血条：旧值滑到新值，随后自动隐藏。 */
+  private showPlayerHp(oldHp: number, newHp: number): void {
+    const bar = this.playerHpBar;
+    const fill = this.playerHpFill;
+    const actor = this.playerActor;
+    if (!bar || !fill || !actor) return;
+    const player = this.playerUnit();
+    const barWidth = 130;
+    const barHeight = 10;
+    const head = actor.headPoint;
+    const x = head.x - barWidth / 2;
+    const y = head.y - 20;
+    const ratio = (hp: number): number =>
+      Math.max(0, Math.min(1, hp / Math.max(1, player.maxHp)));
+    bar.clear();
+    bar.fillStyle(INK, 0.82).fillRoundedRect(x, y, barWidth, barHeight, 3);
+    bar.lineStyle(1, GOLD, 0.45).strokeRoundedRect(x, y, barWidth, barHeight, 3);
+    bar.setVisible(true);
+    fill
+      .setPosition(x + 1, y + barHeight / 2)
+      .setSize(Math.max(1, (barWidth - 2) * ratio(oldHp)), barHeight - 2)
+      .setDisplaySize(Math.max(1, (barWidth - 2) * ratio(oldHp)), barHeight - 2)
+      .setVisible(true);
+    this.playerHpFillTween?.stop();
+    if (this.reduced) {
+      fill.setDisplaySize(Math.max(1, (barWidth - 2) * ratio(newHp)), barHeight - 2);
+    } else {
+      this.playerHpFillTween = this.tweens.add({
+        targets: fill,
+        displayWidth: Math.max(1, (barWidth - 2) * ratio(newHp)),
+        duration: 360,
+        ease: 'Cubic.easeOut',
+      });
+    }
+    this.playerHpHideTimer?.remove();
+    this.playerHpHideTimer = this.time.delayedCall(950, () => {
+      if (!this.lifecycle.isLive(this.runId)) return;
+      bar.setVisible(false);
+      fill.setVisible(false);
+    });
   }
 
   private syncActorPositions(): void {
@@ -2471,6 +2646,18 @@ export class BattleCh01Scene extends UIScene {
     this.targetNameText = null;
     this.targetHpBar?.setVisible(false);
     this.targetHpBar = null;
+    this.targetHpFillTween?.stop();
+    this.targetHpFillTween = null;
+    this.targetHpFill?.setVisible(false);
+    this.targetHpFill = null;
+    this.playerHpFillTween?.stop();
+    this.playerHpFillTween = null;
+    this.playerHpHideTimer?.remove();
+    this.playerHpHideTimer = null;
+    this.playerHpBar?.setVisible(false);
+    this.playerHpBar = null;
+    this.playerHpFill?.setVisible(false);
+    this.playerHpFill = null;
     this.validTargetsTween?.remove();
     this.validTargetsTween = null;
     this.validTargetsGraphics = null;
