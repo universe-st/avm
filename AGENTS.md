@@ -76,6 +76,10 @@ pnpm android:release
       `ch01.portraits`（周全/小白/矿工，四个场景共用）、`ch01.kitchen`（老麦/老肯）、
       `cutscene.ch01palace`（郑卿/楚公公/侍卫/周全慌张）。key 统一 `img.char.portrait.*`。
     - 对话结束/跳过/进菜单必须 `portrait.hide()`，SHUTDOWN 必须 `destroy()`（场景实例会复用）。
+    - **情绪差分**（2026-11-25）：周全有平常/皱眉/震惊/快乐/尴尬五张，郑卿有平常/震惊/得意/尴尬四张；
+      台词用 `DialogueLine.portraitEmotion`（行 cue，表现型）指定，缺省 = 角色默认脸。
+      表在 `SPEAKER_PORTRAIT_EMOTIONS`，切换由 `reducePortraitForLine` 统一给出；**换表情是同一个人
+      原地换图（`soft: true`，不播入场滑入），换人才播入场**。金殿周全用的是被按跪慌张特写，不套差分。
 
 ## 3. 代码风格
 

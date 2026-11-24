@@ -29,14 +29,28 @@ export class PortraitLayer {
     return this.key;
   }
 
-  /** 显示（同一张已经在场就只做一次呼吸，不重复入场）。 */
-  show(key: string, side: PortraitSide = 'right'): void {
+  /**
+   * 显示（同一张已经在场就只做一次呼吸，不重复入场）。
+   *
+   * `soft` = 同一个人换表情（情绪差分）：原地换贴图，不滑入、不重建、不打断呼吸。
+   * 否则每换一次表情，人都要从画面外飞进来一次。
+   */
+  show(key: string, side: PortraitSide = 'right', options: { soft?: boolean } = {}): void {
     if (!this.scene.textures.exists(key)) return;
     const plan = getViewportPlan();
     const metrics = portraitMetrics(plan, side);
 
     if (this.key === key && this.image) {
       this.image.setPosition(metrics.anchorX, metrics.baseY);
+      return;
+    }
+
+    if (options.soft === true && this.image) {
+      this.image.setTexture(key);
+      this.image.setDisplaySize(metrics.width, metrics.height);
+      this.image.setPosition(metrics.anchorX, metrics.baseY);
+      this.image.setFlipX(side === 'left');
+      this.key = key;
       return;
     }
 

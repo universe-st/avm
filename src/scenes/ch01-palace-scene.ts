@@ -55,6 +55,7 @@ import {
   reducePortraitForSay,
   type PalaceDir,
 } from '../story/ch01-palace';
+import type { PortraitEmotion } from '../story/dialogue';
 import {
   PalacePlayer,
   type PalaceAction,
@@ -452,7 +453,7 @@ export class Ch01PalaceScene extends UIScene {
       if (event.type === 'action') this.runAction(event.action);
       else if (event.type === 'say') {
         // 开口前先把立绘对齐到说话人：数据里漏写换立绘也不会再出现「周全的名字配郑卿的脸」。
-        this.alignPortraitForLine(event.speaker);
+        this.alignPortraitForLine(event.speaker, event.portraitEmotion);
         const tone = speakerTone(event.speaker, event.role);
         this.sayTone.value = tone;
         this.saySpeaker.value = speakerLabel(event.speaker);
@@ -686,9 +687,16 @@ export class Ch01PalaceScene extends UIScene {
    * 这里只负责「换人时必须换脸、没立绘的人不许顶别人的脸」。
    * 契约见 `src/story/ch01-palace.ts` 的 `PALACE_SPEAKER_PORTRAIT`。
    */
-  private alignPortraitForLine(speaker: string | undefined): void {
+  private alignPortraitForLine(
+    speaker: string | undefined,
+    emotion?: PortraitEmotion,
+  ): void {
     const currentKey = this.portrait?.currentKey ?? null;
-    const step = reducePortraitForSay(speaker, currentKey ? { key: currentKey } : null);
+    const step = reducePortraitForSay(
+      speaker,
+      currentKey ? { key: currentKey } : null,
+      emotion,
+    );
     if (step.action === 'show') this.portrait?.show(step.key, step.side);
     else if (step.action === 'hide') this.portrait?.hide();
   }

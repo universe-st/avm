@@ -19,6 +19,17 @@ export type EmotionKind = 'confused' | 'angry' | 'happy' | 'surprised' | 'sad' |
 export type EmotionTarget = 'zhou' | 'zheng' | 'xiaobai';
 
 /**
+ * 说话人立绘的情绪差分（2026-11-25）。
+ *
+ * 和 `EmotionKind`（头顶表情气泡）是两套东西：气泡是**世界层**里角色头上的小图标，
+ * 这里是**对话立绘**换成哪张脸。取值由 `src/story/portraits.ts` 的
+ * `SPEAKER_PORTRAIT_EMOTIONS` 决定有没有图；没登记的差分自动回落到基础立绘。
+ *
+ * - `neutral` 平常 / `frown` 皱眉 / `shocked` 震惊 / `happy` 快乐 / `awkward` 尴尬
+ */
+export type PortraitEmotion = 'neutral' | 'frown' | 'shocked' | 'happy' | 'awkward';
+
+/**
  * 稳定角色 id：显示名会变，身份不变。
  *
  * 小白的名字是剧情里现给的（先是「？？？」，再是「莫名其妙出现的白色小娃娃」，
@@ -42,6 +53,13 @@ export interface DialogueLine {
   readonly emotion?: EmotionKind;
   /** 表情气泡挂在谁头上；省略时按说话人推断。 */
   readonly emotionBy?: EmotionTarget;
+  /**
+   * 这句台词的**对话立绘情绪**（换哪张脸）。
+   *
+   * 省略 = 用角色默认表情；只对登记过差分的角色生效（周全 / 郑卿）。
+   * 属于表现型：跳过不补演——玩家没看见这句，就不该在下一句突然换成震惊脸。
+   */
+  readonly portraitEmotion?: PortraitEmotion;
   /**
    * 这一行显示时附带的**一次性音效**（Phaser 音频 cache key）。
    *
@@ -82,7 +100,16 @@ export interface DialogueLine {
  * **新增 cue 字段时先加到这里，再到 `DIALOGUE_CUE_KINDS` 里表态**：新 cue 到底属于
  * 「状态型」还是「表现型」。下面用 `satisfies` 兜住，漏分类直接编译失败。
  */
-export type DialogueCueKey = 'cg' | 'fx' | 'bgm' | 'emotion' | 'sfx' | 'blackout' | 'dark' | 'getUp';
+export type DialogueCueKey =
+  | 'cg'
+  | 'fx'
+  | 'bgm'
+  | 'emotion'
+  | 'portraitEmotion'
+  | 'sfx'
+  | 'blackout'
+  | 'dark'
+  | 'getUp';
 
 /**
  * 行 cue 的两类语义（这是机制，不是补丁）。
@@ -99,6 +126,7 @@ export const DIALOGUE_CUE_KINDS = {
   cg: 'expressive',
   fx: 'expressive',
   emotion: 'expressive',
+  portraitEmotion: 'expressive',
   sfx: 'expressive',
   blackout: 'expressive',
   dark: 'expressive',

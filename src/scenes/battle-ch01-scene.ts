@@ -1197,11 +1197,22 @@ export class BattleCh01Scene extends UIScene {
   private startBattleTalk(line: FirstBattleTalkLine, next: () => void): void {
     this.talkDone = next;
     this.talkTyped = 0;
-    this.talkPlayer = new DialoguePlayer([{ speaker: line.speaker, text: line.text }], {
-      pageChars: DIALOGUE_PAGE_CHARS,
-      balanceLines: true,
-      typeMs: Math.round(DIALOGUE_TYPE_MS * textSpeedFactor(settings.textSpeed)),
-    });
+    this.talkPlayer = new DialoguePlayer(
+      [
+        {
+          speaker: line.speaker,
+          text: line.text,
+          ...(line.portraitEmotion === undefined
+            ? {}
+            : { portraitEmotion: line.portraitEmotion }),
+        },
+      ],
+      {
+        pageChars: DIALOGUE_PAGE_CHARS,
+        balanceLines: true,
+        typeMs: Math.round(DIALOGUE_TYPE_MS * textSpeedFactor(settings.textSpeed)),
+      },
+    );
     this.talkSpeaker.value = speakerLabel(line.speaker);
     // 语义色沿用剧本里写的 tone（「侍卫机器人」不是按名字能推出来的矿工色）。
     this.talkTone.value = line.tone;

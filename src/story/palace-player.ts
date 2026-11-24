@@ -12,7 +12,7 @@
  */
 
 import type { BgmId } from '../audio/bgm-tracks';
-import type { EmotionKind } from './dialogue';
+import type { EmotionKind, PortraitEmotion } from './dialogue';
 
 export type PalaceActorId = 'zhou' | 'zheng' | 'chu' | 'eunuchLeft' | 'eunuchRight' | 'miner';
 export type PalaceFx = 'flash' | 'flashRed' | 'shake' | 'rumble';
@@ -75,6 +75,8 @@ export interface PalaceSay {
   readonly text: string;
   /** 说话人的稳定角色 id（名字会变时，声线/立绘认这个）。 */
   readonly role?: 'xiaobai';
+  /** 这句的对话立绘情绪差分（目前只有郑卿登记）。 */
+  readonly portraitEmotion?: PortraitEmotion;
 }
 
 export interface PalaceAct {
@@ -88,7 +90,14 @@ export type PalaceBeat = PalaceSay | PalaceAct;
 
 export type PalaceEvent =
   | { readonly type: 'action'; readonly action: PalaceAction }
-  | { readonly type: 'say'; readonly index: number; readonly speaker?: string; readonly text: string; readonly role?: 'xiaobai' }
+  | {
+      readonly type: 'say';
+      readonly index: number;
+      readonly speaker?: string;
+      readonly text: string;
+      readonly role?: 'xiaobai';
+      readonly portraitEmotion?: PortraitEmotion;
+    }
   | { readonly type: 'complete' };
 
 export interface PalacePlayerState {
@@ -147,6 +156,9 @@ export class PalacePlayer {
             ...(beat.speaker === undefined ? {} : { speaker: beat.speaker }),
             text: beat.text,
             ...(beat.role === undefined ? {} : { role: beat.role }),
+            ...(beat.portraitEmotion === undefined
+              ? {}
+              : { portraitEmotion: beat.portraitEmotion }),
           });
           this.waiting = true;
           break;

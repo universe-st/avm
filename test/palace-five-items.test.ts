@@ -464,7 +464,42 @@ const ALL_PORTRAITS = [
   {
     key: 'img.char.portrait.zhou',
     bundle: 'ch01.portraits',
-    path: 'public/assets/img/character/ch01/portrait_zhou.png',
+    path: 'public/assets/img/character/ch01/portrait_zhou_neutral.png',
+  },
+  {
+    key: 'img.char.portrait.zhou_frown',
+    bundle: 'ch01.portraits',
+    path: 'public/assets/img/character/ch01/portrait_zhou_frown.png',
+  },
+  {
+    key: 'img.char.portrait.zhou_shocked',
+    bundle: 'ch01.portraits',
+    path: 'public/assets/img/character/ch01/portrait_zhou_shocked.png',
+  },
+  {
+    key: 'img.char.portrait.zhou_happy',
+    bundle: 'ch01.portraits',
+    path: 'public/assets/img/character/ch01/portrait_zhou_happy.png',
+  },
+  {
+    key: 'img.char.portrait.zhou_awkward',
+    bundle: 'ch01.portraits',
+    path: 'public/assets/img/character/ch01/portrait_zhou_awkward.png',
+  },
+  {
+    key: 'img.char.portrait.zheng_shocked',
+    bundle: 'cutscene.ch01palace',
+    path: 'public/assets/img/character/palace/portrait_zheng_shocked.png',
+  },
+  {
+    key: 'img.char.portrait.zheng_happy',
+    bundle: 'cutscene.ch01palace',
+    path: 'public/assets/img/character/palace/portrait_zheng_happy.png',
+  },
+  {
+    key: 'img.char.portrait.zheng_awkward',
+    bundle: 'cutscene.ch01palace',
+    path: 'public/assets/img/character/palace/portrait_zheng_awkward.png',
   },
   {
     key: 'img.char.portrait.laomai',

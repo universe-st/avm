@@ -9,6 +9,7 @@ import {
   XIAOBAI_SPEAKER,
 } from '../src/story/ch01-palace';
 import type { PalaceBeat, PalaceSay } from '../src/story/palace-player';
+import type { PortraitEmotion } from '../src/story/dialogue';
 
 /**
  * 金殿「说话人 ↔ 立绘」对位的护栏。
@@ -35,6 +36,7 @@ interface PlayedLine {
   readonly at: number;
   readonly speaker: string;
   readonly text: string;
+  readonly emotion?: PortraitEmotion;
   readonly portrait: PortraitState | null;
 }
 
@@ -52,10 +54,16 @@ function playPortraits(): PlayedLine[] {
       }
       return;
     }
-    const step = reducePortraitForSay(beat.speaker, portrait);
+    const step = reducePortraitForSay(beat.speaker, portrait, beat.portraitEmotion);
     if (step.action === 'show') portrait = { key: step.key, side: step.side };
     else if (step.action === 'hide') portrait = null;
-    lines.push({ at, speaker: beat.speaker ?? '', text: beat.text, portrait });
+    lines.push({
+      at,
+      speaker: beat.speaker ?? '',
+      text: beat.text,
+      emotion: beat.portraitEmotion,
+      portrait,
+    });
   });
   return lines;
 }
@@ -76,7 +84,7 @@ describe('金殿：每句台词开口时，立绘就是说话人本人', () => {
   it('有立绘的说话人：台词显示那一刻，屏幕上必须是他自己的立绘', () => {
     const wrong = lines
       .map((line) => {
-        const entry = palacePortraitForSpeaker(line.speaker);
+        const entry = palacePortraitForSpeaker(line.speaker, line.emotion);
         if (!entry) return null; // 旁白 / 明确无立绘（矿工）
         return line.portrait?.key === entry.key
           ? null
@@ -185,7 +193,7 @@ describe('金殿：对位表本身与接线', () => {
 
   it('场景在 say 分支接上了归约（漏接就等于没有防线）', () => {
     const source = readFileSync('src/scenes/ch01-palace-scene.ts', 'utf8');
-    expect(source).toMatch(/this\.alignPortraitForLine\(event\.speaker\)/);
-    expect(source).toMatch(/reducePortraitForSay\(speaker,/);
+    expect(source).toMatch(/this\.alignPortraitForLine\(event\.speaker,\s*event\.portraitEmotion\)/);
+    expect(source).toMatch(/reducePortraitForSay\(\s*speaker,/);
   });
 });

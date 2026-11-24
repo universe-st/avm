@@ -54,17 +54,17 @@ export const CH01_AFTER_INTRO: readonly DialogueLine[] = [
     cg: CH01_ASSET_KEYS.cg.wake,
     bgm: 'ch01Dorm',
   },
-  { speaker: '周全', text: '什么情况……刚才……是我做了个梦吗？' },
+  { speaker: '周全', text: '什么情况……刚才……是我做了个梦吗？', portraitEmotion: 'shocked' },
   xiaobai('否定。做梦的并不是你，而是ETH-HB-001B。'),
-  { speaker: '周全', text: '001B？' },
+  { speaker: '周全', text: '001B？', portraitEmotion: 'awkward' },
   xiaobai('此为自动生成的编号，指代那位被你称为“老郑”的地球智慧生物。'),
   {
     speaker: '旁白',
     text: '你看了一眼那个呼呼大睡的舍友，郑卿，不知为什么，心里冒出一阵无名之火。',
   },
-  { speaker: '周全', text: '他有名字！他叫郑卿！', emotion: 'angry', emotionBy: 'zhou' },
+  { speaker: '周全', text: '他有名字！他叫郑卿！', emotion: 'angry', emotionBy: 'zhou', portraitEmotion: 'frown' },
   xiaobai('该星球有约5382个被称为“郑卿”的生物，使用编号称呼能减少歧义。'),
-  { speaker: '周全', text: '……你……' },
+  { speaker: '周全', text: '……你……', portraitEmotion: 'awkward' },
   {
     speaker: '旁白',
     text: '她的话让你哑口无言。但这似乎并不是最要紧的事。小家伙注意到了你欲言又止的表情。',
@@ -98,7 +98,7 @@ export const CH01_AFTER_INQUIRY: InquiryScript<Ch01AfterQuestionId> = {
         xiaobai(
           '因泰里文明。它们使用了一百二十六艘矿艇，以1.65光年为半径围绕地球，持续对地球上的智慧生物产生影响。',
         ),
-        { speaker: '周全', text: '……因泰里。原来最近新闻上说的“沉睡症”，是外星人搞的鬼吗？' },
+        { speaker: '周全', text: '……因泰里。原来最近新闻上说的“沉睡症”，是外星人搞的鬼吗？', portraitEmotion: 'awkward' },
         xiaobai('确定。'),
       ],
     },
@@ -122,7 +122,7 @@ export const CH01_AFTER_INQUIRY: InquiryScript<Ch01AfterQuestionId> = {
           text: '你的耳边传来一阵鼾声，伴随着吞咽口水的声音。',
           sfx: CH01_ASSET_KEYS.audio.snore,
         },
-        { speaker: '周全', text: '他是想当皇帝还是想把班主任当太监使唤？' },
+        { speaker: '周全', text: '他是想当皇帝还是想把班主任当太监使唤？', portraitEmotion: 'awkward' },
         xiaobai('这个问题我无法解答。'),
         { speaker: '周全', text: '那为什么他在梦里不认识我？' },
         xiaobai('梦主在自身梦域拥有绝对认知主导权。你作为外来者，身份未被其梦域逻辑接纳。'),
@@ -138,7 +138,7 @@ export const CH01_AFTER_INQUIRY: InquiryScript<Ch01AfterQuestionId> = {
         ),
         { speaker: '周全', text: '那么，你想做什么？' },
         xiaobai('指引地球上的智慧生命，协助切断因泰里的意识能量供应渠道。'),
-        { speaker: '周全', text: '……' },
+        { speaker: '周全', text: '……', portraitEmotion: 'awkward' },
       ],
     },
   ],
@@ -148,7 +148,7 @@ export const CH01_AFTER_INQUIRY: InquiryScript<Ch01AfterQuestionId> = {
 export const CH01_AFTER_CLOSING: readonly DialogueLine[] = [
   { speaker: '周全', text: '所以，我能怎么帮你？' },
   xiaobai('潜入ETH-HB-001B的梦境，将他杀死。'),
-  { speaker: '周全', text: '你让我杀人？！那不可能！', emotion: 'angry', emotionBy: 'zhou' },
+  { speaker: '周全', text: '你让我杀人？！那不可能！', emotion: 'angry', emotionBy: 'zhou', portraitEmotion: 'frown' },
   xiaobai(
     '杀死梦中的精神体不会导致其在现实中死亡，相反，会令其脱离梦境，并很难再次陷入沉睡症状态。',
   ),
@@ -165,17 +165,17 @@ export const CH01_AFTER_CLOSING: readonly DialogueLine[] = [
     '初步扫描显示，你对执行此任务所需的“精神链接切断工具”——代号“解”——适配性极高。通俗解释：你的体质特殊，是目前唯一能执行此操作的人选。',
   ),
   { speaker: '旁白', text: '你低头看看自己跑两步就喘的小身板，一脸狐疑。' },
-  { speaker: '周全', text: '体质特殊？真的假的？' },
+  { speaker: '周全', text: '体质特殊？真的假的？', portraitEmotion: 'awkward' },
   xiaobai(
     '还有，数据分析表明，你与目标郑卿存在强烈的社会情感联结。你主动放弃任务、坐视其死亡的概率低于32.47%。',
   ),
-  { speaker: '周全', text: '剩下不到70%？你也太小看我了。但是，如果我不答应会怎样？' },
+  { speaker: '周全', text: '剩下不到70%？你也太小看我了。但是，如果我不答应会怎样？', portraitEmotion: 'frown' },
   xiaobai('……'),
   { speaker: '旁白', text: '白色小精灵沉默了一瞬。而你突然感到一阵汗毛倒竖。' },
   // 演出提示「场景突然变成全黑，只有周全和小白存在，BGM 切换为危机降临」：
   // BGM 是状态型（跳过也生效，归约会取「闪开」那一行覆盖回校园日常）；
   // 黑屏是表现型（跳过不补演，但收尾时无条件恢复）。
-  { speaker: '周全', text: '呃……', bgm: 'ch01Crisis', blackout: true, dark: 'onset' },
+  { speaker: '周全', text: '呃……', bgm: 'ch01Crisis', blackout: true, dark: 'onset', portraitEmotion: 'awkward' },
   {
     speaker: '旁白',
     text: '你感觉似乎有一双无形的大手扼住了你全身，五脏六腑都要被挤压在一起。',
@@ -221,7 +221,7 @@ export const CH01_AFTER_CLOSING: readonly DialogueLine[] = [
 export const CH01_AFTER_HANDOFF: readonly DialogueLine[] = [
   { speaker: '周全', text: '……行吧。不过得答应我几个条件。第一，我们有名字，我叫周全，他叫郑卿。' },
   { speaker: '小白', role: 'xiaobai', text: '允许。' },
-  { speaker: '周全', text: '第二，别笑得那么瘆人。第三，你叫小白。', emotion: 'annoyed', emotionBy: 'zhou' },
+  { speaker: '周全', text: '第二，别笑得那么瘆人。第三，你叫小白。', emotion: 'annoyed', emotionBy: 'zhou', portraitEmotion: 'frown' },
   { speaker: '小白', role: 'xiaobai', text: '「小白」……采纳。下一次进入梦域，我会赋予你「解」。' },
   { speaker: '旁白', text: '床上的郑卿翻了个身，呼噜声重新响起。' },
   { speaker: '周全', text: '老郑，等我。' },

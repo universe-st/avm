@@ -48,7 +48,7 @@ export class DialoguePortrait {
       this.hide();
       return;
     }
-    this.layer.show(step.key, step.side);
+    this.layer.show(step.key, step.side, { soft: step.soft === true });
     this.current = { key: step.key, side: step.side };
   }
 

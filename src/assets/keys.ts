@@ -43,12 +43,22 @@ export const TYPE_BLIP_KEYS = {
  * 场景里不许再手写「谁说话挂哪张脸」。
  */
 export const PORTRAIT_ASSET_KEYS = {
+  /** 周全常态（平常）：不带情绪时的默认脸。 */
   zhou: 'img.char.portrait.zhou',
+  /** 周全 · 皱眉（2026-11-24 的初版立绘，现在降为「不悦/吐槽」差分）。 */
+  zhouFrown: 'img.char.portrait.zhou_frown',
+  zhouShocked: 'img.char.portrait.zhou_shocked',
+  zhouHappy: 'img.char.portrait.zhou_happy',
+  zhouAwkward: 'img.char.portrait.zhou_awkward',
   /** 小白（娃娃脸光团 + 兜帽 + 羽翼 + 胸口蓝核）：名字会变，按 role/名字统一归到这张。 */
   xiaobai: 'img.char.portrait.xiaobai',
   /** 矿工（铁皮骨架）：金殿「清除协议」与战斗「侍卫机器人」共用。 */
   miner: 'img.char.portrait.miner',
+  /** 郑卿常态（平常/端着）：现有那张淡淡的得意脸。 */
   zheng: 'img.char.portrait.zheng',
+  zhengShocked: 'img.char.portrait.zheng_shocked',
+  zhengHappy: 'img.char.portrait.zheng_happy',
+  zhengAwkward: 'img.char.portrait.zheng_awkward',
   chu: 'img.char.portrait.chu',
   shiwei: 'img.char.portrait.shiwei',
   /** 周全被太监按跪、脸被迫上仰的慌张特写（金殿专用）。 */

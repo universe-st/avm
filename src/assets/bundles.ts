@@ -421,6 +421,7 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
     // 2026-11-18：再加一张侍卫立绘（820 KB），实测约 7.9 MB → 9216。
     // 2026-11-18：再加矿工立绘（936 KB），实测约 8.9 MB → 10240。
     // 2026-11-24：小白/矿工立绘搬去共享 `ch01.portraits`，本包只剩 4 张（郑卿/楚公公/侍卫/周全慌张）。
+    // 2026-11-25：郑卿加 3 张情绪差分（震惊/得意/尴尬），本包约 6 MB。
     budgetKB: 8192,
     dependsOn: ['core'],
     assets: [
@@ -463,7 +464,28 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         key: 'img.char.portrait.zheng',
         kind: 'image',
         url: 'assets/img/character/palace/portrait_zheng.png',
-        label: '郑卿 · 半身立绘',
+        label: '郑卿 · 半身立绘（平常）',
+        tags: ['character', 'portrait'],
+      },
+      {
+        key: 'img.char.portrait.zheng_shocked',
+        kind: 'image',
+        url: 'assets/img/character/palace/portrait_zheng_shocked.png',
+        label: '郑卿 · 半身立绘（震惊）',
+        tags: ['character', 'portrait'],
+      },
+      {
+        key: 'img.char.portrait.zheng_happy',
+        kind: 'image',
+        url: 'assets/img/character/palace/portrait_zheng_happy.png',
+        label: '郑卿 · 半身立绘（得意）',
+        tags: ['character', 'portrait'],
+      },
+      {
+        key: 'img.char.portrait.zheng_awkward',
+        kind: 'image',
+        url: 'assets/img/character/palace/portrait_zheng_awkward.png',
+        label: '郑卿 · 半身立绘（尴尬）',
         tags: ['character', 'portrait'],
       },
       {
@@ -744,15 +766,44 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
    */
   'ch01.portraits': {
     id: 'ch01.portraits',
-    budgetKB: 3072,
+    // 2026-11-25：加周全 4 张情绪差分（平常/皱眉/震惊/快乐/尴尬共 5 张），约 5.5 MB。
+    budgetKB: 6144,
     dependsOn: ['core'],
     assets: [
       {
-        // 2026-11-24 新出：周全常态半身（金殿那张是「被按跪慌张」，不能拿到寝室/战斗里用）。
+        // 2026-11-25 情绪差分：默认脸换成「平常」，2026-11-24 那张皱眉图降级为 frown。
         key: 'img.char.portrait.zhou',
         kind: 'image',
-        url: 'assets/img/character/ch01/portrait_zhou.png',
-        label: '周全 · 半身立绘',
+        url: 'assets/img/character/ch01/portrait_zhou_neutral.png',
+        label: '周全 · 半身立绘（平常）',
+        tags: ['character', 'portrait'],
+      },
+      {
+        key: 'img.char.portrait.zhou_frown',
+        kind: 'image',
+        url: 'assets/img/character/ch01/portrait_zhou_frown.png',
+        label: '周全 · 半身立绘（皱眉）',
+        tags: ['character', 'portrait'],
+      },
+      {
+        key: 'img.char.portrait.zhou_shocked',
+        kind: 'image',
+        url: 'assets/img/character/ch01/portrait_zhou_shocked.png',
+        label: '周全 · 半身立绘（震惊）',
+        tags: ['character', 'portrait'],
+      },
+      {
+        key: 'img.char.portrait.zhou_happy',
+        kind: 'image',
+        url: 'assets/img/character/ch01/portrait_zhou_happy.png',
+        label: '周全 · 半身立绘（快乐）',
+        tags: ['character', 'portrait'],
+      },
+      {
+        key: 'img.char.portrait.zhou_awkward',
+        kind: 'image',
+        url: 'assets/img/character/ch01/portrait_zhou_awkward.png',
+        label: '周全 · 半身立绘（尴尬）',
         tags: ['character', 'portrait'],
       },
       {

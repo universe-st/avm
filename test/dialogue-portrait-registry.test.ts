@@ -5,10 +5,12 @@ import { MODULES } from '../src/app/modules';
 import type { BundleId } from '../src/assets/types';
 import { XIAOBAI_SPEAKER } from '../src/story/ch01-palace';
 import {
+  SPEAKER_PORTRAIT_EMOTIONS,
   SPEAKER_PORTRAITS,
   portraitForSpeaker,
   reducePortraitForLine,
 } from '../src/story/portraits';
+import { reducePortraitForSay } from '../src/story/ch01-palace';
 
 /**
  * 「所有对话都有贴图」的护栏。
@@ -73,6 +75,9 @@ describe('对话立绘对位表：每个开口的人都有交代', () => {
     const keys = new Set<string>();
     for (const entry of Object.values(SPEAKER_PORTRAITS)) {
       if (entry) keys.add(entry.key);
+    }
+    for (const variants of Object.values(SPEAKER_PORTRAIT_EMOTIONS)) {
+      for (const key of Object.values(variants)) keys.add(key);
     }
     keys.add('img.char.portrait.xiaobai');
     for (const key of keys) {
@@ -187,5 +192,79 @@ describe('战斗对话与剧情对话共用同一套面板', () => {
       expect(source, `${file} 没接 DialoguePortrait`).toContain('new DialoguePortrait(');
       expect(source, `${file} 没在台词显示时对位`).toContain('alignForLine(');
     }
+  });
+});
+
+
+describe('情绪差分立绘：按台词内容换脸', () => {
+  it('周全四套差分都登记，并且各自是独立 key', () => {
+    const variants = SPEAKER_PORTRAIT_EMOTIONS['周全'];
+    expect(variants?.neutral).toBe('img.char.portrait.zhou');
+    expect(variants?.frown).toBe('img.char.portrait.zhou_frown');
+    expect(variants?.shocked).toBe('img.char.portrait.zhou_shocked');
+    expect(variants?.happy).toBe('img.char.portrait.zhou_happy');
+    expect(variants?.awkward).toBe('img.char.portrait.zhou_awkward');
+    expect(new Set(Object.values(variants ?? {})).size).toBe(5);
+  });
+
+  it('郑卿四套差分都登记（平常沿用现有那张）', () => {
+    const variants = SPEAKER_PORTRAIT_EMOTIONS['郑卿'];
+    expect(variants?.neutral).toBe('img.char.portrait.zheng');
+    expect(variants?.shocked).toBe('img.char.portrait.zheng_shocked');
+    expect(variants?.happy).toBe('img.char.portrait.zheng_happy');
+    expect(variants?.awkward).toBe('img.char.portrait.zheng_awkward');
+  });
+
+  it('台词写了情绪就换对应差分；没写/未登记回落默认脸', () => {
+    expect(portraitForSpeaker('周全', undefined, 'shocked')?.key).toBe(
+      'img.char.portrait.zhou_shocked',
+    );
+    expect(portraitForSpeaker('郑卿', undefined, 'happy')?.key).toBe(
+      'img.char.portrait.zheng_happy',
+    );
+    expect(portraitForSpeaker('周全')?.key).toBe('img.char.portrait.zhou');
+    // 小白没有差分：写了情绪也还是那张小白立绘。
+    expect(portraitForSpeaker('小白', undefined, 'shocked')?.key).toBe(
+      'img.char.portrait.xiaobai',
+    );
+    // 机器人没有差分。
+    expect(portraitForSpeaker('矿工', undefined, 'happy')?.key).toBe('img.char.portrait.miner');
+  });
+
+  it('同一角色的表情切换是 soft（原地换图），换人才播入场动画', () => {
+    const current = { key: 'img.char.portrait.zhou' };
+    expect(
+      reducePortraitForLine({ speaker: '周全', portraitEmotion: 'shocked' }, current),
+    ).toEqual({
+      action: 'show',
+      key: 'img.char.portrait.zhou_shocked',
+      side: 'left',
+      soft: true,
+    });
+    expect(reducePortraitForLine({ speaker: '老麦' }, current)).toEqual({
+      action: 'show',
+      key: 'img.char.portrait.laomai',
+      side: 'left',
+    });
+  });
+
+  it('趴地起身那一行不挂立绘（人还在地上）', () => {
+    expect(
+      reducePortraitForLine(
+        { speaker: '周全', getUp: true },
+        { key: 'img.char.portrait.zhou' },
+      ),
+    ).toEqual({ action: 'hide' });
+  });
+
+  it('金殿：郑卿按台词换差分；周全在金殿是慌张特写，不套平常/震惊差分', () => {
+    expect(reducePortraitForSay('郑卿', null, 'shocked')).toEqual({
+      action: 'show',
+      key: 'img.char.portrait.zheng_shocked',
+      side: 'right',
+    });
+    expect(reducePortraitForSay('周全', { key: 'img.char.portrait.zhou_panic' }, 'shocked')).toEqual(
+      { action: 'keep' },
+    );
   });
 });

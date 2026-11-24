@@ -63,9 +63,9 @@ export const KITCHEN_HIDE_PROMPTS = {
 
 const STOVE_LINES: readonly DialogueLine[] = [
   { speaker: '周全', text: '吮指原味鸡？' },
-  { speaker: '周全', text: '黄金脆皮鸡？劲爆鸡米花？新奥尔良烤翅？' },
-  { speaker: '周全', text: '鳕鱼堡……脆皮甜筒也能放锅里煮？' },
-  { speaker: '周全', text: '这锅黑乎乎的是……可乐？这合理吗？' },
+  { speaker: '周全', text: '黄金脆皮鸡？劲爆鸡米花？新奥尔良烤翅？', portraitEmotion: 'happy' },
+  { speaker: '周全', text: '鳕鱼堡……脆皮甜筒也能放锅里煮？', portraitEmotion: 'awkward' },
+  { speaker: '周全', text: '这锅黑乎乎的是……可乐？这合理吗？', portraitEmotion: 'awkward' },
   {
     role: 'xiaobai',
     speaker: '小白',
@@ -73,8 +73,7 @@ const STOVE_LINES: readonly DialogueLine[] = [
   },
   {
     speaker: '周全',
-    text: '……可怜啊。看给这家伙馋的。等哪天请他吃疯狂星期四吧。',
-  },
+    text: '……可怜啊。看给这家伙馋的。等哪天请他吃疯狂星期四吧。', portraitEmotion: 'happy'},
 ];
 
 export const KITCHEN_NODES: Readonly<Record<KitchenNodeId, KitchenNode>> = {
@@ -89,7 +88,7 @@ export const KITCHEN_NODES: Readonly<Record<KitchenNodeId, KitchenNode>> = {
         speaker: '小白',
         text: '同一段梦会重演。上次你在金殿留下的痕迹已经抹平了，但梦主记住了「有刺客」。御膳房他不会来。',
       },
-      { speaker: '周全', text: '所以就挑这儿？行吧，至少锅多，饿不死。' },
+      { speaker: '周全', text: '所以就挑这儿？行吧，至少锅多，饿不死。', portraitEmotion: 'awkward' },
       { role: 'xiaobai', speaker: '小白', text: '补充：本次授予工具「解」。' },
       { text: '右手发烫。一把没有柄的匕首握在掌心，刃上流转着白光。' },
       {
@@ -97,7 +96,7 @@ export const KITCHEN_NODES: Readonly<Record<KitchenNodeId, KitchenNode>> = {
         speaker: '小白',
         text: '提醒：被梦域幻影发现，你会被强制踢出。届时我可以再送你进来。',
       },
-      { speaker: '周全', text: '……你就不能说得吉利点？' },
+      { speaker: '周全', text: '……你就不能说得吉利点？', portraitEmotion: 'frown' },
       { role: 'xiaobai', speaker: '小白', text: '不能。' },
       {
         text: '你只能看见面朝方向的一扇范围。墙和柜子会挡住视线；从背后靠近，按「偷袭」。',
@@ -110,7 +109,7 @@ export const KITCHEN_NODES: Readonly<Record<KitchenNodeId, KitchenNode>> = {
     lines: [
       { text: '你摸到传膳门。门从外面闩着，推不开。' },
       { role: 'xiaobai', speaker: '小白', text: '门从外面闩着。等有人来开。' },
-      { speaker: '周全', text: '等？等谁？' },
+      { speaker: '周全', text: '等？等谁？', portraitEmotion: 'awkward' },
       { role: 'xiaobai', speaker: '小白', text: '警告：门外有脚步声。建议：先躲起来。' },
     ],
     objective: KITCHEN_OBJECTIVES.gate,
@@ -143,7 +142,7 @@ export const KITCHEN_NODES: Readonly<Record<KitchenNodeId, KitchenNode>> = {
         speaker: '小白',
         text: '干草堆被发现概率 52.10%。若听完建议躲入橱柜，概率将降至 15.68%。',
       },
-      { speaker: '周全', text: '还用你废话？外星来的小蠢货。' },
+      { speaker: '周全', text: '还用你废话？外星来的小蠢货。', portraitEmotion: 'frown' },
       {
         role: 'xiaobai',
         speaker: '小白',
@@ -166,7 +165,7 @@ export const KITCHEN_NODES: Readonly<Record<KitchenNodeId, KitchenNode>> = {
     id: 'backdoor',
     lines: [
       { text: '后门从外面闩着。门缝里只有一片白。' },
-      { speaker: '周全', text: '得，又是死路。' },
+      { speaker: '周全', text: '得，又是死路。', portraitEmotion: 'awkward' },
     ],
   },
   'stove-loot': {

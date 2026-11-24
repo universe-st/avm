@@ -691,9 +691,25 @@
     "bytes": 35653,
     "mtimeMs": 1792892581679
   },
-  "assets/img/character/ch01/portrait_zhou.png": {
+  "assets/img/character/ch01/portrait_zhou_awkward.png": {
+    "bytes": 814049,
+    "mtimeMs": 1795537901705
+  },
+  "assets/img/character/ch01/portrait_zhou_frown.png": {
     "bytes": 776243,
     "mtimeMs": 1795524515842
+  },
+  "assets/img/character/ch01/portrait_zhou_happy.png": {
+    "bytes": 801078,
+    "mtimeMs": 1795537901510
+  },
+  "assets/img/character/ch01/portrait_zhou_neutral.png": {
+    "bytes": 810568,
+    "mtimeMs": 1795537901122
+  },
+  "assets/img/character/ch01/portrait_zhou_shocked.png": {
+    "bytes": 806533,
+    "mtimeMs": 1795537901317
   },
   "assets/img/character/ch01/q/zhou_q_down.png": {
     "bytes": 68452,
@@ -918,6 +934,18 @@
   "assets/img/character/palace/portrait_zheng.png": {
     "bytes": 1006826,
     "mtimeMs": 1793527488421
+  },
+  "assets/img/character/palace/portrait_zheng_awkward.png": {
+    "bytes": 941075,
+    "mtimeMs": 1795537902242
+  },
+  "assets/img/character/palace/portrait_zheng_happy.png": {
+    "bytes": 948555,
+    "mtimeMs": 1795537902067
+  },
+  "assets/img/character/palace/portrait_zheng_shocked.png": {
+    "bytes": 985355,
+    "mtimeMs": 1795537901887
   },
   "assets/img/character/palace/portrait_zhou_panic.png": {
     "bytes": 774877,

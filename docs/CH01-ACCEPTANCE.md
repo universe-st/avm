@@ -315,3 +315,17 @@
 | 静态护栏 | `test/dialogue-portrait-registry.test.ts`（说话人表态/bundle 闭包/归约语义/战斗面板同款）+ `test/palace-five-items.test.ts`（9 张立绘规格） |
 | 实机取证 | `.evidence/scripts/capture-portraits-2026-11-24.mjs`：390×844、dpr3，逐场景断言 `portrait.currentKey` 与屏幕 image 的 texture/alpha，canvas 390×844 填满、console 0 error |
 | `pnpm check` | 通过（780 tests / 79 files，assets 264 key） |
+
+## 10. 情绪差分立绘（2026-11-25）
+
+用户要求：「为周全、郑卿（皇帝版）增加情绪差分立绘……按对话内容切换。」
+
+| 项 | 结果 |
+| --- | --- |
+| 周全 | 平常（默认）/ 皱眉 / 震惊 / 快乐 / 尴尬 五张；旧皱眉图降级为 `frown`，新平常图接管 `img.char.portrait.zhou` |
+| 郑卿 | 平常（现有）/ 震惊 / 得意 / 尴尬 四张，只在金殿过场使用 |
+| 切换机制 | `DialogueLine.portraitEmotion`（expressive 行 cue）+ `SPEAKER_PORTRAIT_EMOTIONS` + `reducePortraitForLine`；缺省回落默认脸，同角色换表情 `soft` 原地换图（不滑入） |
+| 标注 | 按台词内容标注：dorm/after/kitchen/palace 的周全与郑卿，以及第一场教程对话（`ch01-first-battle.ts` 的 `zhou(text, emotion)`） |
+| 特殊规则 | 黑场/压迫/趴地起身（`getUp`）/ CG 行不挂立绘；金殿周全用被按跪慌张特写，不套差分 |
+| 护栏 | `test/dialogue-portrait-registry.test.ts`（21 条）+ `test/palace-five-items.test.ts`（17 张立绘规格）+ `test/palace-portrait-speaker.test.ts`（逐句带情绪对位） |
+| `pnpm check` | 通过（787 tests / 79 files，assets 271 key） |

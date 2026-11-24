@@ -79,7 +79,7 @@ export const CH01_NODES: Readonly<Record<Ch01NodeId, Ch01Node>> = {
     id: 'intro',
     lines: [
       // 开头两句旁白（九月周六下午、郑卿瘫在床上）已经由开场动画演过，这里不再复述。
-      { speaker: '周全', text: '老郑，你是猪吗？都睡了一整天了。', emotion: 'annoyed' },
+      { speaker: '周全', text: '老郑，你是猪吗？都睡了一整天了。', emotion: 'annoyed', portraitEmotion: 'frown' },
       { speaker: '周全', text: '奇怪，你平时也没这么能睡啊。' },
       // 2026-10-30 用户改稿：开场补四句内心独白，交代「我 / 老郑 / 为什么周六还在校」。
       { speaker: '周全', text: '（我叫周全，是一名普通的高中生。）' },
@@ -103,9 +103,9 @@ export const CH01_NODES: Readonly<Record<Ch01NodeId, Ch01Node>> = {
       { speaker: '旁白', text: '你扑到床边，抓住郑卿的肩膀拼命摇晃。', fx: 'shake' },
       { speaker: '旁白', text: '郑卿像一条软面条，脑袋左摇右摆，呼噜的节奏却半点没乱。' },
       { speaker: '旁白', text: '嘴角甚至还挂着一丝满足的笑。', emotion: 'happy', emotionBy: 'zheng' },
-      { speaker: '周全', text: '……这也能睡得着？', emotion: 'annoyed' },
+      { speaker: '周全', text: '……这也能睡得着？', emotion: 'annoyed', portraitEmotion: 'frown' },
       { speaker: '周全', text: '十六个小时了……让我摸摸额头……温度正常。' },
-      { speaker: '周全', text: '怎么回事？难不成……', emotion: 'confused' },
+      { speaker: '周全', text: '怎么回事？难不成……', emotion: 'confused', portraitEmotion: 'awkward' },
       // 回忆：这是周全想起来的一段旧新闻（家里的电视），不是寝室里正在播放；
       // BGM 切《危机来临》，并且之后不再切回日常。
       {
@@ -135,8 +135,8 @@ export const CH01_NODES: Readonly<Record<Ch01NodeId, Ch01Node>> = {
         cg: CH01_ASSET_KEYS.cg.news,
       },
       { speaker: '旁白', text: '画面暗下去。你回过神来，寝室里只剩郑卿的呼噜声。' },
-      { speaker: '周全', text: '靠。不会真中招了吧？', emotion: 'surprised' },
-      { speaker: '周全', text: '赶紧叫救护车！' },
+      { speaker: '周全', text: '靠。不会真中招了吧？', emotion: 'surprised', portraitEmotion: 'shocked' },
+      { speaker: '周全', text: '赶紧叫救护车！', portraitEmotion: 'shocked' },
     ],
   },
   'zheng-repeat': {
@@ -162,18 +162,18 @@ export const CH01_NODES: Readonly<Record<Ch01NodeId, Ch01Node>> = {
       // 游戏内 key `video.ch01.phone`，在 ch01-dorm 场景里于本节点开头播放）。
       // 这里只接 CG 之后的反应，避免同一件事说两遍。
       { speaker: '旁白', text: '你瘫坐在地上，后背抵着床沿，一只手还举在半空。' },
-      { speaker: '周全', text: '鬼、鬼啊！', emotion: 'surprised' },
+      { speaker: '周全', text: '鬼、鬼啊！', emotion: 'surprised', portraitEmotion: 'shocked' },
       // 名字是慢慢揭出来的：先「？？？」，等他开口问一句才换成临时称呼，最后才定名「小白」。
       { speaker: '？？？', role: 'xiaobai', text: '目标行星：地球。发现基础逻辑碳基生物。命名：ETH-HB-001A。' },
       { speaker: '？？？', role: 'xiaobai', text: 'ETH-HB-001B，状态：意识能量持续萃取中。即所谓，沉睡症。' },
-      { speaker: '周全', text: '意识能量？萃取？什么玩意儿？', emotion: 'confused' },
+      { speaker: '周全', text: '意识能量？萃取？什么玩意儿？', emotion: 'confused', portraitEmotion: 'awkward' },
       { speaker: '莫名其妙出现的白色小娃娃', role: 'xiaobai', text: '在你们未接触过的维度中，人类的意识普遍具备能量。而这个陷入沉睡的地球个体，他因为意识能量正在被窃取而陷入昏迷状态。' },
       { speaker: '周全', text: '是谁干的？' },
       { speaker: '莫名其妙出现的白色小娃娃', role: 'xiaobai', text: '因泰里文明。' },
-      { speaker: '周全', text: '因……泰里？什么意思。', emotion: 'confused' },
+      { speaker: '周全', text: '因……泰里？什么意思。', emotion: 'confused', portraitEmotion: 'awkward' },
       { speaker: '莫名其妙出现的白色小娃娃', role: 'xiaobai', text: '……难以解释。我带你看看，就理解了。' },
       { speaker: '旁白', text: '它伸手一指，你的眼前闪过一道白光。你试图尖叫出声，却感到一阵头晕目眩。' },
-      { speaker: '周全', text: '什么……情况……' },
+      { speaker: '周全', text: '什么……情况……', portraitEmotion: 'shocked' },
     ],
   },
   dream: {
@@ -225,7 +225,7 @@ export const CH01_NODES: Readonly<Record<Ch01NodeId, Ch01Node>> = {
       // 家里的事挪到窗边再说：开场独白不一次倒完，看窗外时补上「反正回去也是一个人」。
       { speaker: '周全', text: '（奶奶也出远门了，家里没人。回去也是一个人，还不如在学校待着。）' },
       // 看完窗外才回过神：发呆这一会儿老郑还躺着，得赶紧叫救护车。
-      { speaker: '周全', text: '……不对，我这是在干什么？赶紧叫救护车啊。', emotion: 'surprised' },
+      { speaker: '周全', text: '……不对，我这是在干什么？赶紧叫救护车啊。', emotion: 'surprised', portraitEmotion: 'shocked' },
     ],
   },
   door: {

@@ -590,6 +590,33 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
   实机脚本 `.evidence/scripts/capture-portraits-2026-11-24.mjs`（390×844：寝室周全、御膳房小白/老麦/老肯、金殿郑卿、战斗周全/侍卫机器人）。
 - 复核：上架前按火山方舟商用条款复核，商店页注明「AI 生成美术」。
 
+## 11.19 情绪差分立绘：周全 / 郑卿（2026-11-25，t58）
+
+用户要求：「为周全、郑卿（皇帝版）增加情绪差分立绘，周全现有立绘情绪为“皱眉”，另需要“平常”、“震惊”、“快乐”、“尴尬”等。郑卿也需要。按对话内容切换。」
+
+- 规格与既有立绘一致：720×900 RGBA、透明底，`keyImageJob`（`bgTolerance 0`）+ `tools/make-palace-portrait.py --margin-x 12`。
+- 来源：游戏素材大师 · 图片生成（`doubao-seedream-5-0-flash-260915`，1024×1280，`watermark: false`，2 张/次）
+
+| 角色 | 情绪 | 任务 id | 采用 | 产物 |
+| --- | --- | --- | --- | --- |
+| 周全 | 平常 | `imwuw9y1m633361` | 第 1 张 | `ch01/portrait_zhou_neutral.png`（791 KB，内容 662×900） |
+| 周全 | 皱眉（原图降级） | —（2026-11-24 那张） | — | `ch01/portrait_zhou_frown.png`（原 `portrait_zhou.png` 改名） |
+| 周全 | 震惊 | `imwuw9y1s7dad93` | 第 2 张 | `ch01/portrait_zhou_shocked.png`（787 KB） |
+| 周全 | 快乐 | `imwuw9y1y81cddf` | 第 2 张 | `ch01/portrait_zhou_happy.png`（782 KB） |
+| 周全 | 尴尬 | `imwuw9y24571993` | 第 1 张 | `ch01/portrait_zhou_awkward.png`（794 KB） |
+| 郑卿 | 震惊 | `imwuw9y2b7ba15c` | 第 1 张 | `palace/portrait_zheng_shocked.png`（962 KB） |
+| 郑卿 | 得意（快乐） | `imwuw9y2ge7be9d` | 第 2 张 | `palace/portrait_zheng_happy.png`（926 KB） |
+| 郑卿 | 尴尬 | `imwuw9y2k24c0df` | 第 1 张 | `palace/portrait_zheng_awkward.png`（919 KB） |
+
+- 参考图：周全用 `portrait_zhou.png`（旧皱眉图）+ `portrait_zhou_panic.png` + `portrait_chu.png`；
+  郑卿用 `portrait_zheng.png` + `portrait_chu.png`。提示词统一要求「同一张脸/同一件衣服/同一构图，只改表情」。
+- 代码注册：`src/assets/keys.ts` 的 `PORTRAIT_ASSET_KEYS.zhou* / zheng*`；bundle 见 `docs/RESOURCE-SPEC.md`
+  2026-11-25 条；对位表 `src/story/portraits.ts` 的 `SPEAKER_PORTRAIT_EMOTIONS`；台词 cue `portraitEmotion`。
+- 验收：`test/palace-five-items.test.ts`（17 张立绘按 文件→key→bundle 校验）、
+  `test/dialogue-portrait-registry.test.ts`（差分登记 / 缺省回落 / soft 换图 / 起身不挂脸 / 金殿郑卿差分）；
+  实机脚本 `.evidence/scripts/capture-emotions-2026-11-25.mjs`。
+- 复核：上架前按火山方舟商用条款复核，商店页注明「AI 生成美术」。
+
 ## 12. 御膳房 P2 B1 地图风格样张（2026-10-31）
 
 - 生成：游戏素材大师 · 图片生成，`doubao-seedream-5-0-flash-260915`，自动审核；仅作 B2 拼合风格基准，未直接进游戏。

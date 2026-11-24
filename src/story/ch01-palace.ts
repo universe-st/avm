@@ -11,6 +11,8 @@
 
 import { PALACE_ASSET_KEYS } from '../assets/keys';
 import type { PalaceBeat } from './palace-player';
+import type { PortraitEmotion } from './dialogue';
+import { SPEAKER_PORTRAIT_EMOTIONS } from './portraits';
 
 /** 角色的贴图 key（bundle `cutscene.ch01palace` 里注册）。 */
 export const PALACE_TEXTURES = {
@@ -83,13 +85,25 @@ export type PalacePortraitStep =
   | { readonly action: 'show'; readonly key: string; readonly side: 'left' | 'right' }
   | { readonly action: 'hide' };
 
+/**
+ * 情绪差分只给「基础脸 = 共享表基础脸」的角色。
+ *
+ * 周全在金殿用的是「被按跪慌张」特写（`PALACE_SPEAKER_PORTRAIT` 覆盖），
+ * 不参与平常/震惊那套差分；郑卿的基础脸就是共享表那张，所以四个表情都可用。
+ */
+const PALACE_EMOTION_SPEAKERS: ReadonlySet<string> = new Set(['郑卿']);
+
 /** 查表：`undefined` = 旁白 / 未登记（保持现状），`null` = 明确无立绘。 */
 export function palacePortraitForSpeaker(
   speaker: string | undefined,
+  emotion?: PortraitEmotion,
 ): PalaceSpeakerPortrait | null | undefined {
   if (!speaker) return undefined;
   if (!Object.prototype.hasOwnProperty.call(PALACE_SPEAKER_PORTRAIT, speaker)) return undefined;
-  return PALACE_SPEAKER_PORTRAIT[speaker];
+  const base = PALACE_SPEAKER_PORTRAIT[speaker] ?? null;
+  if (base === null || emotion === undefined || !PALACE_EMOTION_SPEAKERS.has(speaker)) return base;
+  const variant = SPEAKER_PORTRAIT_EMOTIONS[speaker]?.[emotion];
+  return variant === undefined ? base : { key: variant, side: base.side };
 }
 
 /**
@@ -102,8 +116,9 @@ export function palacePortraitForSpeaker(
 export function reducePortraitForSay(
   speaker: string | undefined,
   current: { readonly key: string } | null,
+  emotion?: PortraitEmotion,
 ): PalacePortraitStep {
-  const entry = palacePortraitForSpeaker(speaker);
+  const entry = palacePortraitForSpeaker(speaker, emotion);
   if (entry === undefined) return { action: 'keep' };
   if (entry === null) return current ? { action: 'hide' } : { action: 'keep' };
   if (current?.key === entry.key) return { action: 'keep' };
@@ -290,7 +305,7 @@ export const PALACE_BEATS: readonly PalaceBeat[] = [
     ],
     ms: 240,
   },
-  { kind: 'say', speaker: '郑卿', text: '哼。谁派你来的？' },
+  { kind: 'say', speaker: '郑卿', text: '哼。谁派你来的？', portraitEmotion: 'frown' },
   {
     kind: 'say',
     speaker: '旁白',
@@ -300,6 +315,7 @@ export const PALACE_BEATS: readonly PalaceBeat[] = [
     kind: 'say',
     speaker: '郑卿',
     text: '楚公公！朕让你加派人手，严防死守！你就是这么给朕当差的？你脖子上那颗脑袋，不想要了？！',
+    portraitEmotion: 'frown',
   },
   {
     kind: 'act',
@@ -360,7 +376,7 @@ export const PALACE_BEATS: readonly PalaceBeat[] = [
     ],
     ms: 260,
   },
-  { kind: 'say', speaker: '郑卿', text: '你这刺客，好大的胆子！竟敢跟朕称兄道弟起来了？' },
+  { kind: 'say', speaker: '郑卿', text: '你这刺客，好大的胆子！竟敢跟朕称兄道弟起来了？', portraitEmotion: 'shocked' },
   { kind: 'say', speaker: '周全', text: '谁和你称兄道弟了？你想当我儿子我还不乐意呢！' },
   {
     // 周全顶完嘴把镜头交回郑卿：下一句旁白要「看到青筋」、气泡也挂在他头上，
@@ -377,7 +393,7 @@ export const PALACE_BEATS: readonly PalaceBeat[] = [
     actions: [{ kind: 'emotion', by: 'zheng', emotion: 'angry' }],
     ms: 420,
   },
-  { kind: 'say', speaker: '郑卿', text: '……哼，真是不知天高地厚！拖出午门，砍了吧！' },
+  { kind: 'say', speaker: '郑卿', text: '……哼，真是不知天高地厚！拖出午门，砍了吧！', portraitEmotion: 'happy' },
   {
     // 侍卫应命：殿前那两个蓝袍壮汉（后文裂皮时说的「太监」是同一对）有自己的立绘。
     kind: 'act',
