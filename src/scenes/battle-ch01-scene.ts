@@ -200,6 +200,9 @@ export class BattleCh01Scene extends UIScene {
   /** 当前选中敌人的脚下绿圈：唯一常驻地面圈，独立脉冲层。 */
   private targetRingGraphics: Phaser.GameObjects.Graphics | null = null;
   private targetRingTween: Phaser.Tweens.Tween | null = null;
+  /** 选中目标头顶的名字/血条；只有选中目标显示，取消/死亡/胜负后隐藏。 */
+  private targetNameText: Phaser.GameObjects.Text | null = null;
+  private targetHpBar: Phaser.GameObjects.Graphics | null = null;
   /** 选目标阶段：所有可选的相邻敌人脚下黄圈（闪烁）。 */
   private validTargetsGraphics: Phaser.GameObjects.Graphics | null = null;
   private validTargetsTween: Phaser.Tweens.Tween | null = null;
@@ -336,6 +339,7 @@ export class BattleCh01Scene extends UIScene {
     this.createActors();
     this.createBarsAndRail();
     this.createSelectionPrompt();
+    this.createTargetInfo();
 
     super.create();
     audioDirector.attach(this);
@@ -442,6 +446,10 @@ export class BattleCh01Scene extends UIScene {
     this.targetRingTween?.remove();
     this.targetRingTween = null;
     this.targetRingGraphics = null;
+    this.targetNameText?.setVisible(false);
+    this.targetNameText = null;
+    this.targetHpBar?.setVisible(false);
+    this.targetHpBar = null;
     this.validTargetsTween?.remove();
     this.validTargetsTween = null;
     this.validTargetsGraphics = null;
@@ -601,6 +609,24 @@ export class BattleCh01Scene extends UIScene {
         bold: true,
       },
     ).setVisible(false);
+  }
+
+  /** 选中目标头顶的名字和血条；单独一层，只有选中目标时显示。 */
+  private createTargetInfo(): void {
+    this.targetHpBar = this.add
+      .graphics()
+      .setDepth(LAYERS.effects + 19)
+      .setVisible(false);
+    this.targetNameText = makeSceneText(this, 0, 0, '', {
+      size: 18,
+      color: PAPER,
+      align: 'center',
+      originX: 0.5,
+      originY: 1,
+      depth: LAYERS.effects + 20,
+      stroke: 4,
+      bold: true,
+    }).setVisible(false);
   }
 
   private createActors(): void {
@@ -1878,6 +1904,7 @@ export class BattleCh01Scene extends UIScene {
 
     this.drawActionBar();
     this.drawHighlights();
+    this.drawTargetInfo();
     this.updateSlotInteractivity();
   }
 
@@ -2058,6 +2085,49 @@ export class BattleCh01Scene extends UIScene {
       any = true;
     }
     graphics.setVisible(any);
+  }
+
+  /** 选中目标头顶的名字 + 血条；只跟随当前选中目标，取消/死亡/胜负后隐藏。 */
+  private drawTargetInfo(): void {
+    const name = this.targetNameText;
+    const bar = this.targetHpBar;
+    if (!name || !bar) return;
+
+    const target = this.selectedEnemyUnit();
+    const actor = target ? this.enemyActors.get(target.id) : undefined;
+    if (
+      !target ||
+      !actor ||
+      this.ended ||
+      this.state.phase === 'victory' ||
+      this.state.phase === 'defeat'
+    ) {
+      name.setVisible(false);
+      bar.clear().setVisible(false);
+      return;
+    }
+
+    const head = actor.headPoint;
+    const barWidth = 130;
+    const barHeight = 10;
+    const x = head.x - barWidth / 2;
+    const y = head.y - 20;
+
+    name.setText(target.name).setPosition(head.x, head.y - 38).setVisible(true);
+    bar.clear();
+    bar.fillStyle(INK, 0.82).fillRoundedRect(x, y, barWidth, barHeight, 3);
+    bar.lineStyle(1, GOLD, 0.45).strokeRoundedRect(x, y, barWidth, barHeight, 3);
+    const ratio = Math.max(0, Math.min(1, target.hp / target.maxHp));
+    if (ratio > 0) {
+      bar.fillStyle(DANGER, 0.95).fillRoundedRect(
+        x + 1,
+        y + 1,
+        Math.max(0, (barWidth - 2) * ratio),
+        barHeight - 2,
+        2,
+      );
+    }
+    bar.setVisible(true);
   }
 
   private syncActorPositions(): void {
@@ -2397,6 +2467,10 @@ export class BattleCh01Scene extends UIScene {
     this.targetRingTween?.remove();
     this.targetRingTween = null;
     this.targetRingGraphics = null;
+    this.targetNameText?.setVisible(false);
+    this.targetNameText = null;
+    this.targetHpBar?.setVisible(false);
+    this.targetHpBar = null;
     this.validTargetsTween?.remove();
     this.validTargetsTween = null;
     this.validTargetsGraphics = null;
