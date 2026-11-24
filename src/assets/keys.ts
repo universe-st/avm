@@ -56,7 +56,7 @@ export const PALACE_ASSET_KEYS = {
      *
      * 720×900 RGBA、透明底，和 `portrait_zheng` / `portrait_chu` 同一套画风与构图
      * （`portraitMetrics()` 按 720:900 定显示尺寸，换图不用改代码）。
-     * 用在金殿「心防出现剧烈震荡」与收尾「建议：先活下来。」两句。
+     * 用在金殿「心防出现剧烈震荡」与收尾「建议：躲避攻击，保留体力。」两句。
      */
     portraitXiaobai: 'img.char.palace.portrait_xiaobai',
     /**

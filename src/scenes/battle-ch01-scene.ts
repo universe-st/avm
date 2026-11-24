@@ -56,10 +56,21 @@ import {
 } from '../battle/core/slots';
 import { buildPreviewState, type BattlePreviewPhase } from '../battle/core/preview';
 import { planBattleLayout, type BattleLayout } from '../battle/layout';
+import { CH01_FIRST_BATTLE_ID } from '../battle/data/ch01-first';
 import { resolveBattleSetup } from '../battle/data/ch01-kitchen';
 import { getSkill, resolveSkill } from '../battle/data/skills';
 import { loadKnownEnemies, markEnemyKnown } from '../battle/codex';
 import { BattleActor, type BattleActorArt, type BattleStrikeStrip } from '../actors/battle-actor';
+import {
+  FIRST_BATTLE_ATTACK_BEATS,
+  FIRST_BATTLE_ENTER_BEATS,
+  FIRST_BATTLE_GUARD_POST_LINES,
+  FIRST_BATTLE_GUARD_PRE_LINES,
+  FIRST_BATTLE_MOVE_POST_LINES,
+  FIRST_BATTLE_MOVE_PRE_LINES,
+  type FirstBattleTalkBeat,
+  type FirstBattleTalkLine,
+} from '../story/ch01-first-battle';
 import { buildBattleHud } from '../ui/battle-hud';
 import {
   openBattleCodex,
@@ -67,6 +78,7 @@ import {
   openBattleExit,
   openBattleIntro,
   openBattleSkill,
+  openBattleTalk,
   openBattleVictory,
 } from '../ui/battle-ch01-modals';
 import {
@@ -238,6 +250,13 @@ export class BattleCh01Scene extends UIScene {
   private transitioning = false;
   private introOpen = false;
   private moveMode = false;
+  /** 第一场教程：攻击按钮只允许点一次；移动/防御第一次各有插入对话。 */
+  private firstBattleAttackLocked = false;
+  private firstBattleTalkModal: ModalHandle | null = null;
+  private firstBattleTalkRequested: 'move' | 'guard' | null = null;
+  private firstBattleTalkPending: 'move' | 'guard' | null = null;
+  private firstBattleMoveTalked = false;
+  private firstBattleGuardTalked = false;
   /** 战斗曲是否已起播；开场卡期间不提前起，关掉卡/跳过开场才从 0 开始。 */
   private battleBgmStarted = false;
 
@@ -436,6 +455,11 @@ export class BattleCh01Scene extends UIScene {
     this.introOpen = false;
     this.moveMode = false;
     this.battleBgmStarted = false;
+    this.firstBattleAttackLocked = false;
+    this.firstBattleTalkRequested = null;
+    this.firstBattleTalkPending = null;
+    this.firstBattleMoveTalked = false;
+    this.firstBattleGuardTalked = false;
     this.selectedTargetId = null;
     this.targetingSkillId = null;
     this.introModal = null;
@@ -1097,10 +1121,186 @@ export class BattleCh01Scene extends UIScene {
         this.introModal = null;
         if (!this.ended) {
           this.startBattleBgm();
-          this.beginTurn();
+          if (this.isFirstBattle()) this.startFirstBattleEnterTalk();
+          else this.beginTurn();
         }
       },
     });
+  }
+
+  private isFirstBattle(): boolean {
+    return this.setup.id === CH01_FIRST_BATTLE_ID;
+  }
+
+  private showFirstBattleTalkLine(line: FirstBattleTalkLine, next: () => void): void {
+    this.firstBattleTalkModal = openBattleTalk(this.mvvm, {
+      speaker: line.speaker,
+      text: line.text,
+      tone: line.tone,
+      onClose: () => {
+        this.firstBattleTalkModal = null;
+        if (!this.ended) next();
+      },
+    });
+  }
+
+  private showFirstBattleBeats(
+    beats: readonly FirstBattleTalkBeat[],
+    done: () => void,
+  ): void {
+    const run = (index: number): void => {
+      if (this.ended || !this.lifecycle.isLive(this.runId)) return;
+      if (index >= beats.length) {
+        done();
+        return;
+      }
+      const beat = beats[index]!;
+      if (beat.kind === 'line') {
+        this.showFirstBattleTalkLine(beat.line, () => run(index + 1));
+        return;
+      }
+      if (beat.kind === 'enemy-attack') {
+        this.playFirstBattleScriptedEnemyAttack(() => run(index + 1));
+        return;
+      }
+      this.playFirstBattlePunch(() => run(index + 1));
+    };
+    run(0);
+  }
+
+  private showFirstBattleLines(lines: readonly FirstBattleTalkLine[], done: () => void): void {
+    this.showFirstBattleBeats(
+      lines.map((line) => ({ kind: 'line', line }) as const),
+      done,
+    );
+  }
+
+  /** 进入战斗后的插入对白；机器人先真实攻击一次，再交给玩家回合。 */
+  private startFirstBattleEnterTalk(): void {
+    if (this.ended) return;
+    this.busy = true;
+    this.actionsDisabled.value = true;
+    this.setMoveMode(false);
+    this.clearTargeting();
+    this.syncHud();
+    this.showFirstBattleBeats(FIRST_BATTLE_ENTER_BEATS, () => {
+      if (this.ended || !this.lifecycle.isLive(this.runId)) return;
+      // 进场那一下已经消耗了怪物行动；接下来必须是玩家回合，
+      // 不能再走 startNextTurn（它会让 SPD 20 的矿工连动一次）。
+      this.state = {
+        ...this.state,
+        phase: 'player',
+        activeId: this.playerUnit().id,
+      };
+      this.clearTargeting();
+      this.setMoveMode(false);
+      this.busy = false;
+      this.playerActor?.setPose('idle');
+      this.syncHud();
+      this.showTurnBanner('你的回合');
+    });
+  }
+
+  /** 教程里的脚本攻击：强制命中（不受周全 1 点闪避影响），避免「闪避了却喊痛」。 */
+  private playFirstBattleScriptedEnemyAttack(done: () => void): void {
+    const enemy = this.state.enemies.find((unit) => unit.hp > 0);
+    if (!enemy) {
+      done();
+      return;
+    }
+    const savedDodge = this.state.party.map((unit) => unit.dodge);
+    this.state = {
+      ...this.state,
+      phase: 'enemy',
+      activeId: enemy.id,
+      pendingMove: null,
+      party: this.state.party.map((unit) => ({ ...unit, dodge: 0 })),
+    };
+    const result = applyBattleAction(this.state, { kind: 'enemy-act' }, this.setup);
+    this.state = {
+      ...result.state,
+      party: result.state.party.map((unit, index) => ({
+        ...unit,
+        dodge: savedDodge[index] ?? unit.dodge,
+      })),
+    };
+    if (result.events.length === 0) {
+      this.syncHud();
+      done();
+      return;
+    }
+    this.playSteps(result.events, () => {
+      if (this.ended || !this.lifecycle.isLive(this.runId)) return;
+      this.syncHud();
+      done();
+    });
+  }
+
+  /** 第一次点「攻击」：只播教程对话与一拳，不结算伤害、不消耗回合。 */
+  private startFirstBattleAttackTalk(): void {
+    if (this.ended || this.busy) return;
+    this.busy = true;
+    this.actionsDisabled.value = true;
+    this.setMoveMode(false);
+    this.syncHud();
+    this.showFirstBattleBeats(FIRST_BATTLE_ATTACK_BEATS, () => {
+      if (this.ended || !this.lifecycle.isLive(this.runId)) return;
+      this.firstBattleAttackLocked = true;
+      this.busy = false;
+      this.syncHud();
+    });
+  }
+
+  /** 周全一拳砸在铁皮上：火星/无效/手疼，但不扣敌人 HP。 */
+  private playFirstBattlePunch(next: () => void): void {
+    const actor = this.playerActor;
+    const target = this.state.enemies.find((unit) => unit.hp > 0);
+    const targetActor = target ? this.enemyActorFor(target.id) : undefined;
+    if (!actor || !target || !targetActor) {
+      next();
+      return;
+    }
+    const from = this.layout.slots[this.playerUnit().slot];
+    const to = targetActor.headPoint;
+    actor.setMirror(to.x < from.x);
+    actor.playAttack(
+      { reduced: this.reduced },
+      () => {
+        targetActor.flash(0xffffff, 70);
+        this.playSfx(BATTLE_ASSET_KEYS.sfx.hit, 0.85);
+        hitBurst(this, to.x, to.y + 30, {
+          color: GOLD,
+          reduced: this.reduced,
+          seed: this.seed + 17,
+          depth: LAYERS.effects + 8,
+        });
+        this.floatLabel('无效', to.x, to.y - 8, MUTED);
+        actor.flash(0xff6b5b, 120);
+        this.floatLabel('痛', from.x, from.y - 150, DANGER);
+        screenRumble(this, { ms: 120, intensity: 0.006, reduced: this.reduced });
+      },
+      () => {
+        this.time.delayedCall(this.reduced ? 60 : 180, next);
+      },
+    );
+  }
+
+  /** 敌人回合开始：第一场第一次移动/防御时先插一句对白，再让矿工真的出手。 */
+  private startEnemyTurn(): void {
+    this.busy = true;
+    this.actionsDisabled.value = true;
+    if (this.isFirstBattle() && this.firstBattleTalkRequested) {
+      const type = this.firstBattleTalkRequested;
+      this.firstBattleTalkRequested = null;
+      this.firstBattleTalkPending = type;
+      const lines = type === 'move' ? FIRST_BATTLE_MOVE_PRE_LINES : FIRST_BATTLE_GUARD_PRE_LINES;
+      this.showFirstBattleLines(lines, () => {
+        if (this.ended || !this.lifecycle.isLive(this.runId)) return;
+        this.time.delayedCall(this.reduced ? 100 : 220, () => this.runEnemyTurn());
+      });
+      return;
+    }
+    this.time.delayedCall(this.reduced ? 140 : 420, () => this.runEnemyTurn());
   }
 
   private startBattleBgm(): void {
@@ -1145,7 +1345,7 @@ export class BattleCh01Scene extends UIScene {
       this.busy = true;
       this.actionsDisabled.value = true;
       this.showTurnBanner(`${active.name}的回合`, 'danger');
-      this.time.delayedCall(this.reduced ? 140 : 420, () => this.runEnemyTurn());
+      this.startEnemyTurn();
       return;
     }
     this.busy = false;
@@ -1167,7 +1367,7 @@ export class BattleCh01Scene extends UIScene {
     if (active?.team === 'enemy') {
       this.busy = true;
       this.actionsDisabled.value = true;
-      this.time.delayedCall(this.reduced ? 140 : 420, () => this.runEnemyTurn());
+      this.startEnemyTurn();
       return;
     }
     this.beginTurn();
@@ -1179,12 +1379,28 @@ export class BattleCh01Scene extends UIScene {
     if (active?.team !== 'enemy') return;
     this.busy = true;
     this.actionsDisabled.value = true;
+    const forceHit = this.isFirstBattle() && this.firstBattleTalkPending !== null;
+    const savedDodge = forceHit ? this.state.party.map((unit) => unit.dodge) : null;
+    if (forceHit) {
+      this.state = {
+        ...this.state,
+        party: this.state.party.map((unit) => ({ ...unit, dodge: 0 })),
+      };
+    }
     const result = applyBattleAction(this.state, { kind: 'enemy-act' }, this.setup);
+    this.state = savedDodge
+      ? {
+          ...result.state,
+          party: result.state.party.map((unit, index) => ({
+            ...unit,
+            dodge: savedDodge[index] ?? unit.dodge,
+          })),
+        }
+      : result.state;
     if (result.events.length === 0) {
       this.afterAction();
       return;
     }
-    this.state = result.state;
     this.playSteps(result.events, () => this.afterAction());
   }
 
@@ -1195,8 +1411,22 @@ export class BattleCh01Scene extends UIScene {
     if (this.busy || this.actionsDisabled.value) return;
     if (this.state.phase !== 'player' || this.state.activeId !== this.playerUnit().id) return;
 
+    const beforeSlot = this.playerUnit().slot;
     const result = applyBattleAction(this.state, action, this.setup);
     if (result.events.length === 0) return;
+    if (this.isFirstBattle()) {
+      const after = result.state.party.find((unit) => unit.id === this.playerUnit().id);
+      if (
+        action.kind === 'move' &&
+        !this.firstBattleMoveTalked &&
+        after !== undefined &&
+        after.slot !== beforeSlot
+      ) {
+        this.firstBattleTalkRequested = 'move';
+      } else if (action.kind === 'guard' && !this.firstBattleGuardTalked) {
+        this.firstBattleTalkRequested = 'guard';
+      }
+    }
 
     this.busy = true;
     this.actionsDisabled.value = true;
@@ -1230,6 +1460,22 @@ export class BattleCh01Scene extends UIScene {
       this.showDefeatOverlay();
       return;
     }
+    const talk = this.firstBattleTalkPending;
+    if (talk) {
+      this.firstBattleTalkPending = null;
+      if (talk === 'move') this.firstBattleMoveTalked = true;
+      else this.firstBattleGuardTalked = true;
+      const lines = talk === 'move' ? FIRST_BATTLE_MOVE_POST_LINES : FIRST_BATTLE_GUARD_POST_LINES;
+      this.busy = true;
+      this.actionsDisabled.value = true;
+      this.showFirstBattleLines(lines, () => {
+        if (this.ended || !this.lifecycle.isLive(this.runId)) return;
+        this.busy = false;
+        this.syncHud();
+        this.beginTurn();
+      });
+      return;
+    }
     this.beginTurn();
   }
 
@@ -1237,9 +1483,14 @@ export class BattleCh01Scene extends UIScene {
 
   private onAttack(): void {
     audioDirector.playClick();
+    if (this.busy || this.introOpen || this.actionsDisabled.value) return;
     if (this.state.pendingMove) return;
     if (this.skillModal?.open === true || this.codexModal?.open === true) return;
     if (!playerCanAttack(this.setup, this.playerUnit().id)) {
+      if (this.isFirstBattle() && !this.firstBattleAttackLocked) {
+        this.startFirstBattleAttackTalk();
+        return;
+      }
       this.flashHint('你还没有「解」——这一场只能移动或防御。', '还没有「解」');
       return;
     }
@@ -1962,11 +2213,14 @@ export class BattleCh01Scene extends UIScene {
           : '移动';
 
     this.actionsDisabled.value = !playerTurn;
+    const canUseAttack = this.isFirstBattle()
+      ? !this.firstBattleAttackLocked
+      : playerCanAttack(this.setup, this.playerUnit().id);
     this.attackDisabled.value =
       !playerTurn ||
       this.moveMode ||
       this.state.pendingMove !== null ||
-      !playerCanAttack(this.setup, this.playerUnit().id) ||
+      !canUseAttack ||
       (this.targetingSkillId !== null && !this.attackTarget());
     this.guardDisabled.value =
       !playerTurn ||
@@ -2030,6 +2284,9 @@ export class BattleCh01Scene extends UIScene {
       return '只能走到相邻空点位（点亮的格子）；再按「取消移动」回到指令。';
     }
     if (!playerCanAttack(this.setup, this.playerUnit().id)) {
+      if (this.isFirstBattle() && !this.firstBattleAttackLocked) {
+        return '先试试「攻击」；打不动就移动或防御。';
+      }
       return '你还没有「解」——只能移动或防御。';
     }
     if (this.state.activeId !== this.playerUnit().id) return '等待它行动……';
@@ -2629,6 +2886,8 @@ export class BattleCh01Scene extends UIScene {
     this.skillModal = null;
     this.codexModal?.close('scene');
     this.codexModal = null;
+    this.firstBattleTalkModal?.close('scene');
+    this.firstBattleTalkModal = null;
     this.defeatModal = null;
     this.victoryModal = null;
     this.exitModal = null;

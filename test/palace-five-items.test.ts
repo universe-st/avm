@@ -189,7 +189,7 @@ describe('金殿剧本：小白不再自称「？？？」', () => {
     expect(xiaobaiLines.map((beat) => beat.speaker)).toEqual([XIAOBAI_SPEAKER, XIAOBAI_SPEAKER]);
     expect(xiaobaiLines.map((beat) => beat.text)).toEqual([
       '心防出现剧烈震荡，目标精神屏障异常薄弱。',
-      '建议：先活下来。',
+      '建议：躲避攻击，保留体力。',
     ]);
     // 名号揭示之后整段都不该再冒「？？？」
     expect(sayBeats().some((beat) => (beat.speaker ?? '').includes('？？？'))).toBe(false);

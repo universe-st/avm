@@ -506,7 +506,7 @@ export const PALACE_BEATS: readonly PalaceBeat[] = [
     kind: 'say',
     speaker: XIAOBAI_SPEAKER,
     role: 'xiaobai',
-    text: '建议：先活下来。',
+    text: '建议：躲避攻击，保留体力。',
   },
   {
     kind: 'act',

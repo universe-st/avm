@@ -54,7 +54,7 @@ export const CH01_FIRST_BATTLE: BattleSetup = {
       '铁皮摩擦声从四面八方逼近。',
       '你还没有「解」。你只有一双拳头。',
     ],
-    ruleText: '攻击不可用。你只能移动、防御。它比你快——撑过它的行动。',
+    ruleText: '先试试攻击；打不动就移动、防御。它比你快——撑过它的行动。',
   },
   victory: {
     text: '铁皮停止转动。',
