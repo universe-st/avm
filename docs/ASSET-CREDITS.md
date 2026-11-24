@@ -555,6 +555,41 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
 - 验收：`test/palace-five-items.test.ts`（`ALL_PORTRAITS` 加 `portrait_miner.png`，尺寸/透明底/登记自动覆盖）、`test/palace-portrait-speaker.test.ts`（矿工两句开口必须挂 `portraitMiner`）；实机脚本 `.evidence/scripts/verify-palace-portraits.mjs` 全段对位复核。
 - 复核：上架前按火山方舟商用条款复核，商店页注明「AI 生成美术」。
 
+## 11.18 全场景对话立绘补齐：周全 / 老麦 / 老肯（2026-11-24，t56）
+
+用户要求：「战斗中对话应该和剧情对话样式一致，并且有贴图。给所有对话都加上人物贴图。如果缺图就用游戏素材大师生成。」
+
+盘点后缺三张：**周全常态**（金殿那张 `portrait_zhou_panic` 是被按跪的慌张脸，不能拿到寝室/御膳房/战斗里用）、
+**老麦**（小丑）、**老肯**（老花镜老者）。新闻里的男/女主持人不补——他们只出现在 `cg.news`（黑白电视画面）里，
+那几句台词由 CG 承载画面，`SPEAKER_PORTRAITS` 里明确给 `null` 收脸，不叠立绘。
+
+- 来源：游戏素材大师 · 图片生成（火山方舟 `doubao-seedream-5-0-flash-260915`，1024×1280，`watermark: false`，2 张/次）
+- 文件（720×900 RGBA、透明底）：
+
+| 用途 | 任务 id | 采用 | 产物 | 内容包围盒 | 大小 |
+| --- | --- | --- | --- | --- | --- |
+| 周全常态 | `imwuo21p9dfa0a0` | 第 2 张（`out/img-01.png` → `keyed/img-01.png`） | `public/assets/img/character/ch01/portrait_zhou.png` | 696×878 | 758 KB |
+| 老麦·小丑 | `imwuo21pl194465` | 第 2 张 | `public/assets/img/character/ch01/kitchen/portrait_laomai.png` | 522×900 | 773 KB |
+| 老肯·老花镜 | `imwuo21pwae5695` | 第 2 张 | `public/assets/img/character/ch01/kitchen/portrait_laoken.png` | 670×900 | 849 KB |
+
+- 参考图（`node .evidence/scripts/add-image-refs.mjs` 拷进 `refs/`）：
+  - 周全：`assets-src/character/ch01/zhou-reference.png` 裁出的单人全身（`.evidence/tmp/portraits/zhou-identity.png`）、
+    `palace/portrait_zhou_panic.png`（同一张脸的特写，保证脸一致）、`palace/portrait_chu.png`（画风/构图基准）
+  - 老麦：`assets-src/character/ch01/kitchen/design/old-mai-jester-q.png`（身份基准）、`palace/portrait_chu.png`
+  - 老肯：`assets-src/character/ch01/kitchen/design/old-ken-q.png`、`palace/portrait_chu.png`
+- 提示词要点：以参考图角色为唯一身份基准 → 纯绿 `#00FF00` 一整片、无阴影/地面/渐变/光效 → 国风 HD-2D 手绘赛璐璐、
+  粗深色描边、平涂加水彩纸纹，与 `portrait_chu/zheng/xiaobai` 同一套口径 → 胸口以上入画、头占画面 45–50%、正面略偏 3/4 →
+  表情对应剧本第一句（周全「喂喂喂！这到底什么情况？」、老麦「这锅有人动过吧？」、老肯「没见人来过……耗子？」）→
+  只画一个人、不画手、禁止文字/水印/边框。
+- 后期：`keyImageJob`（`keyColor #00FF00 / keyLow 14 / keyHigh 80 / despill 0.65 / edgeShrink 0 / bgTolerance 0`）→
+  `tools/make-palace-portrait.py --margin-x 12`（只裁/缩放/居中，不改颜色）。
+- 代码注册：`src/assets/keys.ts` 的 `PORTRAIT_ASSET_KEYS`；bundle 见 `docs/RESOURCE-SPEC.md` 2026-11-24 条
+  （新增共享 `ch01.portraits`，老麦/老肯进 `ch01.kitchen`）；对位表 `src/story/portraits.ts`。
+- 验收：`test/palace-five-items.test.ts`（全部 9 张立绘按 `文件 → key → bundle` 校验 720×900 / RGBA / 四角透明 / 左右留边 / 纵向 ≥700）、
+  `test/dialogue-portrait-registry.test.ts`（说话人表态 + bundle 闭包 + 归约语义 + 战斗面板同款）；
+  实机脚本 `.evidence/scripts/capture-portraits-2026-11-24.mjs`（390×844：寝室周全、御膳房小白/老麦/老肯、金殿郑卿、战斗周全/侍卫机器人）。
+- 复核：上架前按火山方舟商用条款复核，商店页注明「AI 生成美术」。
+
 ## 12. 御膳房 P2 B1 地图风格样张（2026-10-31）
 
 - 生成：游戏素材大师 · 图片生成，`doubao-seedream-5-0-flash-260915`，自动审核；仅作 B2 拼合风格基准，未直接进游戏。

@@ -69,6 +69,7 @@ import {
 } from '../story/dialogue';
 import { DialogueHistory } from '../story/dialogue-history';
 import { openDialogueHistory } from '../ui/history-modal';
+import { DialoguePortrait } from '../ui/dialogue-portrait';
 import { openGameMenu } from '../ui/game-menu';
 import { GOLD, TitleCard, makeSceneText } from '../ui/cinematic';
 import { addVignette } from '../ui/fx-kit';
@@ -232,6 +233,8 @@ export class Ch01KitchenScene extends UIScene {
   private joystick: VirtualJoystick | null = null;
   private keys: MovementKeys | null = null;
   private dialogue: DialoguePlayer | null = null;
+  /** 对话立绘：每句按 `src/story/portraits.ts` 换脸；SHUTDOWN 销毁、create 重建。 */
+  private portrait: DialoguePortrait | null = null;
   private dialogueOnDone: (() => void) | null = null;
   private readonly history = new DialogueHistory();
   private historyModal: ModalHandle | null = null;
@@ -360,6 +363,7 @@ export class Ch01KitchenScene extends UIScene {
     this.resetState();
     applyCamera(this);
     this.cameras.main.setBackgroundColor('#05060a');
+    this.portrait = new DialoguePortrait(this, this.reduced);
     this.cameras.main.setBounds(
       0,
       0,
@@ -1849,6 +1853,8 @@ export class Ch01KitchenScene extends UIScene {
         this.dialogueSpeaker.value = speakerLabel(event.speaker);
         this.dialoguePageIndex.value = event.pageIndex;
         this.dialoguePageCount.value = event.pageCount;
+        // 谁开口谁上脸（老麦/老肯/小白/周全都有立绘；旁白保持上一张）。
+        this.portrait?.alignForLine(event.line);
         this.recordHistory(event);
       } else if (event.type === 'type') {
         this.dialogueText.value = event.text;
@@ -1903,6 +1909,7 @@ export class Ch01KitchenScene extends UIScene {
     this.dialogueHint.value = '继续';
     this.dialoguePageIndex.value = 0;
     this.dialoguePageCount.value = 1;
+    this.portrait?.hide();
     const done = this.dialogueOnDone;
     this.dialogueOnDone = null;
     done?.();
@@ -2190,6 +2197,8 @@ export class Ch01KitchenScene extends UIScene {
     this.highlightRing?.destroy();
     this.highlightRing = null;
     this.dialogue = null;
+    this.portrait?.destroy();
+    this.portrait = null;
     this.keys = null;
   }
 }

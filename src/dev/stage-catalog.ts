@@ -100,7 +100,14 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     sceneKey: SCENE_KEYS.ch01Dorm,
     title: '第一章 · 第一节 寝室',
     status: 'ready',
-    requires: ['core', 'ui', 'ch.01', 'cutscene.ch01phone', 'cutscene.ch01palace.sfx'],
+    requires: [
+      'core',
+      'ui',
+      'ch.01',
+      'ch01.portraits',
+      'cutscene.ch01phone',
+      'cutscene.ch01palace.sfx',
+    ],
     description:
       '寝室小地图：移动、碰撞、叫醒郑卿、找手机（播放手机 CG）、小白登场。phase=opening|explore|after|dark|complete；dark 直接从战后黑场胁迫（小白问罪）那一拍开始，debug=1 显示碰撞。',
     tags: ['ch01', 'map'],
@@ -111,7 +118,7 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     sceneKey: SCENE_KEYS.ch01Kitchen,
     title: '第一章 · 第二节 御膳房',
     status: 'ready',
-    requires: ['core', 'ui', 'ch01.char', 'ch01.kitchen', 'ch01.bgm'],
+    requires: ['core', 'ui', 'ch01.portraits', 'ch01.char', 'ch01.kitchen', 'ch01.bgm'],
     description:
       '32×64 单张连续地图：无限射程扇形视野、三层暗幕、3 条巡逻、背后偷袭、躲藏、门开躲屏风、草堆偷袭老肯，被抓进 battle.ch01.kitchen。phase=intro|explore|gate|hide|haystack|done|fail；debug=1 显示巡逻/躲藏/触发区；spot=kitchen|backstab|hay|gate 为验收定位。',
     tags: ['ch01', 'map'],
@@ -125,6 +132,7 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     requires: [
       'core',
       'ui',
+      'ch01.portraits',
       'cutscene.ch01palace',
       'cutscene.ch01palace.walk',
       'cutscene.ch01palace.sfx',
@@ -140,7 +148,7 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     sceneKey: SCENE_KEYS.battleCh01,
     title: '战斗 · 初次接触（七点位）',
     status: 'ready',
-    requires: ['core', 'battle.common', 'battle.ch01', 'ch01.bgm'],
+    requires: ['core', 'ch01.portraits', 'battle.common', 'battle.ch01', 'ch01.bgm'],
     description:
       '第一章剧情战 v3.1：矿工居中、周全默认在左，7 个点位（中心空出后可站）；双方跑条（怪 SPD 20 > 周全 14）。' +
       '怪物没有单独的转向行动；周全没有「解」，攻击禁用、不弹技能窗，只能移动/防御；第 4 次怪物行动执行清除协议必败。' +
@@ -166,7 +174,7 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     sceneKey: SCENE_KEYS.battleCh01,
     title: '战斗 · 御膳房遭遇',
     status: 'ready',
-    requires: ['core', 'battle.common', 'battle.kitchen', 'ch01.bgm'],
+    requires: ['core', 'ch01.portraits', 'battle.common', 'battle.kitchen', 'ch01.bgm'],
     description:
       '有「解」之后的第一场完整战斗：御厨·幻影（中心）+ 帮厨·幻影（右上追击），双怪先选技能再点选目标；' +
       '攻击先弹技能窗；非背袭命中进入落点选择（不再自动闪现），背袭 +50% 且无视一半防御；平减防御；只打相邻点位。' +
@@ -188,7 +196,7 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     sceneKey: SCENE_KEYS.battleCh01,
     title: '战斗 · 多怪沙盒（七点位）',
     status: 'ready',
-    requires: ['core', 'battle.common', 'battle.kitchen', 'ch01.bgm'],
+    requires: ['core', 'ch01.portraits', 'battle.common', 'battle.kitchen', 'ch01.bgm'],
     description:
       'DEV 多怪沙盒：厨房舞台、3 只厨系幻影、初始点位随机（同 seed 可复现，不重叠）。' +
       '用来验收追击/堵路、目标切换、落点选择、图鉴、只杀一只不胜利。' +

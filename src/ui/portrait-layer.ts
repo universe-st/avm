@@ -46,6 +46,9 @@ export class PortraitLayer {
     const image = this.scene.add
       .image(metrics.anchorX, metrics.baseY, key)
       .setOrigin(0.5, 1)
+      // 屏幕层：**不随相机滚动**。御膳房的相机会跟着玩家走，没这行立绘会被滚出画面
+      // （2026-11-24 实测：寝室/金殿固定镜头正常，御膳房只剩一条黑边）。
+      .setScrollFactor(0)
       .setDepth(SCREEN_LAYERS.portrait)
       .setAlpha(this.reduced ? 1 : 0);
     image.setDisplaySize(metrics.width, metrics.height);

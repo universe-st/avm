@@ -128,7 +128,7 @@ describe('金殿：侍卫应命「是！」', () => {
   });
 
   it('立绘是专用大图（720×900），不是把 200×420 的精灵图放大', () => {
-    expect(PALACE_TEXTURES.portraitShiwei).toBe('img.char.palace.portrait_shiwei');
+    expect(PALACE_TEXTURES.portraitShiwei).toBe('img.char.portrait.shiwei');
     expect(PALACE_TEXTURES.portraitShiwei).not.toBe(PALACE_TEXTURES.eunuch);
   });
 });

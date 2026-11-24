@@ -679,9 +679,21 @@
     "bytes": 379426,
     "mtimeMs": 1793628120494
   },
+  "assets/img/character/ch01/kitchen/portrait_laoken.png": {
+    "bytes": 870068,
+    "mtimeMs": 1795524516244
+  },
+  "assets/img/character/ch01/kitchen/portrait_laomai.png": {
+    "bytes": 792221,
+    "mtimeMs": 1795524516023
+  },
   "assets/img/character/ch01/miner.png": {
     "bytes": 35653,
     "mtimeMs": 1792892581679
+  },
+  "assets/img/character/ch01/portrait_zhou.png": {
+    "bytes": 776243,
+    "mtimeMs": 1795524515842
   },
   "assets/img/character/ch01/q/zhou_q_down.png": {
     "bytes": 68452,

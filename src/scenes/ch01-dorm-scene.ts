@@ -123,6 +123,7 @@ import {
 } from '../story/dialogue';
 import { DialogueHistory } from '../story/dialogue-history';
 import { openDialogueHistory } from '../ui/history-modal';
+import { DialoguePortrait } from '../ui/dialogue-portrait';
 import { openGameMenu } from '../ui/game-menu';
 import { openStoryChoice } from '../ui/story-choice';
 import { TitleCard, GOLD, makeSceneText } from '../ui/cinematic';
@@ -296,6 +297,13 @@ export class Ch01DormScene extends UIScene {
   private keys: MovementKeys | null = null;
   private dialogue: DialoguePlayer | null = null;
   /**
+   * 对话立绘：每句台词按 `src/story/portraits.ts` 的对位表换脸。
+   *
+   * 场景实例会在 `restart()` 后复用，所以 SHUTDOWN 里必须 `destroy()`、`create()` 里重建，
+   * 不能留一个握着已销毁贴图的旧对象。
+   */
+  private portrait: DialoguePortrait | null = null;
+  /**
    * 当前这段对话的完整台词。
    *
    * 「跳过」时玩家从没显示过后面的行，但**状态型 cue**（BGM 等）仍然必须生效，
@@ -430,6 +438,7 @@ export class Ch01DormScene extends UIScene {
     this.resetState();
     applyCamera(this);
     this.cameras.main.setBackgroundColor('#05060a');
+    this.portrait = new DialoguePortrait(this, this.reduced);
 
     this.createWorld();
     // 读档的落点在玩家创建之后、第一次 `update()` 之前：不会有「先站在出生点再瞬移」的一帧。
@@ -1243,6 +1252,8 @@ export class Ch01DormScene extends UIScene {
     this.dialogueHint.value = '继续';
     this.dialoguePageIndex.value = 0;
     this.dialoguePageCount.value = 1;
+    // 对话结束/进菜单/回探索：最后一张脸不能继续挂在画面上。
+    this.portrait?.hide();
     this.cg?.hide();
     this.emotionBubble?.hide();
   }
@@ -1337,6 +1348,8 @@ export class Ch01DormScene extends UIScene {
         this.dialogueSpeaker.value = speakerLabel(event.speaker);
         this.dialoguePageIndex.value = event.pageIndex;
         this.dialoguePageCount.value = event.pageCount;
+        // 谁开口谁上脸：旁白保持、没立绘的角色收脸、CG/黑场行不叠立绘。
+        this.portrait?.alignForLine(event.line);
         // 状态型 cue 走游标（跨行也要生效）；表现型 cue 才挂在这一行的显示上。
         this.applyStateCueAt(event.index, event.line);
         this.applyLineCue(event.line);
@@ -2648,6 +2661,8 @@ export class Ch01DormScene extends UIScene {
     this.card?.destroy();
     this.card = null;
     this.dialogue = null;
+    this.portrait?.destroy();
+    this.portrait = null;
     this.deferred = [];
     this.roomView = null;
     this.player = null;

@@ -62,6 +62,21 @@ pnpm android:release
     收尾的「压趴下 → 喘气 → 撑起身」：趴姿是**临时贴图层**（`zhou_prone`），起身走
     `CH01_GETUP_PERFORMANCE`；任何跳过/收尾/重开都必须取消压趴延时器并 `clearPronePose()`。
 
+21. **对话必须有人物立绘，且对位只有一张表（2026-11-24）**：寝室 / 御膳房 / 金殿 / 战斗的每一句台词，
+    谁开口屏幕上就是谁的半身贴图；战斗里的插入对话（`src/story/ch01-first-battle.ts`）**不再用居中模态卡**，
+    改用与剧情同一个底部 `buildDialoguePanel`（672×300、打字机、分页、点任意位置补全/继续）。
+    - 对位唯一真值是 `src/story/portraits.ts` 的 `SPEAKER_PORTRAITS` + `reducePortraitForLine()`；
+      场景只调 `DialoguePortrait.alignForLine(line)`，**不许在场景里写「谁说话挂哪张脸」的 if**。
+    - 旁白保持上一张脸；明确没立绘的人（新闻主持人＝CG 里的人）给 `null` 收脸；**未登记的说话人一律收脸**，
+      并由 `test/dialogue-portrait-registry.test.ts` 报错——加角色必须先在表里表态。
+    - 带 `cg` / `blackout` / `dark` 的行不叠立绘（画面已经由 CG / 暗场承载）。
+    - 立绘是**屏幕层**：`PortraitLayer` 必须 `setScrollFactor(0)`。御膳房相机跟着玩家滚动，
+      漏了这行立绘会被滚出画面（2026-11-24 实测：寝室/金殿正常、御膳房只剩黑边）。
+    - 立绘 PNG 720×900 RGBA、透明底、左右留边；按角色共用程度分三个 bundle：
+      `ch01.portraits`（周全/小白/矿工，四个场景共用）、`ch01.kitchen`（老麦/老肯）、
+      `cutscene.ch01palace`（郑卿/楚公公/侍卫/周全慌张）。key 统一 `img.char.portrait.*`。
+    - 对话结束/跳过/进菜单必须 `portrait.hide()`，SHUTDOWN 必须 `destroy()`（场景实例会复用）。
+
 ## 3. 代码风格
 
 - TypeScript strict；`verbatimModuleSyntax`；类型导入用 `import type`。
@@ -73,6 +88,7 @@ pnpm android:release
 
 - **默认不启动 Android 模拟器**：除非用户主动要求，否则测试验收无需启动模拟器调试 Android 端。
 - 改 UI：`pnpm dev`，用浏览器在 **390×844** 与 **1200×648** 两个视口各看一眼；检查控制台 0 error。
+- 改对话/立绘：`pnpm check` 会跑 `test/dialogue-portrait-registry.test.ts`（说话人表态 + bundle 闭包 + 归约语义 + 战斗面板同款）；实机取证 `.evidence/scripts/capture-portraits-2026-11-24.mjs` 逐场景推进到指定说话人，断言 `portrait.currentKey` 与屏幕上 image 的 texture/alpha，并截图 390×844。
 - 改开幕/过场：完整走一遍「开始 → 全部 cue → 点击继续 → 第一章寝室」，再测「跳过」「返回键」和 `prefers-reduced-motion`；`?stage=scene.prologue` 直接进开幕。
 - 改第一章/地图：`?stage=scene.ch01.dorm&phase=explore&hud=0`；验移动/碰撞/交互/目标/对话/返回标题；`debug=1` 看碰撞格。
 - 改战斗（v3.2）：
@@ -129,8 +145,13 @@ pnpm android:release
 - 坐姿图如果自带椅子，必须用 `sittingOffsetY` 把椅子脚对齐地面，并在坐着时隐藏独立椅子；表情气泡用 `headPoint` 定位，别用脚底坐标。
 - 角色贴图的**不透明底边不一定等于 origin 的脚底线**：`setOrigin(0.5, 400/420)` 把落点钉在画布第 400 行，但跪姿 `zhou_kneel_up` 只画到第 383 行（比落点高 8.5 设计 px），站姿都画到 399。所以脚底阴影不能给所有角色共用一条 `ellipse(x, y+3, 118, 24)`——跪着的周全就是这么悬起来的。金殿现在按贴图 alpha 轮廓查表（`src/scenes/ch01-palace-shadow.ts` + `tools/measure-actor-footprint.py`），换贴图重跑工具、把数抄回表，`test/palace-shadow.test.ts` 会现场解码 PNG 对表。
 
+- **立绘是屏幕层，不是世界层**：`PortraitLayer` 的 image 必须 `setScrollFactor(0)`。金殿/寝室相机固定时
+  看不出来，御膳房相机跟随玩家滚动，漏掉就会被滚出画面。截图里「有文字没脸」先查这一行。
+- **战斗对话不再是模态卡**：`openBattleTalk` 已删除。第一场教程对话走 `DialoguePlayer` + `buildDialoguePanel`
+  + `DialoguePortrait`；只保留「点击继续」，不接跳过/自动/记录（后面还接着真实攻击/出拳，跳过会断节拍）。
+  对话期间 `talkVisible` 同时挡住选目标/落点 Zone 的点击。
 - **战斗 v3.1 的判定只在 `src/battle/`**：场景 `battle-ch01-scene.ts` 只消费 `BattleEvent`（动画队列），不得自己算伤害/顺序/命中。新增技能/敌人只加 `data/` 数据；新增行为先加 `core/` 纯函数与单测。
-- **第一场教程对话（2026-11-24）**：文案/节拍在 `src/story/ch01-first-battle.ts`（进入战斗、首次攻击、首次移动、首次防御四段），场景只消费 beat，不硬编码台词；`enemy-attack`/`punch` 是真动作，其余用 `openBattleTalk` 逐句插入。攻击按钮第一场初始可点一次，教程对话后 `firstBattleAttackLocked` 才灰；脚本攻击临时把周全 dodge 置 0 强制命中，避免「闪避了却喊痛」。首次移动/首次防御的前置台词在敌人回合前、后置在敌人真出手后；进入战斗那一下后**直接切玩家回合**，不要 `startNextTurn` 让 SPD20 矿工连动。护栏 `test/ch01-first-battle-talk.test.ts`。
+- **第一场教程对话（2026-11-24）**：文案/节拍在 `src/story/ch01-first-battle.ts`（进入战斗、首次攻击、首次移动、首次防御四段），场景只消费 beat，不硬编码台词；`enemy-attack`/`punch` 是真动作，其余用底部对话面板（`DialoguePlayer` + `buildDialoguePanel` + `DialoguePortrait`）逐句插入。攻击按钮第一场初始可点一次，教程对话后 `firstBattleAttackLocked` 才灰；脚本攻击临时把周全 dodge 置 0 强制命中，避免「闪避了却喊痛」。首次移动/首次防御的前置台词在敌人回合前、后置在敌人真出手后；进入战斗那一下后**直接切玩家回合**，不要 `startNextTurn` 让 SPD20 矿工连动。护栏 `test/ch01-first-battle-talk.test.ts`。
 - **第一场不能赢**：`player.skills=[]` + `script.protocolAfterEnemyActions=4`。改第一场数值时保留「攻击只可点一次（教程对话后灰） / 必然战败 / 战败回寝室」三条，否则剧情断。
 - **`battleCh01` 与 `battleKitchen` 两个模块共用同一个场景 key**（`battle-ch01`），资源闭包不同：前者 `battle.ch01`（矿工 8 向 + 金殿舞台），后者 `battle.kitchen`（御膳房舞台 + 依赖 `ch01.kitchen` 取厨子八向）。别把两个包合并，否则第一场会被迫加载 14 MB 御膳房素材。
 - **战斗贴图宽度**：解离突刺 12 帧 × 320 = 3840，已接近手机 GPU 4096 上限；矿工八向是 272×400 单张。加帧/加宽前先跑 `test/battle-assets.test.ts`（宽度 <4096）。

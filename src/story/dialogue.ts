@@ -228,6 +228,24 @@ function includesAny(value: string, needles: readonly string[]): boolean {
 }
 
 /**
+ * 这一句是不是小白在说话（稳定 role 优先，显示名兜底）。
+ *
+ * 名字会随剧情变（`？？？` → 长名字 → `小白`），但声线/立绘/配色不能跟着失效；
+ * 语义色、逐字音、对话立绘三处共用这一个判定，别再各写一套名字表。
+ */
+export function isXiaobaiSpeaker(speaker?: string, role?: DialogueRole): boolean {
+  if (role === 'xiaobai') return true;
+  const name = (speaker ?? '').trim();
+  return name !== '' && includesAny(name, XIAOBAI_NAMES);
+}
+
+/** 矿工/因泰里/清除单元：铁皮机器人阵营（含战斗里的「侍卫机器人」按名字另判）。 */
+export function isMinerSpeaker(speaker?: string): boolean {
+  const name = (speaker ?? '').trim();
+  return name !== '' && includesAny(name, MINER_NAMES);
+}
+
+/**
  * 按稳定 role 优先、显示名兜底推断语义色。
  *
  * - 省略 speaker 或「旁白」→ narration（不显示说话人，文字用天蓝）；
@@ -235,11 +253,10 @@ function includesAny(value: string, needles: readonly string[]): boolean {
  * - 矿工/因泰里 → danger。
  */
 export function speakerTone(speaker?: string, role?: DialogueRole): SpeakerTone {
-  if (role === 'xiaobai') return 'xiaobai';
+  if (isXiaobaiSpeaker(speaker, role)) return 'xiaobai';
   const name = (speaker ?? '').trim();
   if (name === '' || name === '旁白') return 'narration';
-  if (includesAny(name, XIAOBAI_NAMES)) return 'xiaobai';
-  if (includesAny(name, MINER_NAMES)) return 'miner';
+  if (isMinerSpeaker(name)) return 'miner';
   if (name.includes('郑卿')) return 'zheng';
   if (name.includes('周全')) return 'zhou';
   return 'default';

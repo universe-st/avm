@@ -133,12 +133,12 @@ const png = (file: string): DecodedPng => decodePng(readFileSync(file));
 const PORTRAITS = {
   portraitXiaobai: {
     key: PALACE_TEXTURES.portraitXiaobai,
-    bundleKey: 'img.char.palace.portrait_xiaobai',
+    bundleKey: 'img.char.portrait.xiaobai',
     file: 'public/assets/img/character/palace/portrait_xiaobai.png',
   },
   portraitZhouPanic: {
     key: PALACE_TEXTURES.portraitZhouPanic,
-    bundleKey: 'img.char.palace.portrait_zhou_panic',
+    bundleKey: 'img.char.portrait.zhou_panic',
     file: 'public/assets/img/character/palace/portrait_zhou_panic.png',
   },
 } as const;
@@ -347,13 +347,17 @@ describe('金殿剧本：立绘出现 / 收起的配对', () => {
 // ------------------------------------------------------------------ 贴图文件
 
 describe('金殿立绘贴图：登记 / 尺寸 / 透明底', () => {
-  it('两张新立绘都登记在 cutscene.ch01palace 里，url 指向 720×900 的 PNG', () => {
-    const bundle = BUNDLES['cutscene.ch01palace'];
+  it('两张新立绘都登记在某个 bundle 里，url 指向 720×900 的 PNG', () => {
+    // 2026-11-24：小白的 key 搬去共享 `ch01.portraits`（寝室/御膳房/战斗也要用），
+    // 所以这里只断言「有且只有一个 bundle 登记了它」，不写死 bundle id。
     for (const field of ['portraitXiaobai', 'portraitZhouPanic'] as const) {
       const entry = portraitEntry(field);
       expect(PALACE_ASSET_KEYS.characters[field]).toBe(entry.key);
-      const asset = bundle.assets.find((item) => item.key === entry.bundleKey);
-      expect(asset, `${entry.bundleKey} 没在 bundle 里登记`).toBeDefined();
+      const owners = Object.values(BUNDLES).filter((bundle) =>
+        bundle.assets.some((item) => item.key === entry.bundleKey),
+      );
+      expect(owners.length, `${entry.bundleKey} 登记次数`).toBe(1);
+      const asset = owners[0]?.assets.find((item) => item.key === entry.bundleKey);
       expect(`public/${asset?.url ?? ''}`).toBe(entry.file);
     }
   });
@@ -421,58 +425,93 @@ describe('金殿场景：换朝向不该顺手弹一下', () => {
 // ------------------------------------------------------------------ 全部立绘通用规格
 
 /**
- * 金殿的全部半身立绘。
+ * 第一章的**全部**半身立绘（金殿 / 寝室 / 御膳房 / 战斗共用一套规格）。
  *
- * 以后再加人（侍卫、太监、老郑的另一套衣服……）**只往这张表里加文件名**，
- * 尺寸/透明底/登记三项检查自动覆盖，不用再抄一份断言。
+ * 2026-11-24 起立绘不再只属于金殿：bundle 按「角色共用程度」拆成三处，
+ * 所以这里登记的是「文件 → key → bundle」三元组，尺寸/透明底/登记三项检查自动覆盖。
  */
 const ALL_PORTRAITS = [
-  'portrait_zheng.png',
-  'portrait_chu.png',
-  'portrait_xiaobai.png',
-  'portrait_zhou_panic.png',
-  'portrait_shiwei.png',
-  'portrait_miner.png',
+  {
+    key: 'img.char.portrait.zheng',
+    bundle: 'cutscene.ch01palace',
+    path: 'public/assets/img/character/palace/portrait_zheng.png',
+  },
+  {
+    key: 'img.char.portrait.chu',
+    bundle: 'cutscene.ch01palace',
+    path: 'public/assets/img/character/palace/portrait_chu.png',
+  },
+  {
+    key: 'img.char.portrait.zhou_panic',
+    bundle: 'cutscene.ch01palace',
+    path: 'public/assets/img/character/palace/portrait_zhou_panic.png',
+  },
+  {
+    key: 'img.char.portrait.shiwei',
+    bundle: 'cutscene.ch01palace',
+    path: 'public/assets/img/character/palace/portrait_shiwei.png',
+  },
+  {
+    key: 'img.char.portrait.xiaobai',
+    bundle: 'ch01.portraits',
+    path: 'public/assets/img/character/palace/portrait_xiaobai.png',
+  },
+  {
+    key: 'img.char.portrait.miner',
+    bundle: 'ch01.portraits',
+    path: 'public/assets/img/character/palace/portrait_miner.png',
+  },
+  {
+    key: 'img.char.portrait.zhou',
+    bundle: 'ch01.portraits',
+    path: 'public/assets/img/character/ch01/portrait_zhou.png',
+  },
+  {
+    key: 'img.char.portrait.laomai',
+    bundle: 'ch01.kitchen',
+    path: 'public/assets/img/character/ch01/kitchen/portrait_laomai.png',
+  },
+  {
+    key: 'img.char.portrait.laoken',
+    bundle: 'ch01.kitchen',
+    path: 'public/assets/img/character/ch01/kitchen/portrait_laoken.png',
+  },
 ] as const;
 
-const portraitKeyOf = (file: string): string => `img.char.palace.${file.replace(/\.png$/, '')}`;
-
-describe('金殿半身立绘：通用规格', () => {
-  it('每张都登记在 cutscene.ch01palace 里，url 指向 public/assets/img/character/palace/', () => {
-    const bundle = BUNDLES['cutscene.ch01palace'];
-    for (const file of ALL_PORTRAITS) {
-      const key = portraitKeyOf(file);
-      const asset = bundle.assets.find((item) => item.key === key);
-      expect(asset, `${key} 没在 bundle 里登记`).toBeDefined();
-      expect(`public/${asset?.url ?? ''}`).toBe(`public/assets/img/character/palace/${file}`);
+describe('全部半身立绘：通用规格（金殿 / 寝室 / 御膳房 / 战斗共用）', () => {
+  it('每张都登记在对应 bundle 里，url 指向实际文件', () => {
+    for (const portrait of ALL_PORTRAITS) {
+      const bundle = BUNDLES[portrait.bundle];
+      const asset = bundle.assets.find((item) => item.key === portrait.key);
+      expect(asset, `${portrait.key} 没在 ${portrait.bundle} 里登记`).toBeDefined();
+      expect(`public/${asset?.url ?? ''}`).toBe(portrait.path);
     }
   });
 
   it('PNG 都是 720×900、8bit RGBA（立绘几何按 720:900 算显示尺寸）', () => {
-    for (const file of ALL_PORTRAITS) {
-      const image = png(`public/assets/img/character/palace/${file}`);
-      expect([image.width, image.height], file).toEqual([720, 900]);
-      expect([image.bitDepth, image.colorType], file).toEqual([8, 6]);
+    for (const portrait of ALL_PORTRAITS) {
+      const image = png(portrait.path);
+      expect([image.width, image.height], portrait.path).toEqual([720, 900]);
+      expect([image.bitDepth, image.colorType], portrait.path).toEqual([8, 6]);
     }
   });
 
   it('透明底干净：四角全透明、左右不贴边、纵向够满（半身构图）', () => {
-    for (const file of ALL_PORTRAITS) {
-      const path = `public/assets/img/character/palace/${file}`;
-      const image = png(path);
+    for (const portrait of ALL_PORTRAITS) {
+      const image = png(portrait.path);
       for (const [x, y] of [
         [0, 0],
         [image.width - 1, 0],
         [0, image.height - 1],
         [image.width - 1, image.height - 1],
       ] as const) {
-        expect(alphaOf(image, x, y), `${file} 角点 (${x},${y}) 不是透明`).toBe(0);
+        expect(alphaOf(image, x, y), `${portrait.path} 角点 (${x},${y}) 不是透明`).toBe(0);
       }
       const box = alphaBox(image);
-      expect(box.left, `${file} 左边贴边`).toBeGreaterThanOrEqual(8);
-      expect(image.width - box.right, `${file} 右边贴边`).toBeGreaterThanOrEqual(8);
-      expect(box.top, `${file} 头顶没贴到画布上沿（构图偏小）`).toBeLessThanOrEqual(2);
-      expect(box.bottom - box.top, `${file} 内容太矮`).toBeGreaterThan(700);
+      expect(box.left, `${portrait.path} 左边贴边`).toBeGreaterThanOrEqual(8);
+      expect(image.width - box.right, `${portrait.path} 右边贴边`).toBeGreaterThanOrEqual(8);
+      expect(box.top, `${portrait.path} 头顶没贴到画布上沿（构图偏小）`).toBeLessThanOrEqual(2);
+      expect(box.bottom - box.top, `${portrait.path} 内容太矮`).toBeGreaterThan(700);
     }
   });
 });

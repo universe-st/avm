@@ -4,12 +4,13 @@ import { UIScene, type ModalHandle } from '@phaser-mvvm/phaser';
 import { enterModule } from '../app/director';
 import { SCENE_KEYS } from '../app/scene-keys';
 import { applyCamera, getViewportPlan } from '../app/viewport';
-import { resolveReducedMotion } from '../app/settings';
+import { resolveReducedMotion, settings, textSpeedFactor } from '../app/settings';
 import { saveProgress } from '../app/progress';
 import { SceneLifecycle } from '../app/scene-lifecycle';
 import { evaluateSaveAvailability } from '../app/save/save-availability';
 import { restoreSaveFromScene } from '../app/save/load';
 import { audioDirector } from '../audio/audio-director';
+import { typeVoiceForSpeaker } from '../audio/type-voice';
 import { bgmManager } from '../audio/bgm-manager';
 import {
   BATTLE_ASSET_KEYS,
@@ -71,14 +72,22 @@ import {
   type FirstBattleTalkBeat,
   type FirstBattleTalkLine,
 } from '../story/ch01-first-battle';
+import { DialoguePlayer, type DialogueEvent } from '../story/dialogue-player';
+import {
+  DIALOGUE_PAGE_CHARS,
+  DIALOGUE_TYPE_MS,
+  speakerLabel,
+  type SpeakerTone,
+} from '../story/dialogue';
 import { buildBattleHud } from '../ui/battle-hud';
+import { DialoguePortrait } from '../ui/dialogue-portrait';
+import { isPointerOnUiControl } from '../ui/ui-pointer-guard';
 import {
   openBattleCodex,
   openBattleDefeat,
   openBattleExit,
   openBattleIntro,
   openBattleSkill,
-  openBattleTalk,
   openBattleVictory,
 } from '../ui/battle-ch01-modals';
 import {
@@ -252,7 +261,25 @@ export class BattleCh01Scene extends UIScene {
   private moveMode = false;
   /** 第一场教程：攻击按钮只允许点一次；移动/防御第一次各有插入对话。 */
   private firstBattleAttackLocked = false;
-  private firstBattleTalkModal: ModalHandle | null = null;
+  /**
+   * 战斗中插入对话（第一场教程）：**和剧情对话同一套底部面板**。
+   *
+   * 以前这里是一个居中的模态卡（说话人 + 大字 + 「继续」按钮），和走剧情时的
+   * 打字机/分页/点任意处继续完全两套观感。现在统一走 `buildDialoguePanel`：
+   * 同样的 672×300、同样的语义色、同样的「补全 / 继续」，外侧再挂 `DialoguePortrait`。
+   */
+  private readonly talkVisible = ref(false);
+  private readonly talkSpeaker = ref('');
+  private readonly talkTone = ref<SpeakerTone>('default');
+  private readonly talkText = ref('');
+  private readonly talkHint = ref('继续');
+  private readonly talkPageIndex = ref(0);
+  private readonly talkPageCount = ref(1);
+  private talkPlayer: DialoguePlayer | null = null;
+  private talkDone: (() => void) | null = null;
+  private talkTyped = 0;
+  /** 战斗对话立绘；`create()` 建、SHUTDOWN 销毁。 */
+  private portrait: DialoguePortrait | null = null;
   private firstBattleTalkRequested: 'move' | 'guard' | null = null;
   private firstBattleTalkPending: 'move' | 'guard' | null = null;
   private firstBattleMoveTalked = false;
@@ -366,9 +393,13 @@ export class BattleCh01Scene extends UIScene {
     this.createBarsAndRail();
     this.createSelectionPrompt();
     this.createTargetInfo();
+    this.portrait = new DialoguePortrait(this, this.reduced);
 
     super.create();
     audioDirector.attach(this);
+    // 对话期间「点屏幕任意位置 = 补全 / 继续」，与剧情对话同一套手感；
+    // 顶栏按钮/弹窗由 `isPointerOnUiControl()` 先吃掉，不会把点按钮当成推进台词。
+    this.input.on('pointerdown', this.onBattlePointerDown, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cleanup());
 
     // 有开场卡时，战斗曲等卡关掉再起播；开场卡期间沿用上一场景 BGM。
@@ -418,6 +449,13 @@ export class BattleCh01Scene extends UIScene {
     this.time.delayedCall(this.reduced ? 120 : 380, () => this.showBattleIntro());
   }
 
+  override update(_time: number, delta: number): void {
+    // 菜单打开 = 暂停：对话不推进，关闭后从原处继续。
+    if (!this.talkPlayer || this.menuModal?.open === true) return;
+    const dt = Math.min(50, Math.max(0, delta));
+    this.handleTalkEvents(this.talkPlayer.tick(dt));
+  }
+
   protected content(): void {
     buildBattleHud({
       turnLabel: this.turnLabel,
@@ -442,6 +480,15 @@ export class BattleCh01Scene extends UIScene {
       },
       location: this.isKitchen ? '梦域 / 御膳房' : '梦域 / 金殿',
       subtitle: this.isKitchen ? '遭遇战 · 七点位' : '剧情战 · 七点位',
+      dialogue: {
+        speaker: this.talkSpeaker,
+        tone: this.talkTone,
+        text: this.talkText,
+        hint: this.talkHint,
+        pageIndex: this.talkPageIndex,
+        pageCount: this.talkPageCount,
+        visible: this.talkVisible,
+      },
     });
   }
 
@@ -460,6 +507,10 @@ export class BattleCh01Scene extends UIScene {
     this.firstBattleTalkPending = null;
     this.firstBattleMoveTalked = false;
     this.firstBattleGuardTalked = false;
+    this.talkPlayer = null;
+    this.talkDone = null;
+    this.talkTyped = 0;
+    this.talkVisible.value = false;
     this.selectedTargetId = null;
     this.targetingSkillId = null;
     this.introModal = null;
@@ -1133,15 +1184,84 @@ export class BattleCh01Scene extends UIScene {
   }
 
   private showFirstBattleTalkLine(line: FirstBattleTalkLine, next: () => void): void {
-    this.firstBattleTalkModal = openBattleTalk(this.mvvm, {
-      speaker: line.speaker,
-      text: line.text,
-      tone: line.tone,
-      onClose: () => {
-        this.firstBattleTalkModal = null;
-        if (!this.ended) next();
-      },
+    this.startBattleTalk(line, next);
+  }
+
+  /**
+   * 战斗里的一段插入对话：直接复用剧情的 `DialoguePlayer`（分页/打字机/补全），
+   * 面板由 `buildDialoguePanel` 画在底部，立绘走 `DialoguePortrait`。
+   *
+   * 与剧情对话的唯一差别是**没有存档/记录/自动/跳过**：这段是战斗节拍的一部分
+   * （后面还接着真实攻击/出拳），跳过会让节奏断裂，所以只有「点击继续」。
+   */
+  private startBattleTalk(line: FirstBattleTalkLine, next: () => void): void {
+    this.talkDone = next;
+    this.talkTyped = 0;
+    this.talkPlayer = new DialoguePlayer([{ speaker: line.speaker, text: line.text }], {
+      pageChars: DIALOGUE_PAGE_CHARS,
+      balanceLines: true,
+      typeMs: Math.round(DIALOGUE_TYPE_MS * textSpeedFactor(settings.textSpeed)),
     });
+    this.talkSpeaker.value = speakerLabel(line.speaker);
+    // 语义色沿用剧本里写的 tone（「侍卫机器人」不是按名字能推出来的矿工色）。
+    this.talkTone.value = line.tone;
+    this.talkText.value = '';
+    this.talkHint.value = '继续';
+    this.talkPageIndex.value = 0;
+    this.talkPageCount.value = 1;
+    this.talkVisible.value = true;
+    this.handleTalkEvents(this.talkPlayer.start());
+  }
+
+  private handleTalkEvents(events: readonly DialogueEvent[]): void {
+    for (const event of events) {
+      if (event.type === 'line') {
+        this.talkSpeaker.value = speakerLabel(event.speaker);
+        this.talkPageIndex.value = event.pageIndex;
+        this.talkPageCount.value = event.pageCount;
+        this.portrait?.alignForLine(event.line);
+      } else if (event.type === 'type') {
+        this.talkText.value = event.text;
+        this.talkHint.value = event.done ? '继续' : '补全';
+        this.talkPageIndex.value = event.pageIndex;
+        this.talkPageCount.value = event.pageCount;
+        const gained = event.typedCount - this.talkTyped;
+        if (gained > 0 && gained <= 2) {
+          audioDirector.playTypeBlip(typeVoiceForSpeaker(event.speaker));
+        }
+        this.talkTyped = event.typedCount;
+      } else if (event.type === 'complete') {
+        this.finishBattleTalk();
+        return;
+      }
+    }
+  }
+
+  private advanceBattleTalk(): void {
+    if (!this.talkPlayer) return;
+    if (this.menuModal?.open === true) return;
+    this.handleTalkEvents(this.talkPlayer.requestAdvance());
+  }
+
+  private finishBattleTalk(): void {
+    this.talkPlayer = null;
+    this.talkVisible.value = false;
+    this.talkText.value = '';
+    this.talkHint.value = '继续';
+    this.talkPageIndex.value = 0;
+    this.talkPageCount.value = 1;
+    this.portrait?.hide();
+    const done = this.talkDone;
+    this.talkDone = null;
+    if (this.ended || !this.lifecycle.isLive(this.runId)) return;
+    done?.();
+  }
+
+  /** 点屏幕任意位置推进战斗对话（按钮/弹窗消费掉的点击不算）。 */
+  private onBattlePointerDown(pointer: Phaser.Input.Pointer): void {
+    if (!this.talkVisible.value) return;
+    if (isPointerOnUiControl(this, pointer)) return;
+    this.advanceBattleTalk();
   }
 
   private showFirstBattleBeats(
@@ -1566,7 +1686,7 @@ export class BattleCh01Scene extends UIScene {
   }
 
   private onSlotPointer(slot: SlotId): void {
-    if (this.busy || this.ended) return;
+    if (this.busy || this.ended || this.talkVisible.value) return;
     if (this.skillModal?.open === true || this.codexModal?.open === true) return;
     if (this.state.activeId !== this.playerUnit().id) return;
 
@@ -1586,7 +1706,7 @@ export class BattleCh01Scene extends UIScene {
   }
 
   private onEnemyPointer(id: string): void {
-    if (this.ended || this.busy || this.state.pendingMove) return;
+    if (this.ended || this.busy || this.talkVisible.value || this.state.pendingMove) return;
     if (this.skillModal?.open === true || this.codexModal?.open === true) return;
     if (this.menuModal?.open === true) return;
     if (!this.targetingSkillId) {
@@ -2886,8 +3006,12 @@ export class BattleCh01Scene extends UIScene {
     this.skillModal = null;
     this.codexModal?.close('scene');
     this.codexModal = null;
-    this.firstBattleTalkModal?.close('scene');
-    this.firstBattleTalkModal = null;
+    this.talkPlayer = null;
+    this.talkDone = null;
+    this.talkVisible.value = false;
+    this.portrait?.destroy();
+    this.portrait = null;
+    this.input.off('pointerdown', this.onBattlePointerDown, this);
     this.defeatModal = null;
     this.victoryModal = null;
     this.exitModal = null;

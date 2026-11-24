@@ -300,3 +300,18 @@
 | 护栏 | `test/ch01-palace-audio.test.ts`（心跳不循环、切曲 cue 唯一且与裂皮同拍、场景绑定与战斗绑定） | `pnpm check` 41 files / 373 tests |
 
 截图：`docs/images/bgm-palace/01-opening-realflow.png`（开场，BGM=`ch01Palace`）、`03-crack-realflow.png`（裂皮，BGM 已切 `ch01Dream`）。
+
+## 9. 全场景对话立绘 + 战斗对话同款（2026-11-24）
+
+用户要求：「战斗中对话应该和剧情对话样式一致，并且有贴图。给所有对话都加上人物贴图。如果缺图就用游戏素材大师生成。」
+
+| 项 | 结果 |
+| --- | --- |
+| 对话立绘 | 寝室 / 御膳房 / 金殿 / 战斗的每句台词都挂说话人半身贴图；对位唯一真值 `src/story/portraits.ts` |
+| 缺图补齐 | 周全常态、老麦、老肯三张（`docs/ASSET-CREDITS.md` §11.18）；新闻主持人只在 CG 里出现，明确收脸 |
+| 战斗对话 | 删掉居中模态卡 `openBattleTalk`；第一场教程对话改用剧情同款底部面板（打字机/分页/点任意处继续）+ `DialoguePortrait`，对话时整块替换底部指令区 |
+| 立绘资源 | 新共享 bundle `ch01.portraits`（周全/小白/矿工）；老麦/老肯进 `ch01.kitchen`；金殿包只留 4 张 |
+| 屏幕层 | `PortraitLayer` 加 `setScrollFactor(0)`——御膳房相机跟随玩家滚动，漏掉会把立绘滚出画面（实测修复） |
+| 静态护栏 | `test/dialogue-portrait-registry.test.ts`（说话人表态/bundle 闭包/归约语义/战斗面板同款）+ `test/palace-five-items.test.ts`（9 张立绘规格） |
+| 实机取证 | `.evidence/scripts/capture-portraits-2026-11-24.mjs`：390×844、dpr3，逐场景断言 `portrait.currentKey` 与屏幕 image 的 texture/alpha，canvas 390×844 填满、console 0 error |
+| `pnpm check` | 通过（780 tests / 79 files，assets 264 key） |

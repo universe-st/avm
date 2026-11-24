@@ -2,7 +2,6 @@ import type { ModalHandle, MVVMPlugin } from '@phaser-mvvm/phaser';
 import { MODAL_NO_AUTOFOCUS } from './modal-guard';
 import { Button, Column, Divider, Panel, Row, Text } from '@phaser-mvvm/widgets/compose';
 import { CH01_BATTLE_BANNER } from '../story/ch01-dorm';
-import { TONE_TEXT_COLOR } from './hud-kit';
 
 /**
  * 战斗相关模态（v2）。
@@ -396,56 +395,6 @@ export function openBattleExit(
       dismissible: true,
       name: 'ch01-battle-exit',
       onClose: callbacks.onClose,
-    },
-  );
-  return modal;
-}
-
-/**
- * 第一场教程对话：逐句插入在战斗中。旁白/小白/机器人/周全用统一的语义色，
- * 场景在两句之间播放真实攻击/出拳，再由玩家点「继续」推进。
- */
-export function openBattleTalk(
-  mvvm: MVVMPlugin,
-  options: {
-    readonly speaker: string;
-    readonly text: string;
-    readonly tone: 'narration' | 'zhou' | 'zheng' | 'xiaobai' | 'miner' | 'default';
-    readonly onClose: () => void;
-  },
-): ModalHandle {
-  let modal: ModalHandle | null = null;
-  const color = TONE_TEXT_COLOR[options.tone] ?? TONE_TEXT_COLOR.default;
-  modal = mvvm.modal.open(
-    () => {
-      Panel({ width: 620, padding: 26, gap: 12, variant: 'surface' }, () => {
-        Text(options.speaker, {
-          size: 'sm',
-          style: { color },
-          align: 'left',
-        });
-        Text(options.text, {
-          size: 'lg',
-          wrap: true,
-          style: { color },
-        });
-        Row({ width: 'fill', justifyContent: 'end' }, () => {
-          Button('继续', {
-            variant: 'primary',
-            size: 'md',
-            width: 160,
-            onClick: () => {
-              modal?.close();
-            },
-          });
-        });
-      });
-    },
-    {
-      ...MODAL_NO_AUTOFOCUS,
-      dismissible: false,
-      name: 'ch01-battle-talk',
-      onClose: options.onClose,
     },
   );
   return modal;

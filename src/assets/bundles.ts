@@ -420,8 +420,8 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
     // 2026-11-17：加了两张 720×900 半身立绘（小白 / 周全慌张），实测约 7.1 MB，按实际登记。
     // 2026-11-18：再加一张侍卫立绘（820 KB），实测约 7.9 MB → 9216。
     // 2026-11-18：再加矿工立绘（936 KB），实测约 8.9 MB → 10240。
-    // 立绘是唯一值得的大图（贴屏幕右侧放大到 155 设计 px，缩到 1024 宽会糊）。
-    budgetKB: 10240,
+    // 2026-11-24：小白/矿工立绘搬去共享 `ch01.portraits`，本包只剩 4 张（郑卿/楚公公/侍卫/周全慌张）。
+    budgetKB: 8192,
     dependsOn: ['core'],
     assets: [
       {
@@ -460,30 +460,22 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         tags: ['character'],
       },
       {
-        key: 'img.char.palace.portrait_zheng',
+        key: 'img.char.portrait.zheng',
         kind: 'image',
         url: 'assets/img/character/palace/portrait_zheng.png',
         label: '郑卿 · 半身立绘',
         tags: ['character', 'portrait'],
       },
       {
-        key: 'img.char.palace.portrait_chu',
+        key: 'img.char.portrait.chu',
         kind: 'image',
         url: 'assets/img/character/palace/portrait_chu.png',
         label: '楚公公 · 半身立绘',
         tags: ['character', 'portrait'],
       },
       {
-        // 720×900 RGBA 透明底，与 portrait_zheng / portrait_chu 同一套画风。
-        key: 'img.char.palace.portrait_xiaobai',
-        kind: 'image',
-        url: 'assets/img/character/palace/portrait_xiaobai.png',
-        label: '小白 · 半身立绘',
-        tags: ['character', 'portrait'],
-      },
-      {
         // 周全被按跪、慌张的头部特写：震屏前隐藏。
-        key: 'img.char.palace.portrait_zhou_panic',
+        key: 'img.char.portrait.zhou_panic',
         kind: 'image',
         url: 'assets/img/character/palace/portrait_zhou_panic.png',
         label: '周全 · 被按跪慌张 · 半身立绘',
@@ -491,18 +483,10 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
       },
       {
         // 殿前侍卫应命「是！」的半身立绘：720×900 RGBA 透明底，与 zheng/chu 同一套画风。
-        key: 'img.char.palace.portrait_shiwei',
+        key: 'img.char.portrait.shiwei',
         kind: 'image',
         url: 'assets/img/character/palace/portrait_shiwei.png',
         label: '侍卫 · 半身立绘',
-        tags: ['character', 'portrait'],
-      },
-      {
-        // 矿工（裂皮后的铁皮骨架）半身立绘：以 miner.png 为身份基准，720×900 RGBA 透明底。
-        key: 'img.char.palace.portrait_miner',
-        kind: 'image',
-        url: 'assets/img/character/palace/portrait_miner.png',
-        label: '矿工 · 半身立绘',
         tags: ['character', 'portrait'],
       },
       {
@@ -746,6 +730,46 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         url: 'assets/img/character/ch01/xiaobai.png',
         label: '小白',
         tags: ['character', 'xiaobai'],
+      },
+    ],
+  },
+  /**
+   * 对话半身立绘 · 第一章共享（周全 / 小白 / 矿工）。
+   *
+   * 2026-11-24 起「所有对话都要挂人物贴图」：寝室、御膳房、金殿、两场战斗都会用上面这张表，
+   * 但每张 720×900 RGBA 约 700–950 KB，不能塞进每个场景各自的包（会把寝室拖重一倍）。
+   * 所以按角色共用程度拆：
+   * - 本包：三张跨场景共用（`src/story/portraits.ts` 的 `SPEAKER_PORTRAITS`）；
+   * - `ch01.kitchen`：老麦/老肯；`cutscene.ch01palace`：郑卿/楚公公/侍卫/周全慌张。
+   */
+  'ch01.portraits': {
+    id: 'ch01.portraits',
+    budgetKB: 3072,
+    dependsOn: ['core'],
+    assets: [
+      {
+        // 2026-11-24 新出：周全常态半身（金殿那张是「被按跪慌张」，不能拿到寝室/战斗里用）。
+        key: 'img.char.portrait.zhou',
+        kind: 'image',
+        url: 'assets/img/character/ch01/portrait_zhou.png',
+        label: '周全 · 半身立绘',
+        tags: ['character', 'portrait'],
+      },
+      {
+        // 720×900 RGBA 透明底，金殿/寝室/御膳房三处共用一张（名字会变，身份不变）。
+        key: 'img.char.portrait.xiaobai',
+        kind: 'image',
+        url: 'assets/img/character/palace/portrait_xiaobai.png',
+        label: '小白 · 半身立绘',
+        tags: ['character', 'portrait'],
+      },
+      {
+        // 矿工（铁皮骨架）：金殿清除协议与战斗「侍卫机器人」共用。
+        key: 'img.char.portrait.miner',
+        kind: 'image',
+        url: 'assets/img/character/palace/portrait_miner.png',
+        label: '矿工 · 半身立绘',
+        tags: ['character', 'portrait'],
       },
     ],
   },
@@ -1020,7 +1044,8 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
   },
   'ch01.kitchen': {
     id: 'ch01.kitchen',
-    budgetKB: 12288,
+    // 2026-11-24：加老麦/老肯对话立绘（约 1.6 MB）。
+    budgetKB: 14336,
     dependsOn: ['ui', 'ch01.char'],
     assets: [
       {
@@ -1694,6 +1719,21 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         url: 'assets/audio/sfx/ch01_kitchen_latch.mp3',
         label: '御膳房音效 · 门闩',
         tags: ['audio', 'sfx', 'kitchen'],
+      },
+      // 御膳房对话立绘（720×900 RGBA 透明底）：老麦、老肯只在厨房开口，跟厨房包一起走。
+      {
+        key: 'img.char.portrait.laomai',
+        kind: 'image',
+        url: 'assets/img/character/ch01/kitchen/portrait_laomai.png',
+        label: '老麦 · 半身立绘',
+        tags: ['character', 'portrait', 'kitchen'],
+      },
+      {
+        key: 'img.char.portrait.laoken',
+        kind: 'image',
+        url: 'assets/img/character/ch01/kitchen/portrait_laoken.png',
+        label: '老肯 · 半身立绘',
+        tags: ['character', 'portrait', 'kitchen'],
       },
     ],
   },

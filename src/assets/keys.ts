@@ -29,6 +29,36 @@ export const TYPE_BLIP_KEYS = {
   xiaobai: 'audio.sfx.voice_xiaobai',
 } as const;
 
+/**
+ * 对话半身立绘（720×900 RGBA、透明底）的**全局唯一 key 表**。
+ *
+ * 2026-11-24 起立绘不再只属于金殿：寝室/御膳房/战斗的对话面板也要挂人物贴图。
+ * 所以 key 从 `img.char.palace.*` 提到 `img.char.portrait.*`，按「角色」而不是「场景」命名，
+ * 场景只决定**哪几张进哪个 bundle**（见 `src/assets/bundles.ts`）：
+ * - `ch01.portraits`：周全 / 小白 / 矿工（三个内容场景 + 两场战斗共用）
+ * - `ch01.kitchen`：老麦 / 老肯（只在御膳房出现）
+ * - `cutscene.ch01palace`：郑卿 / 楚公公 / 侍卫 / 周全慌张（只在金殿过场出现）
+ *
+ * 对位规则是 `src/story/portraits.ts` 的 `SPEAKER_PORTRAITS` + `reducePortraitForLine()`，
+ * 场景里不许再手写「谁说话挂哪张脸」。
+ */
+export const PORTRAIT_ASSET_KEYS = {
+  zhou: 'img.char.portrait.zhou',
+  /** 小白（娃娃脸光团 + 兜帽 + 羽翼 + 胸口蓝核）：名字会变，按 role/名字统一归到这张。 */
+  xiaobai: 'img.char.portrait.xiaobai',
+  /** 矿工（铁皮骨架）：金殿「清除协议」与战斗「侍卫机器人」共用。 */
+  miner: 'img.char.portrait.miner',
+  zheng: 'img.char.portrait.zheng',
+  chu: 'img.char.portrait.chu',
+  shiwei: 'img.char.portrait.shiwei',
+  /** 周全被太监按跪、脸被迫上仰的慌张特写（金殿专用）。 */
+  zhouPanic: 'img.char.portrait.zhou_panic',
+  /** 老麦：三尖铃铛小丑帽 + 扑克大王式小丑脸 + 暗红金线锦袍。 */
+  laomai: 'img.char.portrait.laomai',
+  /** 老肯：圆黑框老花镜 + 国字脸 + 白山羊胡 + 黛青长袍深灰外褂。 */
+  laoken: 'img.char.portrait.laoken',
+} as const;
+
 /** 梦域金殿（第一章殿上过场）的资源 key。 */
 export const PALACE_ASSET_KEYS = {
   map: {
@@ -49,8 +79,8 @@ export const PALACE_ASSET_KEYS = {
     chuLeft: 'img.char.palace.chu_gonggong_left',
     chuRight: 'img.char.palace.chu_gonggong_right',
     chuKneel: 'img.char.palace.chu_gonggong_kneel',
-    portraitZheng: 'img.char.palace.portrait_zheng',
-    portraitChu: 'img.char.palace.portrait_chu',
+    portraitZheng: PORTRAIT_ASSET_KEYS.zheng,
+    portraitChu: PORTRAIT_ASSET_KEYS.chu,
     /**
      * 小白：白色小精灵（娃娃脸光团 + 兜帽 + 羽翼 + 胸口蓝核）半身立绘。
      *
@@ -58,14 +88,14 @@ export const PALACE_ASSET_KEYS = {
      * （`portraitMetrics()` 按 720:900 定显示尺寸，换图不用改代码）。
      * 用在金殿「心防出现剧烈震荡」与收尾「建议：躲避攻击，保留体力。」两句。
      */
-    portraitXiaobai: 'img.char.palace.portrait_xiaobai',
+    portraitXiaobai: PORTRAIT_ASSET_KEYS.xiaobai,
     /**
      * 周全被太监按跪在地上、脸被迫上仰时的慌张头部特写（720×900 RGBA、透明底）。
      *
      * 台词「（……你不是罪该万死吗，饶什么命啊？）」到「疯了吧你？！……」共用这张，
      * 震屏前 `portraitHide`。**不要**拿 200×420 的角色贴图放大充数（会糊）。
      */
-    portraitZhouPanic: 'img.char.palace.portrait_zhou_panic',
+    portraitZhouPanic: PORTRAIT_ASSET_KEYS.zhouPanic,
     /**
      * 殿前侍卫应命「是！」的半身立绘（720×900 RGBA、透明底）。
      *
@@ -73,7 +103,7 @@ export const PALACE_ASSET_KEYS = {
      * 以精灵图为身份基准生成，画风照 `portrait_zheng` / `portrait_chu`。
      * 只在「郑卿喝令拖出午门 → 侍卫：是！」这一拍出场，说完立刻 `portraitHide`。
      */
-    portraitShiwei: 'img.char.palace.portrait_shiwei',
+    portraitShiwei: PORTRAIT_ASSET_KEYS.shiwei,
     /**
      * 矿工（裂皮后的铁皮骨架）半身立绘（720×900 RGBA、透明底）。
      *
@@ -81,7 +111,7 @@ export const PALACE_ASSET_KEYS = {
      * 台词「入侵单元确认！执行矿场清除协议！」按 `PALACE_SPEAKER_PORTRAIT` 自动上脸（左侧）。
      * 2026-11-18 前它没有立绘、开口留空；补图后与侍卫同一套对位管线。
      */
-    portraitMiner: 'img.char.palace.portrait_miner',
+    portraitMiner: PORTRAIT_ASSET_KEYS.miner,
   },
   sfx: {
     ambience: 'audio.sfx.palace.ambience',

@@ -68,14 +68,21 @@ export const MODULES: Record<ModuleId, GameModule> = {
     sceneKey: SCENE_KEYS.ch01Dorm,
     // 入梦/起身表演要用金殿那套 whoosh/rumble/cloth/kneel 做占位音效；它们本来就在
     // 下一个场景的包里，预先带上，免得表演中途静音（代价约 340KB）。
-    requires: ['core', 'ui', 'ch.01', 'cutscene.ch01phone', 'cutscene.ch01palace.sfx'],
+    requires: [
+      'core',
+      'ui',
+      'ch.01',
+      'ch01.portraits',
+      'cutscene.ch01phone',
+      'cutscene.ch01palace.sfx',
+    ],
     gate: { title: '正在进入第一章 · 寝室' },
   },
   ch01Kitchen: {
     id: 'ch01Kitchen',
     kind: 'scene',
     sceneKey: SCENE_KEYS.ch01Kitchen,
-    requires: ['core', 'ui', 'ch01.char', 'ch01.kitchen', 'ch01.bgm'],
+    requires: ['core', 'ui', 'ch01.portraits', 'ch01.char', 'ch01.kitchen', 'ch01.bgm'],
     gate: { title: '正在进入御膳房' },
   },
   ch01Palace: {
@@ -85,6 +92,7 @@ export const MODULES: Record<ModuleId, GameModule> = {
     requires: [
       'core',
       'ui',
+      'ch01.portraits',
       'cutscene.ch01palace',
       'cutscene.ch01palace.walk',
       'cutscene.ch01palace.sfx',
@@ -98,7 +106,7 @@ export const MODULES: Record<ModuleId, GameModule> = {
     sceneKey: SCENE_KEYS.battleCh01,
     // 战斗 v2：玩家战斗素材在 battle.common，矿工八向/金殿舞台在 battle.ch01。
     // 不再依赖 cutscene.ch01palace —— 战斗舞台有自己的 720×1280 图，过场立绘不进战斗。
-    requires: ['core', 'battle.common', 'battle.ch01', 'ch01.bgm'],
+    requires: ['core', 'ch01.portraits', 'battle.common', 'battle.ch01', 'ch01.bgm'],
     gate: { title: '正在进入梦域金殿' },
   },
   battleKitchen: {
@@ -106,7 +114,7 @@ export const MODULES: Record<ModuleId, GameModule> = {
     kind: 'battle',
     // 与 battleCh01 共用同一个战斗场景；只是资源闭包不同（御厨八向来自 ch01.kitchen）。
     sceneKey: SCENE_KEYS.battleCh01,
-    requires: ['core', 'battle.common', 'battle.kitchen', 'ch01.bgm'],
+    requires: ['core', 'ch01.portraits', 'battle.common', 'battle.kitchen', 'ch01.bgm'],
     gate: { title: '正在进入御膳房 · 遭遇' },
   },
 };
