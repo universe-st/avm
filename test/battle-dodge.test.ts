@@ -2,13 +2,20 @@ import { describe, expect, it } from 'vitest';
 import type { BattleSetup, BattleState } from '../src/battle/types';
 import { CH01_FIRST_BATTLE } from '../src/battle/data/ch01-first';
 import { CH01_KITCHEN_BATTLE } from '../src/battle/data/ch01-kitchen';
-import { createBattle, applyBattleAction } from '../src/battle/core/battle';
+import { createBattle, applyBattleAction, startNextTurn } from '../src/battle/core/battle';
 import { dodgeChance, dodgePercent } from '../src/battle/core/dodge';
 
 function withPartySlot(setup: BattleSetup, slot: BattleState['party'][number]['slot']): BattleSetup {
   return {
     ...setup,
     party: setup.party.map((unit, index) => (index === 0 ? { ...unit, slot } : unit)),
+  };
+}
+
+function withPartyDodge(setup: BattleSetup, dodge: number): BattleSetup {
+  return {
+    ...setup,
+    party: setup.party.map((unit, index) => (index === 0 ? { ...unit, dodge } : unit)),
   };
 }
 
@@ -32,6 +39,10 @@ function enemyAt(
 describe('dodge（闪避）', () => {
   it('uses 1 - 200/(3x+200), never reaching 100%', () => {
     expect(dodgeChance(0)).toBe(0);
+    expect(dodgeChance(1)).toBeCloseTo(1 - 200 / 203, 8);
+    expect(dodgeChance(5)).toBeCloseTo(1 - 200 / 215, 8);
+    expect(dodgePercent(1)).toBe(1);
+    expect(dodgePercent(5)).toBe(7);
     expect(dodgeChance(100)).toBeCloseTo(0.6, 8);
     expect(dodgePercent(100)).toBe(100 - 40);
     expect(dodgeChance(10000)).toBeGreaterThan(0.99);
@@ -42,7 +53,7 @@ describe('dodge（闪避）', () => {
   it('dodges a normal enemy attack when an adjacent empty slot exists', () => {
     let found: { state: BattleState; result: ReturnType<typeof applyBattleAction> } | null = null;
     for (let seed = 1; seed <= 120 && !found; seed += 1) {
-      const state = atEnemyTurn(createBattle(CH01_KITCHEN_BATTLE, seed), 'cook-phantom-a');
+      const state = atEnemyTurn(createBattle(withPartyDodge(CH01_KITCHEN_BATTLE, 100), seed), 'cook-phantom-a');
       const result = applyBattleAction(state, { kind: 'enemy-act' }, CH01_KITCHEN_BATTLE);
       if (result.events.some((event) => event.kind === 'dodge')) found = { state, result };
     }
@@ -75,7 +86,7 @@ describe('dodge（闪避）', () => {
   });
 
   it('can dodge an all-slot attack when an adjacent empty slot exists', () => {
-    const setup = withPartySlot(CH01_FIRST_BATTLE, 'left');
+    const setup = withPartyDodge(withPartySlot(CH01_FIRST_BATTLE, 'left'), 100);
     let found: ReturnType<typeof applyBattleAction> | null = null;
     for (let seed = 1; seed <= 160 && !found; seed += 1) {
       let state = createBattle(setup, seed);
@@ -90,6 +101,32 @@ describe('dodge（闪避）', () => {
     expect(dodge).toMatchObject({ kind: 'dodge', aoe: true });
     expect(enemySkill).toMatchObject({ kind: 'enemy-skill', hit: false, dodged: true, aoe: true });
     expect(found!.state.party[0]!.hp).toBe(setup.party[0]!.hp);
+  });
+
+  it('lets a 5-dodge cook evade a player attack and move to a free neighbour', () => {
+    const setup = withPartySlot(CH01_KITCHEN_BATTLE, 'left');
+    let found: { before: BattleState; result: ReturnType<typeof applyBattleAction> } | null = null;
+    for (let seed = 1; seed <= 300 && !found; seed += 1) {
+      let state = startNextTurn(createBattle(setup, seed), setup).state;
+      if (state.activeId !== state.party[0]!.id) continue;
+      const target = state.enemies.find((enemy) => enemy.id === 'cook-phantom-a')!;
+      const result = applyBattleAction(
+        state,
+        { kind: 'attack', skillId: 'player.jielitusi', targetId: target.id },
+        setup,
+      );
+      if (result.events.some((event) => event.kind === 'dodge')) found = { before: state, result };
+    }
+    expect(found).not.toBeNull();
+    const dodge = found!.result.events.find((event) => event.kind === 'dodge');
+    const attack = found!.result.events.find((event) => event.kind === 'attack');
+    expect(dodge).toMatchObject({ kind: 'dodge', actorId: 'cook-phantom-a', attackerId: 'zhou-quan' });
+    expect(attack).toMatchObject({ kind: 'attack', dodged: true, amount: 0 });
+    const beforeTarget = found!.before.enemies.find((enemy) => enemy.id === 'cook-phantom-a')!;
+    const afterTarget = found!.result.state.enemies.find((enemy) => enemy.id === 'cook-phantom-a')!;
+    expect(afterTarget.hp).toBe(beforeTarget.hp);
+    expect(afterTarget.slot).not.toBe(beforeTarget.slot);
+    expect(found!.result.state.pendingMove).toBeNull();
   });
 
   it('does not deliberately attack empty points: an enemy with no in-range target waits', () => {

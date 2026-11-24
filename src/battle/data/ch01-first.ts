@@ -21,7 +21,7 @@ export const CH01_FIRST_BATTLE: BattleSetup = {
       hp: 90,
       atk: 16,
       spd: 14,
-      dodge: 100,
+      dodge: 1,
       // 没有「解」：攻击不可用，只能移动/防御。
       skills: [],
       slot: 'left',

@@ -28,7 +28,20 @@ function play(
     if (state.phase === 'victory' || state.phase === 'defeat') break;
 
     if (state.pendingMove) {
-      const slot = state.pendingMove.slots[0] ?? state.party[0]!.slot;
+      // 真人会选离敌人更远的落点；这里模拟“会走位”的玩家，而不是总选第一个。
+      const slots = state.pendingMove.slots;
+      const slot =
+        [...slots].sort((a, b) => {
+          const sa = livingEnemies(state).reduce(
+            (sum, enemy) => sum + pointDistance(a, enemy.slot),
+            0,
+          );
+          const sb = livingEnemies(state).reduce(
+            (sum, enemy) => sum + pointDistance(b, enemy.slot),
+            0,
+          );
+          return sb - sa;
+        })[0] ?? state.party[0]!.slot;
       state = applyBattleAction(state, { kind: 'post-move', slot }, setup).state;
       continue;
     }
