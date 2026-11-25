@@ -258,7 +258,15 @@ export type BattleAction =
   | { readonly kind: 'attack'; readonly skillId: string; readonly targetId: string }
   | { readonly kind: 'post-move'; readonly slot: SlotId }
   | { readonly kind: 'guard' }
-  | { readonly kind: 'enemy-act' };
+  | {
+      readonly kind: 'enemy-act';
+      /**
+       * 剧本指定招式：跳过 AI 选招，直接打这一招（不看距离/冷却）。
+       * 只给教程节拍用（第一场「首次移动/首次防御」回手一拳要保证命中）；
+       * 招式必须在该敌人的 `skills` 里，否则回落到正常 AI。
+       */
+      readonly forceSkillId?: string;
+    };
 
 export type BattleEvent =
   | {

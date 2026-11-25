@@ -157,7 +157,7 @@ pnpm android:release
   + `DialoguePortrait`；只保留「点击继续」，不接跳过/自动/记录（后面还接着真实攻击/出拳，跳过会断节拍）。
   对话期间 `talkVisible` 同时挡住选目标/落点 Zone 的点击。
 - **战斗 v3.1 的判定只在 `src/battle/`**：场景 `battle-ch01-scene.ts` 只消费 `BattleEvent`（动画队列），不得自己算伤害/顺序/命中。新增技能/敌人只加 `data/` 数据；新增行为先加 `core/` 纯函数与单测。
-- **第一场教程对话（2026-11-24）**：文案/节拍在 `src/story/ch01-first-battle.ts`（进入战斗、首次攻击、首次移动、首次防御四段），场景只消费 beat，不硬编码台词；`enemy-attack`/`punch` 是真动作，其余用底部对话面板（`DialoguePlayer` + `buildDialoguePanel` + `DialoguePortrait`）逐句插入。攻击按钮第一场初始可点一次，教程对话后 `firstBattleAttackLocked` 才灰；脚本攻击临时把周全 dodge 置 0 强制命中，避免「闪避了却喊痛」。首次移动/首次防御的前置台词在敌人回合前、后置在敌人真出手后；进入战斗那一下后**直接切玩家回合**，不要 `startNextTurn` 让 SPD20 矿工连动。护栏 `test/ch01-first-battle-talk.test.ts`。
+- **第一场教程对话（2026-11-24）**：文案/节拍在 `src/story/ch01-first-battle.ts`（进入战斗、首次攻击、首次移动、首次防御四段），场景只消费 beat，不硬编码台词；`enemy-attack`/`punch` 是真动作，其余用底部对话面板（`DialoguePlayer` + `buildDialoguePanel` + `DialoguePortrait`）逐句插入。攻击按钮第一场初始可点一次，教程对话后 `firstBattleAttackLocked` 才灰；脚本攻击临时把周全 dodge 置 0 强制命中，避免「闪避了却喊痛」。**首次移动/首次防御的矿工回手是指定全站位招式**（`miner.quake` 核心脉冲）：11 点位之后玩家一步就能走出近战范围，普通招式会打空、剧本却照旧播「痛」（用户 2026-11-25 实测报的 bug）；现在走 `BattleAction.forceSkillId` + `planScriptedSkillIntent`（不看距离/冷却，招式必须在该敌人 `skills` 里，否则回落正常 AI），别改回让它走 AI 选招。前/后置台词仍按「敌人真出手后」播；进入战斗那一下后**直接切玩家回合**，不要 `startNextTurn` 让 SPD20 矿工连动。护栏 `test/ch01-first-battle-talk.test.ts`。
 - **第一场不能赢**：`player.skills=[]` + `script.protocolAfterEnemyActions=4`。改第一场数值时保留「攻击只可点一次（教程对话后灰） / 必然战败 / 战败回寝室」三条，否则剧情断。
 - **`battleCh01` 与 `battleKitchen` 两个模块共用同一个场景 key**（`battle-ch01`），资源闭包不同：前者 `battle.ch01`（矿工 8 向 + 金殿舞台），后者 `battle.kitchen`（御膳房舞台 + 依赖 `ch01.kitchen` 取厨子八向）。别把两个包合并，否则第一场会被迫加载 14 MB 御膳房素材。
 - **战斗贴图宽度**：解离突刺 12 帧 × 320 = 3840，已接近手机 GPU 4096 上限；矿工八向是 272×400 单张。加帧/加宽前先跑 `test/battle-assets.test.ts`（宽度 <4096）。

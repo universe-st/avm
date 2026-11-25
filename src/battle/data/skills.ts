@@ -97,5 +97,13 @@ export function resolveSkill(id: string): SkillDef {
 }
 
 export const PLAYER_SKILL_JIE = 'player.jielitusi';
-export const MINER_SKILLS = ['miner.sweep', 'miner.thrust', 'miner.quake'] as const;
+/**
+ * 矿工的全站位招式（核心脉冲）。
+ *
+ * 第一场教程里「玩家一动，矿工就回手」的两拍（首次移动/首次防御）用它：
+ * 11 点位之后玩家能一步走到矿工的近战范围外，普通招式会打空，
+ * 但剧本照旧播「哎哟！痛」——所以那两拍强制打成全站位（用户 2026-11-25 要求）。
+ */
+export const MINER_QUAKE_SKILL = 'miner.quake';
+export const MINER_SKILLS = ['miner.sweep', 'miner.thrust', MINER_QUAKE_SKILL] as const;
 export const COOK_SKILLS = ['cook.sweep', 'cook.oil', 'cook.quake'] as const;

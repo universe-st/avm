@@ -14,7 +14,7 @@ import type {
   SlotId,
   Zone,
 } from '../types';
-import { planEnemyIntent, planEnemyIntents } from './ai';
+import { planEnemyIntent, planEnemyIntents, planScriptedSkillIntent } from './ai';
 import { computeDamage, zoneLabel } from './damage';
 import { dodgeChance } from './dodge';
 import { battleRandom } from './rng';
@@ -372,7 +372,7 @@ export function applyBattleAction(
 
   return actor.team === 'party'
     ? applyPartyAction(state, action, actor, setup)
-    : applyEnemyAction(state, setup, actor);
+    : applyEnemyAction(state, setup, actor, action.kind === 'enemy-act' ? action.forceSkillId : undefined);
 }
 
 /**
@@ -678,6 +678,7 @@ function applyEnemyAction(
   state: BattleState,
   setup: BattleSetup,
   enemy: BattleUnit,
+  forceSkillId?: string,
 ): BattleActionResult {
   if (allPartyDead(state)) {
     const text = setup.defeat.text;
@@ -695,7 +696,10 @@ function applyEnemyAction(
   }
 
   // 执行时按当前站位重新选目标：玩家移动后不会朝旧点位空放。
-  const planned = planEnemyIntent(state, setup, enemy.id);
+  // `forceSkillId` 是教程节拍用的「指定招式」，跳过选招（不看距离/冷却）。
+  const planned =
+    (forceSkillId ? planScriptedSkillIntent(state, setup, enemy.id, forceSkillId) : null) ??
+    planEnemyIntent(state, setup, enemy.id);
   if (!planned) {
     const seq = state.seq + 1;
     const text = `${enemy.name}找不到能攻击到的目标，按住阵脚。`;

@@ -6,6 +6,10 @@ import type { PortraitEmotion, SpeakerTone } from './dialogue';
  * 第一场没有「解」，本来是一场「必败」的剧情战；2026-11-24 用户给了完整的
  * 战斗中插入对话。这里只放**文案与节拍**，场景负责把 enemy-attack / punch
  * 换成真实战斗动作和动画。
+ *
+ * **首次移动 / 首次防御的矿工回手**（2026-11-25）：11 点位之后玩家一步就能走出矿工
+ * 近战范围，普通招式会打空但剧本照旧播「痛」——所以场景把这两拍强制打成全站位
+ * （`miner.quake` 核心脉冲，`BattleAction.forceSkillId`），保证台词与伤害一致。
  */
 export type FirstBattleTalkLine = {
   readonly speaker: string;

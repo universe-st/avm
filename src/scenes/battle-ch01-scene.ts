@@ -59,7 +59,7 @@ import { buildPreviewState, type BattlePreviewPhase } from '../battle/core/previ
 import { planBattleLayout, slotHitCircle, slotRingSize, type BattleLayout } from '../battle/layout';
 import { CH01_FIRST_BATTLE_ID } from '../battle/data/ch01-first';
 import { resolveBattleSetup } from '../battle/data/ch01-kitchen';
-import { getSkill, resolveSkill } from '../battle/data/skills';
+import { MINER_QUAKE_SKILL, getSkill, resolveSkill } from '../battle/data/skills';
 import { loadKnownEnemies, markEnemyKnown } from '../battle/codex';
 import { BattleActor, type BattleActorArt, type BattleStrikeStrip } from '../actors/battle-actor';
 import {
@@ -1516,7 +1516,11 @@ export class BattleCh01Scene extends UIScene {
     if (active?.team !== 'enemy') return;
     this.busy = true;
     this.actionsDisabled.value = true;
-    const forceHit = this.isFirstBattle() && this.firstBattleTalkPending !== null;
+    // 教程的「首次移动/首次防御」回手：11 点位之后玩家能走出矿工近战范围，
+    // 普通招式会打空但剧本照旧播「痛」——这两拍强制打成全站位（核心脉冲）。
+    const scriptedSkill =
+      this.isFirstBattle() && this.firstBattleTalkPending !== null ? MINER_QUAKE_SKILL : undefined;
+    const forceHit = scriptedSkill !== undefined;
     const savedDodge = forceHit ? this.state.party.map((unit) => unit.dodge) : null;
     if (forceHit) {
       this.state = {
@@ -1524,7 +1528,13 @@ export class BattleCh01Scene extends UIScene {
         party: this.state.party.map((unit) => ({ ...unit, dodge: 0 })),
       };
     }
-    const result = applyBattleAction(this.state, { kind: 'enemy-act' }, this.setup);
+    const result = applyBattleAction(
+      this.state,
+      scriptedSkill === undefined
+        ? { kind: 'enemy-act' }
+        : { kind: 'enemy-act', forceSkillId: scriptedSkill },
+      this.setup,
+    );
     this.state = savedDodge
       ? {
           ...result.state,

@@ -85,6 +85,27 @@ export function planEnemyIntent(
   return null;
 }
 
+/**
+ * 剧本指定招式（`BattleAction.forceSkillId`）：不看距离/冷却，直接以当前目标为瞄准点。
+ *
+ * 只服务教程节拍（第一场「首次移动/首次防御」的矿工回手必须真打到人）。
+ * 招式不在该敌人的 `skills` 里 → 返回 null，调用方回落正常 AI。
+ */
+export function planScriptedSkillIntent(
+  state: BattleState,
+  setup: BattleSetup,
+  enemyId: string,
+  skillId: string,
+): EnemyIntent | null {
+  const enemy = state.enemies.find((unit) => unit.id === enemyId);
+  if (!enemy || enemy.hp <= 0) return null;
+  const setupEnemy = setup.enemies.find((candidate) => candidate.id === enemyId);
+  if (!(setupEnemy?.skills ?? []).includes(skillId)) return null;
+  const target = nearestPartyTarget(state, enemy);
+  if (!target) return null;
+  return skillIntent(resolveSkill(skillId), enemy, target, target.slot);
+}
+
 function nearestPartyTarget(state: BattleState, enemy: BattleUnit): BattleUnit | null {
   const party = state.party.filter((unit) => unit.hp > 0);
   if (party.length === 0) return null;
