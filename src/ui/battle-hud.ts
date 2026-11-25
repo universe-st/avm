@@ -65,7 +65,7 @@ export function buildBattleHud(model: BattleHudModel): void {
         location: model.location ?? '梦域 / 金殿',
         chapter: '第一章 · 权力之梦',
         objective: model.turnLabel,
-        subtitle: model.subtitle ?? '战斗 · 七点位',
+        subtitle: model.subtitle ?? '战斗 · 十一点位',
         onMenu: model.onMenu,
       });
 

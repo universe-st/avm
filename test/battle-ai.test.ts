@@ -40,7 +40,8 @@ describe('enemy AI intent（v3 追击 / 无转向行动）', () => {
       aoe: false,
     });
     if (intent.kind === 'skill') {
-      expect([...intent.hitSlots].sort()).toEqual(['left', 'lowerLeft', 'upperLeft'].sort());
+      // 网格里 ±30° 只剩瞄准的那一个点：突进不再连带左右两个环位。
+      expect([...intent.hitSlots]).toEqual(['left']);
       expect(intent.text).toContain('钻头突进');
     }
   });
@@ -68,7 +69,7 @@ describe('enemy AI intent（v3 追击 / 无转向行动）', () => {
       aoe: true,
       aim: 'left',
     });
-    if (intent.kind === 'skill') expect(intent.hitSlots).toHaveLength(7);
+    if (intent.kind === 'skill') expect(intent.hitSlots).toHaveLength(11);
   });
 
   it('stationary monsters wait instead of aiming at an empty point', () => {
@@ -123,7 +124,7 @@ describe('enemy AI intent（v3 追击 / 无转向行动）', () => {
     });
   });
 
-  it('marks all-slot skills as AOE in the intent text, not a seven-slot list', () => {
+  it('marks all-slot skills as AOE in the intent text, not an eleven-slot list', () => {
     const intent = intentOf(enemyAt('upperRight'), CH01_FIRST_BATTLE);
     const text = formatIntent(intent);
     expect(text).toContain('全站位');

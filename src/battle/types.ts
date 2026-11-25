@@ -1,11 +1,12 @@
 /**
- * 战斗系统的数据契约（v3 · 七点位 / 无转向行动 / 多怪）。
+ * 战斗系统的数据契约（v3.3 · 十一点位四三四 / 无转向行动 / 多怪）。
  *
  * 这里是**唯一真值**：纯逻辑层（core/）只依赖本文件，不 import Phaser；
  * 场景只消费 `BattleEvent`，不自己算伤害/顺序/命中。
  *
  * 规则摘要见 `docs/DESIGN-BATTLE.md`：
- * - 7 个点位：6 个环位 + 中心；占据互斥，中心空出后可站；
+ * - 11 个点位：四三四三排（上 4 / 中 3 / 下 4）；占据互斥，中心空出后可站；
+ * - 判定按**真实网格坐标**算角度（邻点方向相差 60°），不再有 45° 环抽象；
  * - 跑条决定先后（gauge 0..1000），顶部只显示头像行动表，不画量条；
  * - 攻击/技能只打相邻点位；怪物技能可自由瞄准，执行时免费转身；
  * - 怪物不再有单独的转向行动；受击后免费转向攻击来向；
@@ -17,10 +18,10 @@
 export type BattleTeam = 'party' | 'enemy';
 
 /**
- * 7 个点位。
+ * 11 个点位（四三四）。
  *
- * 名字仍沿用 v2 的 `SlotId`（减少无意义 diff），语义已经变成「七点位之一」。
- * `center` 就是 v2 怪物站的红圈；它只在空出来时才能被站。
+ * 原有 7 个名字沿用 v2（减少无意义 diff），新增的是三排两端的 4 个「端」点。
+ * 11 个点位语义完全一致：玩家/怪物都能站、都能走；互斥占据，中心空出后可站。
  */
 export type SlotId =
   | 'center'
@@ -29,7 +30,11 @@ export type SlotId =
   | 'upperLeft'
   | 'left'
   | 'lowerLeft'
-  | 'lowerRight';
+  | 'lowerRight'
+  | 'upperFarLeft'
+  | 'upperFarRight'
+  | 'lowerFarLeft'
+  | 'lowerFarRight';
 
 /** 相对目标朝向的区域：正面 / 侧面 / 背面（背袭）。 */
 export type Zone = 'front' | 'side' | 'back';
@@ -161,7 +166,7 @@ export interface BattleUnit {
   /** 行动条 0..1000，到达 1000 的单位行动。 */
   readonly gauge: number;
   readonly guarding: boolean;
-  /** 所有单位都有点位（7 点位之一）。 */
+  /** 所有单位都有点位（11 点位之一）。 */
   readonly slot: SlotId;
   /** 只有怪物有值；玩家表现层按目标/左右决定镜像。 */
   readonly facing: Facing8 | null;

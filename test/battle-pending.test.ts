@@ -69,15 +69,16 @@ describe('pending post-hit landing', () => {
   it('does not enter pending when every target-adjacent point is occupied', () => {
     const created = createBattle(BATTLE_SANDBOX_MULTI, 7);
     const [a, b, c] = created.enemies;
+    // 左上端只有 2 个邻点：玩家自己占着 left，另一个被帮厨占住 → 无处可落。
     const state: BattleState = {
       ...created,
       phase: 'player',
       activeId: created.party[0]!.id,
       party: [{ ...created.party[0]!, slot: 'left', gauge: 1000 }],
       enemies: [
-        { ...a!, slot: 'upperLeft', facing: 'downLeft' },
-        { ...b!, slot: 'center' },
-        { ...c!, slot: 'upperRight' },
+        { ...a!, slot: 'upperFarLeft', facing: 'downLeft' },
+        { ...b!, slot: 'upperLeft' },
+        { ...c!, slot: 'lowerFarRight' },
       ],
     };
     const target = state.enemies[0]!;

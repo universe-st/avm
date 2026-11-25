@@ -146,11 +146,11 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     id: CH01_FIRST_BATTLE_ID,
     kind: 'battle',
     sceneKey: SCENE_KEYS.battleCh01,
-    title: '战斗 · 初次接触（七点位）',
+    title: '战斗 · 初次接触（十一点位）',
     status: 'ready',
     requires: ['core', 'ch01.portraits', 'battle.common', 'battle.ch01', 'ch01.bgm'],
     description:
-      '第一章剧情战 v3.1：矿工居中、周全默认在左，7 个点位（中心空出后可站）；双方跑条（怪 SPD 20 > 周全 14）。' +
+      '第一章剧情战 v3.3：矿工居中、周全默认在左，11 个点位四三四（中心空出后可站）；双方跑条（怪 SPD 20 > 周全 14）。' +
       '怪物没有单独的转向行动；周全没有「解」，攻击禁用、不弹技能窗，只能移动/防御；第 4 次怪物行动执行清除协议必败。' +
       '战场不画意图/名牌/点位圈；phase=opening|mid|victory|defeat（本场 victory 会回退 mid）。',
     tags: ['ch01', 'scripted', 'positions'],
@@ -194,7 +194,7 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     id: BATTLE_SANDBOX_MULTI_ID,
     kind: 'battle',
     sceneKey: SCENE_KEYS.battleCh01,
-    title: '战斗 · 多怪沙盒（七点位）',
+    title: '战斗 · 多怪沙盒（十一点位）',
     status: 'ready',
     requires: ['core', 'ch01.portraits', 'battle.common', 'battle.kitchen', 'ch01.bgm'],
     description:

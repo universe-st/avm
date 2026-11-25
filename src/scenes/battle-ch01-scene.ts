@@ -189,7 +189,7 @@ interface OrderChipView {
 }
 
 /**
- * 战斗场景（v3 · 七点位 / 无转向行动 / 多怪）。
+ * 战斗场景（v3.3 · 十一点位四三四 / 无转向行动 / 多怪）。
  *
  * 职责边界：
  * - 判定全在 `src/battle/core/`（纯逻辑）；场景**只消费事件**播动画；
@@ -479,7 +479,7 @@ export class BattleCh01Scene extends UIScene {
         this.openMenu();
       },
       location: this.isKitchen ? '梦域 / 御膳房' : '梦域 / 金殿',
-      subtitle: this.isKitchen ? '遭遇战 · 七点位' : '剧情战 · 七点位',
+      subtitle: this.isKitchen ? '遭遇战 · 十一点位' : '剧情战 · 十一点位',
       dialogue: {
         speaker: this.talkSpeaker,
         tone: this.talkTone,
@@ -678,7 +678,7 @@ export class BattleCh01Scene extends UIScene {
     for (const slot of SLOT_ORDER) {
       const point = this.layout.slots[slot];
       const zone = this.add
-        .zone(point.x, point.y - 46, 104, 124)
+        .zone(point.x, point.y - 46, Math.min(104, Math.round(this.layout.spacing * 0.9)), 124)
         .setOrigin(0.5)
         .setDepth(LAYERS.input)
         .setInteractive({ useHandCursor: true });

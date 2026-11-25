@@ -1,13 +1,13 @@
 import type { BattleSetup, SlotId } from '../types';
 import { hashSeed, mulberry32 } from '../../dev/random';
-import { RING_ORDER, SLOT_ORDER } from './slots';
+import { PARTY_FILL_ORDER, SLOT_ORDER } from './slots';
 
 /**
  * 初始点位：剧情指定优先，未指定的怪物用 seed 从空点位里不放回抽取。
  *
- * - 7 个点位最多站 7 个单位；不足时抛出明确的数据错误。
+ * - 11 个点位（四三四）最多站 11 个单位；不足时抛出明确的数据错误。
  * - 同 seed + 同 setup 必定同一布置；不允许 Math.random。
- * - 玩家默认 `left`（第 1 人）；后续多人按环位顺序补空位。
+ * - 玩家默认 `left`（第 1 人）；后续多人按 `PARTY_FILL_ORDER` 补空位（不随机）。
  */
 export interface BattlePlacement {
   readonly partySlots: readonly SlotId[];
@@ -58,7 +58,7 @@ export function placeUnits(setup: BattleSetup, seed = 1): BattlePlacement {
   const enemySlots = explicitEnemies.map((slot) => {
     if (slot) return slot;
     const next = pool.shift();
-    if (!next) throw new Error('[battle] 点位不足：最多只能放 7 个单位');
+    if (!next) throw new Error('[battle] 点位不足：最多只能放 11 个单位');
     used.add(next);
     return next;
   });
@@ -67,9 +67,8 @@ export function placeUnits(setup: BattleSetup, seed = 1): BattlePlacement {
 }
 
 function defaultPartySlot(used: ReadonlySet<SlotId>): SlotId {
-  for (const slot of RING_ORDER) {
+  for (const slot of PARTY_FILL_ORDER) {
     if (!used.has(slot)) return slot;
   }
-  if (!used.has('center')) return 'center';
-  throw new Error('[battle] 点位不足：最多只能放 7 个单位');
+  throw new Error('[battle] 点位不足：最多只能放 11 个单位');
 }

@@ -1,17 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { battleRailHeight, planBattleLayout } from '../src/battle/layout';
-import { SLOT_ORDER, adjacentSlots } from '../src/battle/core/slots';
+import type { BattleEnemySetup, BattleSetup } from '../src/battle/types';
+import { BATTLE_LAYOUT, battleRailHeight, planBattleLayout } from '../src/battle/layout';
+import { ADJACENT, SLOT_ORDER, adjacentSlots } from '../src/battle/core/slots';
+import { placeUnits } from '../src/battle/core/placement';
+import { CH01_KITCHEN_BATTLE } from '../src/battle/data/ch01-kitchen';
 
 const HEIGHTS = [1100, 1180, 1280, 1440, 1558, 1700] as const;
 
-describe('battle layout (7 points)', () => {
-  it('has 7 slots and puts center on the old monster foot point', () => {
+const UPPER_ROW = ['upperFarLeft', 'upperLeft', 'upperRight', 'upperFarRight'] as const;
+const LOWER_ROW = ['lowerFarLeft', 'lowerLeft', 'lowerRight', 'lowerFarRight'] as const;
+
+describe('battle layout (11 points, 4-3-4)', () => {
+  it('has 11 slots and puts center on the old monster foot point', () => {
     const layout = planBattleLayout(720, 1280);
-    expect(SLOT_ORDER).toHaveLength(7);
-    expect(Object.keys(layout.slots)).toHaveLength(7);
+    expect(SLOT_ORDER).toHaveLength(11);
+    expect(Object.keys(layout.slots)).toHaveLength(11);
     expect(layout.slots.center).toEqual(layout.centerPoint);
     expect(layout.centerPoint.x).toBe(360);
     expect(layout.center).toEqual({ x: 360, y: layout.center.y });
+    // 三排：上 4 / 中 3 / 下 4。
+    expect(UPPER_ROW.filter((slot) => layout.slots[slot].y < layout.center.y)).toHaveLength(4);
+    expect(LOWER_ROW.filter((slot) => layout.slots[slot].y > layout.center.y)).toHaveLength(4);
+    expect(layout.spacing).toBe(BATTLE_LAYOUT.maxSpacing);
   });
 
   it('uses one 64 rail for every monster count', () => {
@@ -25,7 +35,7 @@ describe('battle layout (7 points)', () => {
     expect(three.fieldTop).toBe(192);
   });
 
-  it('keeps the 7 points inside the safe field for every design height', () => {
+  it('keeps the 11 points inside the safe field for every design height', () => {
     for (const height of HEIGHTS) {
       const layout = planBattleLayout(720, height);
       const label = `h=${height}`;
@@ -34,8 +44,8 @@ describe('battle layout (7 points)', () => {
       expect(layout.centerPoint.y, label).toBeLessThanOrEqual(layout.fieldBottom - 16);
       expect(layout.centerPoint.y, label).toBeGreaterThan(layout.fieldTop);
 
-      const upperFeet = Math.min(layout.slots.upperLeft.y, layout.slots.upperRight.y);
-      const lowerFeet = Math.max(layout.slots.lowerLeft.y, layout.slots.lowerRight.y);
+      const upperFeet = Math.min(...UPPER_ROW.map((slot) => layout.slots[slot].y));
+      const lowerFeet = Math.max(...LOWER_ROW.map((slot) => layout.slots[slot].y));
       expect(upperFeet - layout.playerHeadOffset, `${label} upper head`).toBeGreaterThanOrEqual(
         layout.fieldTop,
       );
@@ -44,6 +54,12 @@ describe('battle layout (7 points)', () => {
         layout.fieldTop,
       );
       expect(lowerFeet, `${label} lower feet`).toBeLessThanOrEqual(layout.fieldBottom - 8);
+      // 四角是横向最外沿，不能被屏幕切掉。
+      expect(Math.min(layout.slots.upperFarLeft.x, layout.slots.lowerFarLeft.x), label).toBeGreaterThan(50);
+      expect(
+        Math.max(layout.slots.upperFarRight.x, layout.slots.lowerFarRight.x),
+        label,
+      ).toBeLessThan(670);
     }
   });
 
@@ -65,19 +81,19 @@ describe('battle layout (7 points)', () => {
     }
   });
 
-  it('puts every adjacent pair at the same visual distance (regular hexagon)', () => {
+  it('puts every adjacent pair at the same visual distance (20 edges)', () => {
     for (const height of HEIGHTS) {
       const layout = planBattleLayout(720, height);
       const distances: number[] = [];
       for (const slot of SLOT_ORDER) {
-        for (const next of adjacentSlots(slot)) {
+        for (const next of ADJACENT[slot]) {
           if (slot < next) continue;
           const a = layout.slots[slot];
           const b = layout.slots[next];
           distances.push(Math.hypot(a.x - b.x, a.y - b.y));
         }
       }
-      expect(distances.length, `h=${height}`).toBe(12);
+      expect(distances.length, `h=${height}`).toBe(20);
       const first = distances[0]!;
       for (const distance of distances) {
         expect(Math.abs(distance - first), `h=${height}`).toBeLessThanOrEqual(1.01);
@@ -90,18 +106,85 @@ describe('battle layout (7 points)', () => {
     expect(layout.slots.left.y).toBe(layout.slots.right.y);
     expect(layout.slots.upperLeft.y).toBe(layout.slots.upperRight.y);
     expect(layout.slots.lowerLeft.y).toBe(layout.slots.lowerRight.y);
+    expect(layout.slots.upperFarLeft.y).toBe(layout.slots.upperFarRight.y);
     expect(layout.slots.left.x + layout.slots.right.x).toBe(720);
     expect(layout.slots.upperLeft.x + layout.slots.upperRight.x).toBe(720);
+    expect(layout.slots.upperFarLeft.x + layout.slots.upperFarRight.x).toBe(720);
+    expect(layout.slots.lowerFarLeft.x + layout.slots.lowerFarRight.x).toBe(720);
     expect(layout.centerPoint.x).toBe(360);
   });
 
-  it('grows with the viewport but clamps the vertical radius', () => {
+  it('clamps spacing between minSpacing and maxSpacing as the viewport changes', () => {
     const short = planBattleLayout(720, 1100);
     const tall = planBattleLayout(720, 1558);
-    const shortRadius = short.slots.left.y - short.slots.upperLeft.y;
-    const tallRadius = tall.slots.left.y - tall.slots.upperLeft.y;
-    expect(tallRadius).toBeGreaterThanOrEqual(shortRadius);
-    expect(tallRadius).toBeLessThanOrEqual(190);
-    expect(shortRadius).toBeGreaterThanOrEqual(96);
+
+    // 172 由横向预算卡死（1.5s ≤ 258），足够高的视口一律封顶。
+    expect(planBattleLayout(720, 1280).spacing).toBe(BATTLE_LAYOUT.maxSpacing);
+    expect(tall.spacing).toBe(BATTLE_LAYOUT.maxSpacing);
+    // 1100 高时由「上排头顶留 8px」压到约 114。
+    expect(Math.round(short.spacing)).toBe(114);
+    for (const height of HEIGHTS) {
+      const spacing = planBattleLayout(720, height).spacing;
+      expect(spacing, `h=${height}`).toBeGreaterThanOrEqual(BATTLE_LAYOUT.minSpacing);
+      expect(spacing, `h=${height}`).toBeLessThanOrEqual(BATTLE_LAYOUT.maxSpacing);
+    }
+  });
+});
+
+describe('battle placement capacity (11 points)', () => {
+  const player = CH01_KITCHEN_BATTLE.party[0]!;
+  const template = CH01_KITCHEN_BATTLE.enemies[1]!;
+
+  /** 不带点位的怪物（placement 会从空点位里按 seed 抽）。 */
+  const spawn = (count: number): BattleEnemySetup[] => {
+    const { slot: _slot, ...rest } = template;
+    return Array.from({ length: count }, (_, index) => ({ ...rest, id: `spawn-${index}` }));
+  };
+
+  const setupWith = (enemies: BattleEnemySetup[]): BattleSetup => ({
+    ...CH01_KITCHEN_BATTLE,
+    party: [{ ...player, slot: 'left' }],
+    enemies,
+  });
+
+  it('can place 11 units and rejects the 12th with a clear error', () => {
+    const eleven = placeUnits(setupWith(spawn(10)), 5);
+    const slots = [...eleven.partySlots, ...eleven.enemySlots];
+    expect(slots).toHaveLength(11);
+    expect(new Set(slots).size).toBe(11);
+    expect(eleven.partySlots[0]).toBe('left');
+
+    expect(() => placeUnits(setupWith(spawn(11)), 5)).toThrow(/点位不足：最多只能放 11 个单位/);
+  });
+
+  it('fills default party slots in PARTY_FILL_ORDER (left first)', () => {
+    const party = Array.from({ length: 11 }, (_, index) => ({
+      ...player,
+      id: `party-${index}`,
+      slot: undefined,
+    }));
+    const { partySlots } = placeUnits({ ...CH01_KITCHEN_BATTLE, party, enemies: [] }, 1);
+    expect(partySlots[0]).toBe('left');
+    expect(new Set(partySlots).size).toBe(11);
+    expect(partySlots).toEqual([
+      'left',
+      'right',
+      'lowerLeft',
+      'lowerRight',
+      'center',
+      'upperLeft',
+      'upperRight',
+      'upperFarLeft',
+      'upperFarRight',
+      'lowerFarLeft',
+      'lowerFarRight',
+    ]);
+  });
+
+  it('keeps adjacent lists sorted by SLOT_ORDER for deterministic AI picks', () => {
+    for (const slot of SLOT_ORDER) {
+      const indices = adjacentSlots(slot).map((next) => SLOT_ORDER.indexOf(next));
+      expect(indices, slot).toEqual([...indices].sort((a, b) => a - b));
+    }
   });
 });

@@ -1,11 +1,15 @@
 import type { SlotId } from './types';
+import { SLOT_COORDS, SLOT_ORDER, SQRT3_2 } from './core/slots';
 
 /**
  * 战斗战场的纯布局（设计坐标，720 宽基准）。
  *
- * 7 个点位：6 个环位 + `center`，按**正六边形**布置。
- * 正六边形外接半径 = 边长，因此中心↔6 环位、相邻环位↔环位的 12 条相邻边
- * 视觉距离全部等于同一个半径；不要退回椭圆/45° 环。`center` 是几何中心。
+ * 11 个点位按**四三四等距六边形网格**布置：
+ * 上排 4（`upperFarLeft`/`upperLeft`/`upperRight`/`upperFarRight`）、
+ * 中排 3（`left`/`center`/`right`）、下排 4。
+ * 所有相邻边（横边、斜边、中排与上下排）**视觉距离都等于同一个 `spacing`**，
+ * 因为坐标本身就是正六边形网格（`SLOT_COORDS` × spacing）；不要退回椭圆/45° 环。
+ * `center` 是几何中心。
  *
  * 顶部预留 = 页眉 118 + 行动表 rail 64 + 间距 10 = fieldTop 192。
  * 行动表只剩标题 + 头像 chip 一行；不再有意图行，所以 rail 恒 64。
@@ -35,11 +39,14 @@ export const BATTLE_LAYOUT = {
   playerHeight: 170,
   /** 最高怪物的屏显高度（御厨约 200）；上排站位要给它留头。 */
   enemyHeight: 200,
-  /** 左右两格的水平半径。 */
-  radiusX: 250,
-  /** 上下两格的垂直半径上限/下限（正六边形 dy = R×√3/2）。 */
-  maxRadiusY: 190,
-  minRadiusY: 96,
+  /**
+   * 相邻点位的最大间距（设计 px）。由**横向**卡死：
+   * 720 宽 − 最宽角色（矿工 down 正文 260px×0.7=182，半宽 91）×2 − 11px 边距×2 = 516，
+   * 而最外侧点在 1.5s 处 → `1.5s ≤ 258` → **s = 172**（外角 x = 102/618）。
+   */
+  maxSpacing: 172,
+  /** 短屏下限：再小角色会挤成一团、点位点击区也会互相压。 */
+  minSpacing: 96,
 } as const;
 
 export interface BattleLayout {
@@ -50,7 +57,9 @@ export interface BattleLayout {
   /** 行动表 rail 的顶部 y。 */
   readonly railTop: number;
   readonly railHeight: number;
-  /** 环的几何中心（画环用）。 */
+  /** 相邻点位的实际间距（短屏会被压到 `minSpacing`）。 */
+  readonly spacing: number;
+  /** 网格的几何中心（画环用）。 */
   readonly center: BattlePoint;
   /** 中心点位的脚底坐标（= slots.center；也是原 v2 monster 的位置）。 */
   readonly centerPoint: BattlePoint;
@@ -69,34 +78,28 @@ export function planBattleLayout(width = 720, height = 1280): BattleLayout {
   const centerX = Math.round(safeWidth / 2);
   const centerY = Math.round(fieldTop + (fieldBottom - fieldTop) * 0.56);
 
-  const halfHeight = Math.sqrt(3) / 2;
   const availableAbove =
     centerY - fieldTop - Math.max(BATTLE_LAYOUT.playerHeight, BATTLE_LAYOUT.enemyHeight) - 8;
   const availableBelow = fieldBottom - 16 - centerY;
-  // 正六边形：中心↔环位 = 环位边 = radius；垂直偏移 = radius×√3/2。
-  // 所有相邻边共用同一个 radius，保证视觉等距。
-  const radius = Math.max(
-    BATTLE_LAYOUT.minRadiusY,
+  // 上下排相对中排偏移 = spacing×√3/2，所以 spacing 由「上排头顶留 8px」与
+  // 「下排脚底留 16px」中较小的一侧决定；再夹在 [minSpacing, maxSpacing] 之间。
+  const spacing = Math.max(
+    BATTLE_LAYOUT.minSpacing,
     Math.min(
-      BATTLE_LAYOUT.radiusX,
-      BATTLE_LAYOUT.maxRadiusY / halfHeight,
-      availableAbove / halfHeight,
-      availableBelow / halfHeight,
+      BATTLE_LAYOUT.maxSpacing,
+      Math.min(availableAbove, availableBelow) / SQRT3_2,
     ),
   );
-  const dx = radius / 2;
-  const dy = radius * halfHeight;
   const centerPoint: BattlePoint = { x: centerX, y: centerY };
 
-  const slots: Record<SlotId, BattlePoint> = {
-    right: { x: Math.round(centerX + radius), y: centerY },
-    upperRight: { x: Math.round(centerX + dx), y: Math.round(centerY - dy) },
-    upperLeft: { x: Math.round(centerX - dx), y: Math.round(centerY - dy) },
-    left: { x: Math.round(centerX - radius), y: centerY },
-    lowerLeft: { x: Math.round(centerX - dx), y: Math.round(centerY + dy) },
-    lowerRight: { x: Math.round(centerX + dx), y: Math.round(centerY + dy) },
-    center: centerPoint,
-  };
+  const slots = {} as Record<SlotId, BattlePoint>;
+  for (const slot of SLOT_ORDER) {
+    const coord = SLOT_COORDS[slot];
+    slots[slot] = {
+      x: Math.round(centerX + coord.x * spacing),
+      y: Math.round(centerY - coord.y * spacing),
+    };
+  }
 
   return {
     width: safeWidth,
@@ -105,6 +108,7 @@ export function planBattleLayout(width = 720, height = 1280): BattleLayout {
     fieldBottom,
     railTop,
     railHeight,
+    spacing,
     center: { x: centerX, y: centerY },
     centerPoint,
     slots,

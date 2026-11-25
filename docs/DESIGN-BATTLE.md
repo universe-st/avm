@@ -1,6 +1,7 @@
-# 战斗系统设计（v3.2 · 七点位 / 无转向行动 / 多怪 / 技能窗 / 小白图鉴）
+# 战斗系统设计（v3.3 · 十一点位四三四 / 无转向行动 / 多怪 / 技能窗 / 小白图鉴）
 
-> 状态：**v3.1 已实现并接入第一章两场战斗**。金殿剧情战仍为 1 怪必败；御膳房为双怪。
+> 状态：**v3.3 已实现并接入第一章两场战斗**。金殿剧情战仍为 1 怪必败；御膳房为双怪。
+> 战场为 **11 点位（四三四）**，判定改按真实网格坐标算角度（邻点方向相差 60°）。
 > v3.1 战场不画意图/常驻名牌/点位圈/朝向/目标白圈（**当前选中敌人脚下的闪烁绿圈、头顶名字/血条例外**），属性只在小白图鉴；攻击先弹技能窗；防御平减；非背袭命中进入落点选择。
 > 多人队伍（多个可操控角色）只做了数据结构预留，队伍 UI/换人仍后置。
 >
@@ -10,14 +11,14 @@
 
 ## 0. 核心决策速览
 
-- **7 个点位**：6 个环位 + `center`；一个点位同时只站一个单位。中心空出后玩家/怪物都能进。
+- **11 个点位（四三四）**：上排 4（两端 + 内侧各二）、中排 3（`left`/`center`/`right`）、下排 4；一个点位同时只站一个单位。11 个点位语义完全一致，玩家/怪物都能站、都能走；中心空出后谁都能进。
 - **跑条决定先后**：双方有 SPD，行动条 0–1000；行动后归零。**引擎保留，但顶部不再画 SPD 量条/意图行**，只画头像行动表（rail 64）。
 - **怪物没有单独的转身行动**：一次行动只有「技能」或「移动」。
   - 技能可自由瞄准；执行时免费转身面向瞄准点。
   - 受击后免费转身面向**攻击来向**（不是落点）。
   - 移动后免费面朝移动方向。
 - **攻击射程 = 相邻点位**：玩家解离突刺是单一目标，目标相邻才命中；怪物技能用 `hitPointsFor` 算命中集合。
-- **背袭**：相对目标朝向 `≥135°`；解离突刺背袭 **×1.5**，并**无视目标一半防御**（`backstabDefensePierce=0.5`）。
+- **背袭**：相对目标朝向 `≥120°`（正面 `≤60°`、侧面 `<120°`）；解离突刺背袭 **×1.5**，并**无视目标一半防御**（`backstabDefensePierce=0.5`）。
 - **防御是平减法**：`max(1, round(atk×power×背袭 − 防御×(背袭?1−穿防:1)))`，防御动作最后 ×0.5。
 - **落点选择**：解离突刺非背袭命中进入 `pendingMove`，可选目标相邻空闲点或留在原地；**不再自动镜像闪现**。
 - **多怪**：`party[]` / `enemies[]` 按 N 单位设计；御膳房 2 怪，先选技能、再点敌人 sprite 选目标；所有怪 HP 0 才胜利。
@@ -34,39 +35,56 @@
 
 ## 1. 战场结构
 
-### 1.1 七点位
+### 1.1 十一点位（四三四）
 
 ```text
-          upperLeft ────── upperRight
-            /  \              /  \
-           /    \            /    \
-        left ─────── center ─────── right
-           \    /            \    /
-            \  /              \  /
-          lowerLeft ────── lowerRight
+      upperFarLeft ─ upperLeft ────── upperRight ─ upperFarRight
+            \          /   \            /   \          /
+             \        /     \          /     \        /
+              left ───────── center ───────── right
+             /        \     /          \     /        \
+            /          \   /            \   /          \
+      lowerFarLeft ─ lowerLeft ────── lowerRight ─ lowerFarRight
 ```
 
-| 点位 | 规范角度（屏幕坐标，0°=右、90°=上） | 说明 |
-| --- | --- | --- |
-| `right` 右 | 0° | 环位 |
-| `upperRight` 右上 | 45°（逻辑）/ 60°（视觉） | 环位 |
-| `upperLeft` 左上 | 135°（逻辑）/ 120°（视觉） | 环位 |
-| `left` 左 | 180° | 环位，玩家默认 |
-| `lowerLeft` 左下 | 225°（逻辑）/ 240°（视觉） | 环位 |
-| `lowerRight` 右下 | 315°（逻辑）/ 300°（视觉） | 环位 |
-| `center` 中 | — | 原点；等于 v2 怪物站的红圈 |
+- 三排：上排 4、中排 3、下排 4；新增的 4 个「端点」是第一行/第三行两端（`upperFarLeft` 左上端、`upperFarRight` 右上端、`lowerFarLeft` 左下端、`lowerFarRight` 右下端）。
+- 坐标以**相邻间距 `s` 为单位、y 向上**（屏幕 y = 中心 y − 该值 × s）；真值表在 `src/battle/core/slots.ts` 的 `SLOT_COORDS`：
 
+| 点位 | x/s | y/s | 从中心看的方向 | 邻点数 |
+| --- | --- | --- | --- | --- |
+| `upperFarLeft` 左上端 | −1.5 | +√3/2 | 150° | 2（`upperLeft`、`left`） |
+| `upperLeft` 左上 | −0.5 | +√3/2 | 120° | 4 |
+| `upperRight` 右上 | +0.5 | +√3/2 | 60° | 4 |
+| `upperFarRight` 右上端 | +1.5 | +√3/2 | 30° | 2（`upperRight`、`right`） |
+| `left` 左 | −1 | 0 | 180° | 5 |
+| `center` 中 | 0 | 0 | — | 6 |
+| `right` 右 | +1 | 0 | 0° | 5 |
+| `lowerFarLeft` 左下端 | −1.5 | −√3/2 | 210° | 2 |
+| `lowerLeft` 左下 | −0.5 | −√3/2 | 240° | 4 |
+| `lowerRight` 右下 | +0.5 | −√3/2 | 300° | 4 |
+| `lowerFarRight` 右下端 | +1.5 | −√3/2 | 330° | 2 |
+
+- **相邻 = 网格距离恰好 1**，由坐标距离生成（`ADJACENT`），共 **20 条边**：四角 2 邻（死胡同，只能进出两个点）、上/下排内侧 4 邻、中排两侧 5 邻、中心 6 邻。不要手写边表。
+- `SLOT_ORDER` 是空间顺序（上排左→右、中排左→右、下排左→右）；邻点表也按它排序，保证 AI 取「候选第一个」时确定。
 - 布局唯一真值：`src/battle/layout.ts` 的 `planBattleLayout(720, designH)`。
-- 相邻关系：`center` ↔ 6 环位全部相邻；每个环位 ↔ `center` + 左右两个环邻（3 个邻点）。
+  - `spacing = clamp(minSpacing 96, maxSpacing 172, min(availableAbove, availableBelow) / (√3/2))`；
+  - 所有点：`x = centerX + coord.x × spacing`、`y = centerY − coord.y × spacing`（四舍五入）；
+  - **172 是横向预算卡死的**：720 宽 − 最宽角色（矿工 `down` 正文 260px×0.7=182，半宽 91）×2 − 11px 边距×2 = 516，最外侧点在 1.5s 处 → `1.5s ≤ 258` → `s ≤ 172`（外角 x = 102/618）；
+  - 纵向由「上排头顶离 `fieldTop` 留 8px、下排脚底离 `fieldBottom` 留 16px」中较小的一侧决定，短屏会被压到约 114。
 - 占据互斥：一个点位最多一个单位。中心被占时不能进；怪物离开后玩家可以一步走进去。
 - `layout.slots.center` = `layout.centerPoint` = 原 v2 `layout.monster` 的脚底坐标。
 - 顶部预留 = 页眉 118 + 行动表 64 + 间距 10 = `fieldTop 192`；底部指令面板 360。
 - 角色脚底锚点 `origin(0.5, 0.985)`；玩家屏显高约 170，矿工约 260（八向图 371 高），御厨约 200。
+- 短屏（1100 高）三排脚底约 400 / 499 / 598，场地约 342×198；1280 高时 `s=172`，三排约 451 / 600 / 749，场地 516×298。
 
-### 1.2 为什么是 7 点位
+### 1.2 为什么是 11 点位
 
 v2 的 6 环位能让「左/左上/左下都在它背后」，但中心只属于怪物，怪物也没有离开中心的理由。v3 让中心成为第 7 个合法点位：
 怪物可以走到环位，中心空出来后玩家可以占；玩家占中心时，怪物从环位打中心是「向内」、玩家打它是「背袭」——站位第一次同时影响双方的攻防。
+
+但 **7 个点位只能容纳 7 个单位**：四名角色 + 多只怪就装不下，走位余地也会被挤死。v3.3 在第一行/第三行两端各加一个可移动点位，形成「四三四」：
+容量 7 → **11**，三排的横向跨度也把「绕背 / 堵路 / 换边」从一条环变成有宽度的阵地。
+代价是四角是死胡同（只有 2 个邻点）、跨排遮挡更多；判定因此改为**按真实网格坐标**算角度，不再保留 v2「视觉等距、逻辑 45° 环」两套角度——邻点方向天然相差 60°，一步之内是正面、两步以上才是背袭。
 
 ### 1.3 初始点位
 
@@ -106,7 +124,7 @@ v2 的 6 环位能让「左/左上/左下都在它背后」，但中心只属于
 
 - `facingFromPoints(from, to)`：两点方向 → 最近 8 向。
 - 角度差必须先 `normalizeDegrees(angle(to) - angle(from))`；不能分别归一化后相减（180→-180 会漏掉左上/左下）。
-- 环位之间出现 67.5°/112.5° 这种正好夹在两向中间的方向（左→左上、右上→右等）；平局取 `|cos|` 更大的一向（环的切线/斜向）。
+- 网格里两点的方向都是 30° 的倍数（中心→右上 60°、中心→左 180°），量化到 8 向最多 15° 误差；平局裁决（取 `|cos|` 更大的一向）只作浮点兜底，实际不会触发。
 
 ### 3.2 区域
 
@@ -114,9 +132,11 @@ v2 的 6 环位能让「左/左上/左下都在它背后」，但中心只属于
 
 | 区域 | 判定 | 效果 |
 | --- | --- | --- |
-| 正面 front | `|rel| ≤ 45°` | 无加成 |
-| 侧面 side | `45° < |rel| < 135°` | 无背袭；可躲开只打正面的技能 |
-| 背面 back | `|rel| ≥ 135°` | 背袭；解离突刺 ×1.5、无视一半防御，且不位移 |
+| 正面 front | `|rel| ≤ 60°` | 无加成 |
+| 侧面 side | `60° < |rel| < 120°` | 无背袭；可躲开只打正面的技能 |
+| 背面 back | `|rel| ≥ 120°` | 背袭；解离突刺 ×1.5、无视一半防御，且不位移 |
+
+阈值来自网格本身：网格邻点的方向恰好相差 60°，所以「一步之内（正面三个方向）= 正面，两步以上 = 背面」。中心怪朝左时，左上/左/左下（相对 60°/0°/60°）仍然都在它正面。
 
 - 背袭只影响伤害，不做暴击/命中率。
 - 怪物在中心、玩家默认在左时，第一刀是正面；想背袭要绕到右侧。
@@ -129,20 +149,22 @@ hitPointsFor(origin, aim, hit): SlotId[]
 ```
 
 - 先取 `origin` 的相邻点，再按 `aim` 方向过滤：
-  - `single-front`：角差 ≤45°
-  - `front-arc`：角差 <135°（正好 135° 按背面排除）
-  - `all-slots`：全部 7 点
+  - `single-front`：角差 ≤30°（网格里等于**只命中瞄准的那一个点**）
+  - `front-arc`：角差 <120°（正面 + 侧面，背后打不到）
+  - `all-slots`：全部 11 点
 - 参考真值：
 
 | origin | aim | single-front | front-arc |
 | --- | --- | --- | --- |
-| center | left | left / upperLeft / lowerLeft | 同左 |
-| center | upperRight | right / upperRight | right / upperRight / upperLeft / lowerRight |
-| center | right | right / upperRight / lowerRight | 同左 |
+| center | left | left | left / upperLeft / lowerLeft |
+| center | upperRight | upperRight | upperLeft / upperRight / right |
+| center | right | right | right / upperRight / lowerRight |
 | left | center | center | center / upperLeft / lowerLeft |
-| left | upperLeft | upperLeft | center / upperLeft |
-| upperRight | center | center / upperLeft | center / upperLeft / right |
+| left | upperLeft | upperLeft | center / upperLeft / upperFarLeft |
+| upperRight | center | center | center / right / upperLeft |
 
+- `single-front` 在网格里**只命中瞄准点**：邻点方向相差 60°，±30° 只圈得住一个（端点也一样）。
+- 端点只有 2 个邻点，`front-arc` 天然只能扫到其中一侧——这是四角死胡同的设计代价。
 - **玩家解离突刺是单一目标**：目标相邻就命中，不走 `hitPointsFor` 的锥形集合。`hitPointsFor` 只服务怪物技能/意图。
 - 意图不上屏；**怪物行动开始时按当前站位重新选目标**，不再锁死旧 aim。目标相邻才出技能，AOE 才远打；没有可命中目标/没有可走一步就等待，不空放。
 - AOE 只能靠防御减半，走位躲不掉；v3.1 不再画 AOE 红圈/文字。
@@ -179,17 +201,17 @@ hitPointsFor(origin, aim, hit): SlotId[]
 
 | 怪物 | 技能 | 命中 | 伤害（atk） | 冷却 |
 | --- | --- | --- | --- | --- |
-| 矿工·清除单元（atk 16） | 铁臂横扫 `miner.sweep` | 瞄准方向 ±135° 的相邻点 | 10 | 0 |
-| | 钻头突进 `miner.thrust` | 瞄准方向 ±45° 的相邻点 | 18 | 2 次行动 |
-| | 核心脉冲 `miner.quake` | 全部 7 点 | 6 | 3 次行动 |
-| 御厨·幻影（atk 10） | 菜刀横扫 `cook.sweep` | 瞄准方向 ±135° 的相邻点 | 8 | 0 |
-| | 热油泼洒 `cook.oil` | 瞄准方向 ±45° 的相邻点 | 11 | 2 |
+| 矿工·清除单元（atk 16） | 铁臂横扫 `miner.sweep` | 正面+侧面（角差 <120°）的相邻点 | 10 | 0 |
+| | 钻头突进 `miner.thrust` | 只命中瞄准的那一个相邻点 | 18 | 2 次行动 |
+| | 核心脉冲 `miner.quake` | 全部 11 点 | 6 | 3 次行动 |
+| 御厨·幻影（atk 10） | 菜刀横扫 `cook.sweep` | 正面+侧面（角差 <120°）的相邻点 | 8 | 0 |
+| | 热油泼洒 `cook.oil` | 只命中瞄准的那一个相邻点 | 11 | 2 |
 | 帮厨·幻影（atk 7） | 菜刀横扫 `cook.sweep` | 同上 | 5 | 0 |
 | | 热油泼洒 `cook.oil` | 同上 | 8 | 2 |
 
 - 命中集合由 `hitPointsFor(origin, aim, hit)` 给出（内部）；场景不提前把受击点染红。
 - 目标不在命中集合内 → 打空（仅防御/异常兜底会看到；AI 不会主动空放）。
-- **全站位技能**（核心脉冲/灶台震地）是内部判定，命中全部 7 点、不靠朝向/距离；v3.1 不写「全站位」/红环/意图文案，只保留砸地/冲击波/伤害数字等技能动画。纯逻辑仍用 `SkillHit:'all-slots'`、`EnemyIntent.aoe=true`。
+- **全站位技能**（核心脉冲/灶台震地）是内部判定，命中全部 11 点、不靠朝向/距离；v3.1 不写「全站位」/红环/意图文案，只保留砸地/冲击波/伤害数字等技能动画。纯逻辑仍用 `SkillHit:'all-slots'`、`EnemyIntent.aoe=true`。
 - 冷却在怪物回合开始时 −1；使用后写回技能表的 `cooldown`。
 
 ### 5.3 敌人行动（执行时重选）
@@ -203,7 +225,7 @@ hitPointsFor(origin, aim, hit): SlotId[]
 
 ### 5.4 追击 AI（确定性）
 
-1. 目标 = 最近的玩家角色（7 点图 BFS 步数）；平局取 HP 低者 → id 字典序。
+1. 目标 = 最近的玩家角色（11 点图 BFS 步数）；平局取 HP 低者 → id 字典序。
 2. 目标相邻：`single-front` → `front-arc` → `all-slots` 选冷却好的技能；都有冷却用第一个 0 冷却技能。
 3. 目标不相邻：
    - `all-slots` 冷却好 → 直接 AOE；
@@ -217,7 +239,7 @@ hitPointsFor(origin, aim, hit): SlotId[]
 - `BattleUnit.dodge` 是整数，闪避率 `1 - 200/(3x+200)`：0→0%，100→60%，越大越接近 100%，永不达到。
 - 触发：防御方有相邻空位 + 掷骰成功 → 移动到相邻空位并**完全免伤**；没有相邻空位时**不掷骰**，直接命中。
 - 范围攻击也可闪：只要目标有相邻空位且判定成功，就移动并无视这次 AoE 伤害。
-- 目标空位选择：按 7 点图距离远离攻击者，平局按 `SlotId` 字典序；纯函数、seed 确定性。
+- 目标空位选择：按 11 点图距离远离攻击者，平局按 `SlotId` 字典序；纯函数、seed 确定性。
 - 当前数值：玩家周全 1（约 1.5%），御厨·幻影 2（约 2.9%），帮厨/矿工/杂役 0；图鉴显示怪物闪避点，HUD 玩家行显示「闪避 1」。
 - 事件：`dodge`（actor/attacker/skill/from/to/aoe），场景播闪避浮字 + 残影 + 位移；`attack`/`enemy-skill` 带 `dodged:true`、`amount:0`。
 
@@ -298,11 +320,11 @@ hitPointsFor(origin, aim, hit): SlotId[]
 
 ```
 src/battle/
-  types.ts                # SlotId(7 点)/Facing8/Zone/SkillDef/BattleSetup[party,enemies]/PendingMove
-  layout.ts               # 7 点位 + centerPoint + BATTLE_RAIL_HEIGHT=64
+  types.ts                # SlotId(11 点四三四)/Facing8/Zone/SkillDef/BattleSetup[party,enemies]/PendingMove
+  layout.ts               # 11 点位（spacing 96..172）+ centerPoint + BATTLE_RAIL_HEIGHT=64
   codex.ts                # 小白图鉴：localStorage avm.battle.codex.v1，纯逻辑
   core/
-    slots.ts              # 角度/区域/背袭/相邻/命中集合/镜像/BFS 一步
+    slots.ts              # SLOT_COORDS/ADJACENT（距离 1 生成）/角度/区域/背袭/命中集合/镜像/BFS 一步
     gauge.ts              # 跑条推进、并列裁决、N actor 顺序预览
     rail-transition.ts    # 行动表 chip 的 prev→next 位移（纯逻辑）
     damage.ts             # 伤害公式（平减防御 / 背袭穿防 / 防御动作）
@@ -365,3 +387,4 @@ src/ui/battle-fx.ts               # 斩击/残影/护盾/协议（背袭扇区/�
 - v3.0（2026-11-22）：七点位（中心可站）、删除转向行动、怪物自由瞄准/受击转身/移动追击、御膳房双怪、点选目标、顶部只留行动表；多人队伍数据结构预留。
 - v3.1（2026-11-22）：删场上意图/常驻名牌/点位圈/朝向/目标白圈/静态地面圈（保留选中目标闪烁绿圈 + 头顶名字/血条，v0.1.39）；rail 64；攻击技能窗；防御平减+背袭穿防；`pendingMove` 落点选择（删除自动闪现）；小白图鉴；攻击前未知怪隐藏预计伤害。
 - v3.2（2026-11-24）：七点位视觉正六边形等距（逻辑角度不变）；敌人执行时重选目标/不空放；闪避属性与位移；目标/玩家受击血条动画；御膳房战斗背景纯地面。
+- v3.3（2026-11-25）：**11 点位四三四**（上 4 / 中 3 / 下 4，新增 4 个端点），容量 7 → 11；判定改**真实网格坐标**——`POINT_VECTORS`/`RING_ANGLES` 删除，正面 ≤60°、背面 ≥120°，`single-front` ±30°（只命中瞄准点）、`front-arc` <120°；布局改 `maxSpacing 172`/`minSpacing 96`；四角是 2 邻死胡同。
