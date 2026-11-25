@@ -620,6 +620,41 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
   alpha 完全不动），对全部 16 张立绘（含 11-24 之前的 6 张）统一去绿边；不是重新生成、不重新抠像。
 - 复核：上架前按火山方舟商用条款复核，商店页注明「AI 生成美术」。
 
+## 11.20 立绘全量重出：改用原生透明 Alpha（2026-11-25，t59）
+
+用户要求：「现在游戏素材大师换了支持透明通道的生图模型，以后生透明图用这个，不用生成绿幕再抠了。（生视频还用绿幕）把这一批图重新生成一套，我看头发里还是带绿的。」
+
+- 后端切换：`imageProvider=ark`、`arkModel=doubao-seedream-5-5-261028`、`keyBackdrop=transparent`
+  （见 `game_material guide config`：原生 Alpha PNG，不需要抠像；只对 Seedream 5.5 生效）。
+- 做法：16 张立绘全部重出，参考图＝旧立绘（身份/画风/构图），提示词明确「背景必须完全透明（PNG alpha 通道），
+  不要绿幕/纯色底/地面/投影/渐变」；每张 2 选 1，再用 `tools/make-palace-portrait.py --margin-x 12` 裁到 720×900，
+  最后跑一次 `tools/despill-portrait.py` 作兜底（原生 Alpha 图里绿色主导像素已≈0）。
+- 任务（模型 `doubao-seedream-5-5-261028`，1024×1280，`watermark:false`，2 张/次）：
+
+| 角色 | 任务 id | 采用 | 产物 |
+| --- | --- | --- | --- |
+| 周全·平常 | `imwvhnl9i185e86` | 第 1 张 | `ch01/portrait_zhou_neutral.png` |
+| 周全·皱眉 | `imwvhnl9qedea6b` | 第 2 张 | `ch01/portrait_zhou_frown.png` |
+| 周全·震惊 | `imwvhnl9x52e20a` | 第 2 张 | `ch01/portrait_zhou_shocked.png` |
+| 周全·快乐 | `imwvhnla2824e27` | 第 2 张 | `ch01/portrait_zhou_happy.png` |
+| 周全·尴尬 | `imwvhnla76487c2` | 第 2 张 | `ch01/portrait_zhou_awkward.png` |
+| 郑卿·平常 | `imwvhnlac37f1da` | 第 1 张 | `palace/portrait_zheng.png` |
+| 郑卿·震惊 | `imwvhnlah828127` | 第 2 张 | `palace/portrait_zheng_shocked.png` |
+| 郑卿·得意 | `imwvhnlaldfed39` | 第 1 张 | `palace/portrait_zheng_happy.png` |
+| 郑卿·尴尬 | `imwvhnlaq4d231e` | 第 2 张 | `palace/portrait_zheng_awkward.png` |
+| 小白 | `imwvhnlau5173ea` | 第 1 张 | `palace/portrait_xiaobai.png` |
+| 矿工 | `imwvhnlaz7fc7ed` | 第 1 张 | `palace/portrait_miner.png` |
+| 侍卫 | `imwvi94iue6dda8`（首轮 `imwvhnlb43d7d92` 出成现代 T 恤，弃用） | 第 1 张 | `palace/portrait_shiwei.png` |
+| 楚公公 | `imwvhnlb9e7d878` | 第 1 张 | `palace/portrait_chu.png` |
+| 老麦 | `imwvhnlbd29006a` | 第 1 张 | `ch01/kitchen/portrait_laomai.png` |
+| 老肯 | `imwvhnlbide10ea` | 第 1 张 | `ch01/kitchen/portrait_laoken.png` |
+| 周全·慌张 | `imwvhnlbnd10b8f` | 第 2 张 | `palace/portrait_zhou_panic.png` |
+
+- 验收：PNG 仍是 720×900 RGBA、四角透明、左右留边（`test/palace-five-items.test.ts` 17 张表）；
+  绿色主导像素统计≈0；实机脚本 `capture-portraits-2026-11-24.mjs`（寝室/御膳房/金殿/战斗）与
+  `capture-emotions-2026-11-25.mjs`（情绪差分/旁白收脸）全通过。
+- 复核：上架前按火山方舟商用条款复核，商店页注明「AI 生成美术」。
+
 ## 12. 御膳房 P2 B1 地图风格样张（2026-10-31）
 
 - 生成：游戏素材大师 · 图片生成，`doubao-seedream-5-0-flash-260915`，自动审核；仅作 B2 拼合风格基准，未直接进游戏。

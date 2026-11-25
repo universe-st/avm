@@ -72,7 +72,9 @@ pnpm android:release
     - 带 `cg` / `blackout` / `dark` 的行不叠立绘（画面已经由 CG / 暗场承载）。
     - 立绘是**屏幕层**：`PortraitLayer` 必须 `setScrollFactor(0)`。御膳房相机跟着玩家滚动，
       漏了这行立绘会被滚出画面（2026-11-24 实测：寝室/金殿正常、御膳房只剩黑边）。
-    - 立绘 PNG 720×900 RGBA、透明底、左右留边；**抠像后必须跑 `tools/despill-portrait.py`**（深色头发的绿幕残留会泛绿，2026-11-25 实机指出）；按角色共用程度分三个 bundle：
+    - 立绘 PNG 720×900 RGBA、透明底、左右留边。**2026-11-25 起透明图一律用 Seedream 5.5 原生 Alpha**
+      （游戏素材大师 `keyBackdrop=transparent` + `arkModel=doubao-seedream-5-5-*`），**不再生成绿幕再抠像**
+      （视频仍绿幕）；老素材的绿边兜底工具 `tools/despill-portrait.py` 保留。按角色共用程度分三个 bundle：
       `ch01.portraits`（周全/小白/矿工，四个场景共用）、`ch01.kitchen`（老麦/老肯）、
       `cutscene.ch01palace`（郑卿/楚公公/侍卫/周全慌张）。key 统一 `img.char.portrait.*`。
     - 对话结束/跳过/进菜单必须 `portrait.hide()`，SHUTDOWN 必须 `destroy()`（场景实例会复用）。
