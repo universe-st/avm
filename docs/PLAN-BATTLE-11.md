@@ -139,3 +139,9 @@
   - 沙盒三怪：敌人从 `lowerFarLeft` 连续两动追到 `lowerRight`（贴脸），另一只守 `lowerFarRight`；11 点图上的追击/堵路正常。
   - 整段 console 0 error。
 - 拥挤度：390×844 实机图里 3～4 人很松；11 人满编的极限画面用真实贴图 + 真实缩放合成了 `.evidence/docs/screenshots/battle-11-slots/00-full-11-units.png`（5 矿工 + 5 厨 + 周全），矿工（182px 宽）在 172 间距下会互相压一点，属预期上限。
+
+## 7. 拍板结果（2026-11-25 下午）
+
+- **拥挤度不处理**：用户原话「一般也不会占满，没啥问题」——11 人满编只是上限，不改行距、不缩角色。
+- **点位点击区改成圆形**（用户：「点击点位改成圆形命中区没问题」）：新增 `slotHitCircle(spacing)` → `{radius: min(65, floor(spacing×0.46)), offsetY: radius}`，圆心在脚底正上方、圆底贴脚底，直径恒 ≤ 间距（手机 172→r65、短屏 114→r52），相邻点位点击区不再重叠；场景改用 `Phaser.Geom.Circle` 命中区。旧矩形 104×124 的底部会盖到脚底下方 16px，短屏跨排有小片重叠，这次一并消掉。
+- 实机验证（390×844，真点击）：`lowerRight` 圆心点得进（`right → lowerRight`）；`lowerFarRight` 脚底下方 11px（旧矩形内、新圆外）点了不生效，圆内偏下 44px 生效（`lowerFarRight`）。点位被敌人占时点击优先落到敌人 sprite（移动模式下无响应，落点本来就非法）。

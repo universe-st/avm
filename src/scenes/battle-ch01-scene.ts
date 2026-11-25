@@ -56,7 +56,7 @@ import {
   isAdjacentSlot,
 } from '../battle/core/slots';
 import { buildPreviewState, type BattlePreviewPhase } from '../battle/core/preview';
-import { planBattleLayout, type BattleLayout } from '../battle/layout';
+import { planBattleLayout, slotHitCircle, type BattleLayout } from '../battle/layout';
 import { CH01_FIRST_BATTLE_ID } from '../battle/data/ch01-first';
 import { resolveBattleSetup } from '../battle/data/ch01-kitchen';
 import { getSkill, resolveSkill } from '../battle/data/skills';
@@ -674,14 +674,20 @@ export class BattleCh01Scene extends UIScene {
       });
     }
 
-    // 点位本身不常显：只保留不可见的点击区；地面圈只在 moveMode/落点选择时画。
+    // 点位本身不常显：只保留不可见的**圆形**点击区（圆底贴脚底，2r <= spacing 保证不重叠）；
+    // 地面圈只在 moveMode/落点选择时画。
+    const hit = slotHitCircle(this.layout.spacing);
     for (const slot of SLOT_ORDER) {
       const point = this.layout.slots[slot];
       const zone = this.add
-        .zone(point.x, point.y - 46, Math.min(104, Math.round(this.layout.spacing * 0.9)), 124)
+        .zone(point.x, point.y - hit.offsetY, hit.radius * 2, hit.radius * 2)
         .setOrigin(0.5)
         .setDepth(LAYERS.input)
-        .setInteractive({ useHandCursor: true });
+        .setInteractive(
+          new Phaser.Geom.Circle(hit.radius, hit.radius, hit.radius),
+          Phaser.Geom.Circle.Contains,
+        );
+      zone.input!.cursor = 'pointer';
       zone.on('pointerdown', () => this.onSlotPointer(slot));
       zone.input!.enabled = false;
       this.slotZones.set(slot, zone);

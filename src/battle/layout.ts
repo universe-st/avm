@@ -49,6 +49,18 @@ export const BATTLE_LAYOUT = {
   minSpacing: 96,
 } as const;
 
+/**
+ * 点位点击区：**圆形**（2026-11-25 用户拍板，替代旧的 104×124 矩形）。
+ *
+ * 圆心在脚底正上方 `radius`，圆底正好贴脚底；半径由间距夹住：
+ * `2r ≤ spacing×0.92`，保证相邻点位的点击区**绝不重叠**（短屏 spacing=114 → r=52），
+ * 上限 65（角色屏显 170~200 高，再大就会把上一位角色的腿也圈进来）。
+ */
+export function slotHitCircle(spacing: number): { readonly radius: number; readonly offsetY: number } {
+  const radius = Math.max(24, Math.min(65, Math.floor(spacing * 0.46)));
+  return { radius, offsetY: radius };
+}
+
 export interface BattleLayout {
   readonly width: number;
   readonly height: number;

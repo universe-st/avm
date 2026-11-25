@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BattleEnemySetup, BattleSetup } from '../src/battle/types';
-import { BATTLE_LAYOUT, battleRailHeight, planBattleLayout } from '../src/battle/layout';
+import { BATTLE_LAYOUT, battleRailHeight, planBattleLayout, slotHitCircle } from '../src/battle/layout';
 import { ADJACENT, SLOT_ORDER, adjacentSlots } from '../src/battle/core/slots';
 import { placeUnits } from '../src/battle/core/placement';
 import { CH01_KITCHEN_BATTLE } from '../src/battle/data/ch01-kitchen';
@@ -186,5 +186,19 @@ describe('battle placement capacity (11 points)', () => {
       const indices = adjacentSlots(slot).map((next) => SLOT_ORDER.indexOf(next));
       expect(indices, slot).toEqual([...indices].sort((a, b) => a - b));
     }
+  });
+
+  it('uses a circular slot hit area that never overlaps its neighbours', () => {
+    // 圆底贴脚底：offsetY == radius；直径不超过间距 → 相邻点位点击区不重叠。
+    for (const spacing of [BATTLE_LAYOUT.minSpacing, 114, 130, BATTLE_LAYOUT.maxSpacing]) {
+      const { radius, offsetY } = slotHitCircle(spacing);
+      expect(offsetY, `spacing=${spacing}`).toBe(radius);
+      expect(radius * 2, `spacing=${spacing}`).toBeLessThanOrEqual(spacing);
+      expect(radius, `spacing=${spacing}`).toBeGreaterThanOrEqual(24);
+    }
+    // 上限 65（手机 172 间距时到顶），短屏 114 时收到 52。
+    expect(slotHitCircle(172).radius).toBe(65);
+    expect(slotHitCircle(114).radius).toBe(52);
+    expect(slotHitCircle(96).radius).toBe(44);
   });
 });
