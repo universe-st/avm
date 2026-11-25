@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { BattleEnemySetup, BattleSetup } from '../src/battle/types';
 import {
   BATTLE_LAYOUT,
+  MELEE_STRIKE,
   battleRailHeight,
+  meleeStrikePoint,
   planBattleLayout,
   slotHitCircle,
   slotRingSize,
@@ -233,5 +235,49 @@ describe('battle placement capacity (11 points)', () => {
         expect(offsetY + radius).toBeGreaterThanOrEqual(120);
       }
     }
+  });
+});
+
+describe('melee strike dash (2026-11-25)', () => {
+  it('stops beside the target on the attack line, without overshooting', () => {
+    for (const height of HEIGHTS) {
+      const layout = planBattleLayout(720, height);
+      const gap = Math.max(
+        MELEE_STRIKE.minGap,
+        Math.min(MELEE_STRIKE.maxGap, layout.spacing * MELEE_STRIKE.gapRatio),
+      );
+      for (const from of SLOT_ORDER) {
+        for (const target of adjacentSlots(from)) {
+          const a = layout.slots[from];
+          const b = layout.slots[target];
+          const strike = meleeStrikePoint(a, b, layout.spacing);
+          const label = `h=${height} ${from}->${target}`;
+          const toTarget = Math.hypot(strike.x - b.x, strike.y - b.y);
+          // 停在目标身前 gap 处（±1px 取整误差）。
+          expect(Math.abs(toTarget - gap), label).toBeLessThanOrEqual(1.5);
+          // 方向不变：冲刺点到攻击连线的垂直距离 ≤1px（只差取整误差）。
+          const cross =
+            (b.x - a.x) * (strike.y - a.y) - (b.y - a.y) * (strike.x - a.x);
+          const lineDistance = Math.hypot(b.x - a.x, b.y - a.y);
+          expect(Math.abs(cross) / lineDistance, label).toBeLessThanOrEqual(1);
+          // 只向前冲，不越过目标，且确实缩短了距离。
+          expect(Math.hypot(strike.x - a.x, strike.y - a.y), label).toBeLessThan(
+            Math.hypot(b.x - a.x, b.y - a.y),
+          );
+        }
+      }
+    }
+  });
+
+  it('scales the stop distance with spacing and keeps degenerate input safe', () => {
+    // 手机 172 → 68 的剩余距离（上限）；短屏 114 → 45.6（下限 42）。
+    const phone = planBattleLayout(720, 1280);
+    const phoneStrike = meleeStrikePoint(phone.slots.left, phone.slots.center, phone.spacing);
+    expect(phone.slots.center.x - phoneStrike.x).toBeCloseTo(68, 0);
+    const short = planBattleLayout(720, 1100);
+    const shortStrike = meleeStrikePoint(short.slots.left, short.slots.center, short.spacing);
+    expect(short.slots.center.x - shortStrike.x).toBeCloseTo(45.6, 0);
+    // 同点时回退到目标点，不除零。
+    expect(meleeStrikePoint({ x: 10, y: 20 }, { x: 10, y: 20 }, 172)).toEqual({ x: 10, y: 20 });
   });
 });

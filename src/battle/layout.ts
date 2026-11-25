@@ -106,6 +106,46 @@ function ringFitsInCircle(
   return true;
 }
 
+/**
+ * 近身攻击的「贴身」冲刺（2026-11-25）。
+ *
+ * 动作为：快速冲到目标身旁 → 播攻击帧 → 快速退回原点位（周全的落点选择例外）。
+ * 冲刺后与目标脚底保留的剩余距离：占间距 40%，夹在 [42, 68]（手机 172→68、短屏 114→45.6）。
+ * 太小会两张图完全叠在一起（矿工 190 宽、周全 73 宽、御厨 135 宽），太大又不像「冲到身边」。
+ */
+export const MELEE_STRIKE = {
+  /** 停在目标脚底前的剩余距离（占相邻间距的比例）。 */
+  gapRatio: 0.4,
+  minGap: 42,
+  maxGap: 68,
+} as const;
+
+/**
+ * 近身攻击的落位点：从攻击者脚底沿「攻击者 → 目标」的连线冲到目标身旁。
+ *
+ * 只做表现层位移，**不参与判定**：命中/背袭/落点选择仍按真实点位算
+ * （这个点只决定角色图站哪）。`from === target` 时回退到目标点自身，避免除零。
+ */
+export function meleeStrikePoint(
+  from: BattlePoint,
+  target: BattlePoint,
+  spacing: number,
+): BattlePoint {
+  const dx = target.x - from.x;
+  const dy = target.y - from.y;
+  const distance = Math.hypot(dx, dy);
+  if (!Number.isFinite(distance) || distance < 1) return { x: target.x, y: target.y };
+  const gap = Math.min(
+    distance * 0.5,
+    Math.max(MELEE_STRIKE.minGap, Math.min(MELEE_STRIKE.maxGap, spacing * MELEE_STRIKE.gapRatio)),
+  );
+  const reach = Math.max(0, distance - gap);
+  return {
+    x: Math.round(from.x + (dx / distance) * reach),
+    y: Math.round(from.y + (dy / distance) * reach),
+  };
+}
+
 export interface BattleLayout {
   readonly width: number;
   readonly height: number;

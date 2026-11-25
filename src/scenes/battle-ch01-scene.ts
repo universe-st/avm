@@ -56,7 +56,14 @@ import {
   isAdjacentSlot,
 } from '../battle/core/slots';
 import { buildPreviewState, type BattlePreviewPhase } from '../battle/core/preview';
-import { planBattleLayout, slotHitCircle, slotRingSize, type BattleLayout } from '../battle/layout';
+import {
+  meleeStrikePoint,
+  planBattleLayout,
+  slotHitCircle,
+  slotRingSize,
+  type BattleLayout,
+  type BattlePoint,
+} from '../battle/layout';
 import { CH01_FIRST_BATTLE_ID } from '../battle/data/ch01-first';
 import { resolveBattleSetup } from '../battle/data/ch01-kitchen';
 import { MINER_QUAKE_SKILL, getSkill, resolveSkill } from '../battle/data/skills';
@@ -259,6 +266,14 @@ export class BattleCh01Scene extends UIScene {
   private transitioning = false;
   private introOpen = false;
   private moveMode = false;
+  /**
+   * 近身攻击冲出去之后**暂时不回位**的状态（只有周全的解离突刺会用到）。
+   *
+   * 解离突刺非背袭命中后要玩家选落点：攻击结束先停在目标身旁，
+   * 等 `post-move` 结算后再从当前位置落到选中的点位（选「留在原地」= 退回原点位）。
+   * 其他近身攻击（怪物技能、教程出拳、背袭/闪避）一律攻击完自动回位，不经过这里。
+   */
+  private playerStrikeHold: { readonly homeSlot: SlotId } | null = null;
   /** 第一场教程：攻击按钮只允许点一次；移动/防御第一次各有插入对话。 */
   private firstBattleAttackLocked = false;
   /**
@@ -513,6 +528,7 @@ export class BattleCh01Scene extends UIScene {
     this.talkVisible.value = false;
     this.selectedTargetId = null;
     this.targetingSkillId = null;
+    this.playerStrikeHold = null;
     this.introModal = null;
     this.defeatModal = null;
     this.victoryModal = null;
@@ -1398,28 +1414,34 @@ export class BattleCh01Scene extends UIScene {
       return;
     }
     const from = this.layout.slots[this.playerUnit().slot];
+    const homeSlot = this.playerUnit().slot;
+    const strike = meleeStrikePoint(from, this.layout.slots[target.slot], this.layout.spacing);
     const to = targetActor.headPoint;
     actor.setMirror(to.x < from.x);
-    actor.playAttack(
-      { reduced: this.reduced },
-      () => {
-        targetActor.flash(0xffffff, 70);
-        this.playSfx(BATTLE_ASSET_KEYS.sfx.hit, 0.85);
-        hitBurst(this, to.x, to.y + 30, {
-          color: GOLD,
-          reduced: this.reduced,
-          seed: this.seed + 17,
-          depth: LAYERS.effects + 8,
-        });
-        this.floatLabel('无效', to.x, to.y - 8, MUTED);
-        actor.flash(0xff6b5b, 120);
-        this.floatLabel('痛', from.x, from.y - 150, DANGER);
-        screenRumble(this, { ms: 120, intensity: 0.006, reduced: this.reduced });
-      },
-      () => {
-        this.time.delayedCall(this.reduced ? 60 : 180, next);
-      },
-    );
+    this.lungeToStrike(actor, target.slot, () => {
+      actor.playAttack(
+        { reduced: this.reduced },
+        () => {
+          targetActor.flash(0xffffff, 70);
+          this.playSfx(BATTLE_ASSET_KEYS.sfx.hit, 0.85);
+          hitBurst(this, to.x, to.y + 30, {
+            color: GOLD,
+            reduced: this.reduced,
+            seed: this.seed + 17,
+            depth: LAYERS.effects + 8,
+          });
+          this.floatLabel('无效', to.x, to.y - 8, MUTED);
+          actor.flash(0xff6b5b, 120);
+          this.floatLabel('痛', strike.x, strike.y - 150, DANGER);
+          screenRumble(this, { ms: 120, intensity: 0.006, reduced: this.reduced });
+        },
+        () => {
+          this.returnToSlot(actor, homeSlot, () => {
+            this.time.delayedCall(this.reduced ? 60 : 180, next);
+          });
+        },
+      );
+    });
   }
 
   /** 敌人回合开始：第一场第一次移动/防御时先插一句对白，再让矿工真的出手。 */
@@ -1559,6 +1581,9 @@ export class BattleCh01Scene extends UIScene {
     if (this.state.phase !== 'player' || this.state.activeId !== this.playerUnit().id) return;
 
     const beforeSlot = this.playerUnit().slot;
+    // 落点选择（post-move）的收尾和普通行动不同：选「留在原地」时要先把角色
+    // 从冲刺位退回原点位；选别的点由 `animateMove` 从冲刺位接下。
+    const resolvingLanding = action.kind === 'post-move';
     const result = applyBattleAction(this.state, action, this.setup);
     if (result.events.length === 0) return;
     if (this.isFirstBattle()) {
@@ -1579,7 +1604,23 @@ export class BattleCh01Scene extends UIScene {
     this.actionsDisabled.value = true;
     this.setMoveMode(false);
     this.state = result.state;
-    this.playSteps(result.events, () => this.afterAction());
+    this.playSteps(result.events, () => {
+      // 落点选了「留在原地」：没有 move 事件，从冲刺位（目标身旁）退回原点位；
+      // 选了别的点则由 `animateMove` 从冲刺位接下，并把 hold 清掉。
+      // 攻击行动本身留下的 hold 不能在这里消费——那是给玩家选落点用的。
+      const hold = resolvingLanding ? this.playerStrikeHold : null;
+      if (hold) {
+        this.playerStrikeHold = null;
+        const actor = this.playerActor;
+        if (!actor) {
+          this.afterAction();
+          return;
+        }
+        this.returnToSlot(actor, hold.homeSlot, () => this.afterAction());
+        return;
+      }
+      this.afterAction();
+    });
   }
 
   private afterAction(): void {
@@ -1807,6 +1848,76 @@ export class BattleCh01Scene extends UIScene {
 
   // ------------------------------------------------------------------ 动画队列
 
+  /**
+   * 近身攻击的冲刺（2026-11-25）：先快速冲到目标身旁，再播攻击帧，最后快速回位。
+   *
+   * 只动表现层脚底坐标（影子/深度跟着 `setPosition` 走），不改 `state` 里的点位；
+   * 判定、背袭、落点选择全部仍按真实站位算。
+   * `reduced` 下整段位移取消（原地出招），与「prefers-reduced-motion 不做位移」一致。
+   */
+  private lungeToStrike(
+    actor: BattleActor,
+    targetSlot: SlotId,
+    onDone: () => void,
+  ): void {
+    if (this.reduced) {
+      onDone();
+      return;
+    }
+    const from = actor.position;
+    const strike = meleeStrikePoint(
+      from,
+      this.layout.slots[targetSlot],
+      this.layout.spacing,
+    );
+    afterimage(this, actor.display.texture.key, from.x, from.y, {
+      scale: Math.abs(actor.display.scaleX),
+      flipX: actor.display.flipX,
+      alpha: 0.3,
+      ms: 200,
+      depth: LAYERS.effects + 4,
+    });
+    this.moveActorFeet(actor, strike, 115, 'Quad.easeOut', onDone);
+  }
+
+  /** 攻击结束后退回原点位（怪物技能、背袭/闪避、教程出拳都走这里）。 */
+  private returnToSlot(actor: BattleActor, slot: SlotId, onDone: () => void): void {
+    if (this.reduced) {
+      onDone();
+      return;
+    }
+    const point = this.layout.slots[slot];
+    this.moveActorFeet(actor, point, 125, 'Quad.easeIn', onDone);
+  }
+
+  /** 把角色的脚底从前一点补间到目标点（`setPosition` 会同步影子与深度）。 */
+  private moveActorFeet(
+    actor: BattleActor,
+    to: BattlePoint,
+    ms: number,
+    ease: string,
+    onDone: () => void,
+  ): void {
+    const from = actor.position;
+    const clock = { t: 0 };
+    this.tweens.add({
+      targets: clock,
+      t: 1,
+      duration: ms,
+      ease,
+      onUpdate: () => {
+        actor.setPosition(
+          Phaser.Math.Linear(from.x, to.x, clock.t),
+          Phaser.Math.Linear(from.y, to.y, clock.t),
+        );
+      },
+      onComplete: () => {
+        actor.setPosition(to.x, to.y);
+        if (this.lifecycle.isLive(this.runId)) onDone();
+      },
+    });
+  }
+
   private playSteps(events: readonly BattleEvent[], done: () => void): void {
     const steps: Step[] = [];
     for (const event of events) {
@@ -1862,11 +1973,16 @@ export class BattleCh01Scene extends UIScene {
     const actor = this.playerActor;
     const from = this.layout.slots[event.from];
     const to = this.layout.slots[event.to];
+    const hold = this.playerStrikeHold;
+    this.playerStrikeHold = null;
     if (!actor) {
       next();
       return;
     }
-    actor.setPosition(from.x, from.y);
+    // 解离突刺的落点选择：角色此刻还停在目标身旁（冲刺位），
+    // 直接从这个位置借势落到选中的点位，不要先瞬移回原点再走一遍。
+    const start = hold ? actor.position : from;
+    if (!hold) actor.setPosition(from.x, from.y);
     this.playSfx(BATTLE_ASSET_KEYS.sfx.blink, 0.28, 1.1);
 
     if (this.reduced) {
@@ -1876,7 +1992,7 @@ export class BattleCh01Scene extends UIScene {
       return;
     }
 
-    const mid = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+    const mid = { x: (start.x + to.x) / 2, y: (start.y + to.y) / 2 };
     const outward = {
       x: mid.x - this.layout.slots.center.x,
       y: mid.y - this.layout.slots.center.y,
@@ -1896,8 +2012,8 @@ export class BattleCh01Scene extends UIScene {
       onUpdate: () => {
         const t = clock.t;
         const one = 1 - t;
-        const x = one * one * from.x + 2 * one * t * control.x + t * t * to.x;
-        const y = one * one * from.y + 2 * one * t * control.y + t * t * to.y;
+        const x = one * one * start.x + 2 * one * t * control.x + t * t * to.x;
+        const y = one * one * start.y + 2 * one * t * control.y + t * t * to.y;
         actor.setPosition(x, y);
         if (!this.reduced && trailed < 2 && t > (trailed + 1) * 0.3) {
           trailed += 1;
@@ -1934,7 +2050,6 @@ export class BattleCh01Scene extends UIScene {
       next();
       return;
     }
-    this.playSfx(BATTLE_ASSET_KEYS.sfx.slash, 0.9);
     const fromPoint = this.layout.slots[event.from];
     const targetPoint = event.dodged
       ? {
@@ -1948,69 +2063,94 @@ export class BattleCh01Scene extends UIScene {
         };
     const facesRight = targetPoint.x >= fromPoint.x;
     actor.setMirror(!facesRight);
-
-    actor.playAttack(
-      { reduced: this.reduced },
-      () => {
-        if (event.dodged) {
-          // 目标在 dodge 事件里已经闪到相邻空位；攻击只落空，不结算伤害/图鉴。
-          return;
-        }
-        targetActor?.flash(0xffffff, 70);
-        // 命中即解锁图鉴；预览只更新内存，不写盘。
-        // markEnemyKnown 会从 storage 重新读；预览没有写盘，必须和当前内存集合求并，
-        // 否则同一场预览里攻击第二只怪会把第一只的解锁状态冲掉。
-        const known = markEnemyKnown(event.targetId, { preview: this.preview });
-        this.knownEnemies = new Set([...this.knownEnemies, ...known]);
-        bladeTrail(
-          this,
-          { x: fromPoint.x + (facesRight ? 74 : -74), y: fromPoint.y - 104 },
-          { x: targetPoint.x, y: targetPoint.y + 34 },
-          { reduced: this.reduced, depth: LAYERS.effects + 12 },
-        );
-        hitBurst(this, targetPoint.x, targetPoint.y + 30, {
-          color: event.backstab ? 0xffe3a8 : GOLD,
-          backstab: event.backstab,
-          reduced: this.reduced,
-          seed: this.seed + event.amount,
-          depth: LAYERS.effects + 8,
-        });
-        this.floatNumber(
-          `-${event.amount}`,
-          targetPoint.x,
-          targetPoint.y - 8,
-          event.backstab ? GOLD : DANGER,
-          event.backstab ? '背袭 ×1.5' : event.zone === 'side' ? '侧面' : '正面',
-        );
-        const enemy = this.state.enemies.find((unit) => unit.id === event.targetId);
-        this.animateTargetHp(
-          event.targetId,
-          Math.min(enemy?.maxHp ?? Number.POSITIVE_INFINITY, event.targetHp + event.amount),
-          event.targetHp,
-          enemy?.maxHp ?? event.targetHp + event.amount,
-        );
-        this.playSfx(
-          event.backstab ? BATTLE_ASSET_KEYS.sfx.backstab : BATTLE_ASSET_KEYS.sfx.hit,
-          event.backstab ? 1 : 0.85,
-        );
-        screenRumble(this, {
-          ms: event.backstab ? 200 : 110,
-          intensity: event.backstab ? 0.01 : 0.005,
-          reduced: this.reduced,
-        });
-        if (event.backstab && !this.reduced) this.cameras.main.flash(90, 216, 183, 106);
-        if (event.targetHp <= 0 && this.state.enemies.some((enemy) => enemy.hp > 0)) {
-          this.time.delayedCall(this.reduced ? 60 : 220, () => {
-            if (this.lifecycle.isLive(this.runId)) {
-              targetActor?.die({ reduced: this.reduced, player: false });
-            }
-          });
-        }
-      },
-      () => {
-        next();
-      },
+    // 冲出去之后是否留在目标身旁：解离突刺非背袭命中会进入落点选择，
+    // 这一步的状态在进动画队列前已写进 `state`（`playerAction` 先落 state 再播）。
+    const holdsForLanding = this.playerStrikeHoldAllowed();
+    const strike = meleeStrikePoint(
+      fromPoint,
+      this.layout.slots[event.targetSlot],
+      this.layout.spacing,
     );
+
+    const swing = (): void => {
+      this.playSfx(BATTLE_ASSET_KEYS.sfx.slash, 0.9);
+      actor.playAttack(
+        { reduced: this.reduced },
+        () => {
+          if (event.dodged) {
+            // 目标在 dodge 事件里已经闪到相邻空位；攻击只落空，不结算伤害/图鉴。
+            return;
+          }
+          targetActor?.flash(0xffffff, 70);
+          // 命中即解锁图鉴；预览只更新内存，不写盘。
+          // markEnemyKnown 会从 storage 重新读；预览没有写盘，必须和当前内存集合求并，
+          // 否则同一场预览里攻击第二只怪会把第一只的解锁状态冲掉。
+          const known = markEnemyKnown(event.targetId, { preview: this.preview });
+          this.knownEnemies = new Set([...this.knownEnemies, ...known]);
+          bladeTrail(
+            this,
+            { x: strike.x + (facesRight ? 74 : -74), y: strike.y - 104 },
+            { x: targetPoint.x, y: targetPoint.y + 34 },
+            { reduced: this.reduced, depth: LAYERS.effects + 12 },
+          );
+          hitBurst(this, targetPoint.x, targetPoint.y + 30, {
+            color: event.backstab ? 0xffe3a8 : GOLD,
+            backstab: event.backstab,
+            reduced: this.reduced,
+            seed: this.seed + event.amount,
+            depth: LAYERS.effects + 8,
+          });
+          this.floatNumber(
+            `-${event.amount}`,
+            targetPoint.x,
+            targetPoint.y - 8,
+            event.backstab ? GOLD : DANGER,
+            event.backstab ? '背袭 ×1.5' : event.zone === 'side' ? '侧面' : '正面',
+          );
+          const enemy = this.state.enemies.find((unit) => unit.id === event.targetId);
+          this.animateTargetHp(
+            event.targetId,
+            Math.min(enemy?.maxHp ?? Number.POSITIVE_INFINITY, event.targetHp + event.amount),
+            event.targetHp,
+            enemy?.maxHp ?? event.targetHp + event.amount,
+          );
+          this.playSfx(
+            event.backstab ? BATTLE_ASSET_KEYS.sfx.backstab : BATTLE_ASSET_KEYS.sfx.hit,
+            event.backstab ? 1 : 0.85,
+          );
+          screenRumble(this, {
+            ms: event.backstab ? 200 : 110,
+            intensity: event.backstab ? 0.01 : 0.005,
+            reduced: this.reduced,
+          });
+          if (event.backstab && !this.reduced) this.cameras.main.flash(90, 216, 183, 106);
+          if (event.targetHp <= 0 && this.state.enemies.some((enemy) => enemy.hp > 0)) {
+            this.time.delayedCall(this.reduced ? 60 : 220, () => {
+              if (this.lifecycle.isLive(this.runId)) {
+                targetActor?.die({ reduced: this.reduced, player: false });
+              }
+            });
+          }
+        },
+        () => {
+          if (!this.lifecycle.isLive(this.runId)) return;
+          if (holdsForLanding) {
+            // 停在目标身旁，等玩家选落点（`post-move` 再从当前位置落地）。
+            this.playerStrikeHold = { homeSlot: event.from };
+            next();
+            return;
+          }
+          this.returnToSlot(actor, event.from, next);
+        },
+      );
+    };
+
+    this.lungeToStrike(actor, event.targetSlot, swing);
+  }
+
+  /** 这次攻击结束后是否要停在目标身旁等落点选择（解离突刺非背袭命中）。 */
+  private playerStrikeHoldAllowed(): boolean {
+    return this.state.pendingMove !== null && !this.reduced;
   }
 
   private animateDodge(
@@ -2222,48 +2362,74 @@ export class BattleCh01Scene extends UIScene {
     const targetSlot = event.dodged ? event.targetSlot : target?.slot ?? event.targetSlot;
     const targetPoint = this.layout.slots[targetSlot];
     const strip = this.enemyStrikeStrip(this.unitById(event.actorId)?.art, event.skillId);
+    // 近身技能才冲过去；全站位（核心脉冲/灶台震地）是原地砸地，冲上去反而错。
+    const melee = !event.aoe;
 
     if (actor && strip && this.textures.exists(strip.key)) {
-      this.playSfx(
-        isQuake ? BATTLE_ASSET_KEYS.sfx.quake : BATTLE_ASSET_KEYS.sfx.sweep,
-        isQuake ? 0.95 : 0.85,
-      );
-      actor.playStrike(
-        strip,
-        { reduced: this.reduced },
-        () => {
-          if (!this.lifecycle.isLive(this.runId)) return;
-          this.playEnemyImpactFx(isQuake, point);
-          this.resolveEnemyHit(event, targetPoint);
-        },
-        () => {
-          if (this.lifecycle.isLive(this.runId)) next();
-        },
-        isRightFacing(facing),
-      );
+      const swing = (): void => {
+        this.playSfx(
+          isQuake ? BATTLE_ASSET_KEYS.sfx.quake : BATTLE_ASSET_KEYS.sfx.sweep,
+          isQuake ? 0.95 : 0.85,
+        );
+        actor.playStrike(
+          strip,
+          { reduced: this.reduced },
+          () => {
+            if (!this.lifecycle.isLive(this.runId)) return;
+            // 落地/震地的冲击圈仍画在它自己的点位上（判定是原地招式）。
+            this.playEnemyImpactFx(isQuake, point);
+            this.resolveEnemyHit(event, targetPoint);
+          },
+          () => {
+            if (!this.lifecycle.isLive(this.runId)) return;
+            if (melee) {
+              this.returnToSlot(actor, event.from, () => next());
+              return;
+            }
+            next();
+          },
+          isRightFacing(facing),
+        );
+      };
+      if (melee) this.lungeToStrike(actor, targetSlot, swing);
+      else swing();
       return;
     }
 
     if (isQuake) {
       this.playSfx(BATTLE_ASSET_KEYS.sfx.quake, 0.95);
       this.playEnemyImpactFx(true, point);
-    } else {
+      this.time.delayedCall(this.reduced ? 90 : 260, () => {
+        this.resolveEnemyHit(event, targetPoint);
+      });
+      this.time.delayedCall(this.reduced ? 180 : 780, next);
+      return;
+    }
+
+    // 缺帧动画时的程序化兜底也要冲过去再砍，站位和正式素材一致。
+    const swingFallback = (): void => {
       this.playSfx(BATTLE_ASSET_KEYS.sfx.sweep, 0.85);
       const dx = Math.cos((angle * Math.PI) / 180) * 42;
       const dy = -Math.sin((angle * Math.PI) / 180) * 42;
+      const anchor = actor?.position ?? point;
       actor?.nudge(dx, dy, 150);
-      slashArc(this, { x: point.x, y: point.y - 90 }, angle, {
+      slashArc(this, { x: anchor.x, y: anchor.y - 90 }, angle, {
         radius: 130,
         color: DANGER,
         reduced: this.reduced,
         depth: LAYERS.effects + 6,
       });
-    }
-
-    this.time.delayedCall(this.reduced ? 90 : isQuake ? 260 : 180, () => {
-      this.resolveEnemyHit(event, targetPoint);
-    });
-    this.time.delayedCall(this.reduced ? 180 : isQuake ? 780 : 580, next);
+      this.time.delayedCall(this.reduced ? 90 : 180, () => {
+        this.resolveEnemyHit(event, targetPoint);
+      });
+      this.time.delayedCall(this.reduced ? 180 : 580, () => {
+        // 兜底路径也要回位，否则缺帧动画时怪物会永远停在玩家身旁。
+        if (melee && actor) this.returnToSlot(actor, event.from, next);
+        else next();
+      });
+    };
+    if (melee && actor) this.lungeToStrike(actor, targetSlot, swingFallback);
+    else swingFallback();
   }
 
   private animateProtocol(next: () => void): void {
@@ -2716,7 +2882,8 @@ export class BattleCh01Scene extends UIScene {
 
   private syncActorPositions(): void {
     const player = this.playerActor;
-    if (player) {
+    // 冲刺后等落点选择期间，角色**故意**停在目标身旁，不要被同步拉回原点位。
+    if (player && !this.playerStrikeHold) {
       const party = this.playerUnit();
       const point = this.layout.slots[party.slot];
       player.setPosition(point.x, point.y);
