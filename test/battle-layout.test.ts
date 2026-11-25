@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { BattleEnemySetup, BattleSetup } from '../src/battle/types';
-import { BATTLE_LAYOUT, battleRailHeight, planBattleLayout, slotHitCircle } from '../src/battle/layout';
+import {
+  BATTLE_LAYOUT,
+  battleRailHeight,
+  planBattleLayout,
+  slotHitCircle,
+  slotRingSize,
+} from '../src/battle/layout';
 import { ADJACENT, SLOT_ORDER, adjacentSlots } from '../src/battle/core/slots';
 import { placeUnits } from '../src/battle/core/placement';
 import { CH01_KITCHEN_BATTLE } from '../src/battle/data/ch01-kitchen';
@@ -189,16 +195,43 @@ describe('battle placement capacity (11 points)', () => {
   });
 
   it('uses a circular slot hit area that never overlaps its neighbours', () => {
-    // 圆底贴脚底：offsetY == radius；直径不超过间距 → 相邻点位点击区不重叠。
+    // 圆心在脚底上方 offsetY；直径不超过间距 → 相邻点位点击区不重叠。
     for (const spacing of [BATTLE_LAYOUT.minSpacing, 114, 130, BATTLE_LAYOUT.maxSpacing]) {
       const { radius, offsetY } = slotHitCircle(spacing);
-      expect(offsetY, `spacing=${spacing}`).toBe(radius);
+      expect(offsetY, `spacing=${spacing}`).toBeGreaterThanOrEqual(0);
+      expect(offsetY, `spacing=${spacing}`).toBeLessThanOrEqual(radius);
       expect(radius * 2, `spacing=${spacing}`).toBeLessThanOrEqual(spacing);
-      expect(radius, `spacing=${spacing}`).toBeGreaterThanOrEqual(24);
     }
-    // 上限 65（手机 172 间距时到顶），短屏 114 时收到 52。
-    expect(slotHitCircle(172).radius).toBe(65);
-    expect(slotHitCircle(114).radius).toBe(52);
-    expect(slotHitCircle(96).radius).toBe(44);
+    // 手机 172 间距时到顶（r=84 / 圆心下移 40），短屏 114 收到 r=55 / 24。
+    expect(slotHitCircle(172)).toEqual({ radius: 84, offsetY: 40 });
+    expect(slotHitCircle(114)).toEqual({ radius: 55, offsetY: 24 });
+  });
+
+  it('covers the whole move ring, so tapping the yellow ring always registers', () => {
+    // 黄圈 = drawSlotRing 默认椭圆（中心 脚底+4、46×15）；圆内区域必须把它整圈包住，
+    // 否则「点黄圈没反应、要往上点」（用户 2026-11-25 实测）。
+    for (const spacing of [BATTLE_LAYOUT.minSpacing, 114, 130, BATTLE_LAYOUT.maxSpacing]) {
+      const { radius, offsetY } = slotHitCircle(spacing);
+      const ring = slotRingSize(spacing);
+      const ringPoints: { x: number; y: number }[] = [];
+      for (let deg = 0; deg < 360; deg += 15) {
+        const rad = (deg * Math.PI) / 180;
+        ringPoints.push({
+          x: ring.radiusX * Math.cos(rad),
+          y: ring.dy + ring.radiusY * Math.sin(rad),
+        });
+      }
+      for (const point of ringPoints) {
+        const distance = Math.hypot(point.x, point.y + offsetY);
+        expect(distance, `spacing=${spacing} ring(${point.x.toFixed(1)},${point.y.toFixed(1)})`).toBeLessThanOrEqual(
+          radius,
+        );
+      }
+      // 角色下半身也要能点：脚底上方至少 55px（手机 172 间距时 ≥120）。
+      expect(offsetY + radius, `spacing=${spacing} body`).toBeGreaterThanOrEqual(55);
+      if (spacing === BATTLE_LAYOUT.maxSpacing) {
+        expect(offsetY + radius).toBeGreaterThanOrEqual(120);
+      }
+    }
   });
 });

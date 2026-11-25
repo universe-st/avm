@@ -50,15 +50,60 @@ export const BATTLE_LAYOUT = {
 } as const;
 
 /**
- * 点位点击区：**圆形**（2026-11-25 用户拍板，替代旧的 104×124 矩形）。
+ * 点位点击区：**圆形**，且必须盖住脚下的移动/落点黄圈（2026-11-25）。
  *
- * 圆心在脚底正上方 `radius`，圆底正好贴脚底；半径由间距夹住：
- * `2r ≤ spacing×0.92`，保证相邻点位的点击区**绝不重叠**（短屏 spacing=114 → r=52），
- * 上限 65（角色屏显 170~200 高，再大就会把上一位角色的腿也圈进来）。
+ * 黄圈是 `ui/battle-fx.ts` 的 `drawSlotRing` 默认椭圆：中心在 `脚底 + 4`、半径 46×15
+ * （移动/落点高亮都用默认值）。旧版把圆心放在脚底正上方、圆底贴脚底，导致**黄圈下半圈
+ * 点不动、要往上点**（用户 2026-11-25 实测反馈）。
+ *
+ * 现在：半径随间距夹住（2r ≤ spacing，相邻点位点击区不重叠），圆心再下移，
+ * 保证黄圈最宽处 `(46, 脚底+4)` 落在圆内：`(4 + offsetY)² + 46² ≤ radius²`。
+ * 手机 172 → r=84 / offset=40（覆盖脚底 −124..+44），短屏 114 → r=55 / offset=26。
  */
+export const SLOT_HIT_RING = {
+  /** 黄圈椭圆的长半轴上限（`drawSlotRing` 默认 radiusX）。 */
+  radiusX: 46,
+  /** 黄圈椭圆的短半轴上限（默认 radiusY）。 */
+  radiusY: 15,
+  /** 黄圈中心相对脚底的下移量（默认椭圆画在 point.y + 4）。 */
+  dy: 4,
+} as const;
+
+/** 移动/落点黄圈的实际尺寸：短屏间距变小时等比收一点（否则 92px 宽的圈会挤在一起）。 */
+export function slotRingSize(spacing: number): { readonly radiusX: number; readonly radiusY: number; readonly dy: number } {
+  return {
+    radiusX: Math.min(SLOT_HIT_RING.radiusX, Math.round(spacing * 0.4)),
+    radiusY: Math.min(SLOT_HIT_RING.radiusY, Math.round(spacing * 0.13)),
+    dy: SLOT_HIT_RING.dy,
+  };
+}
+
 export function slotHitCircle(spacing: number): { readonly radius: number; readonly offsetY: number } {
-  const radius = Math.max(24, Math.min(65, Math.floor(spacing * 0.46)));
-  return { radius, offsetY: radius };
+  const radius = Math.max(40, Math.min(84, Math.floor(spacing * 0.49)));
+  const ring = slotRingSize(spacing);
+  // 圆心从 40 往下试，取第一个「整个黄圈都在圆内」的位置（采样椭圆外围，够用且确定）。
+  let offsetY = 0;
+  for (let candidate = Math.min(40, radius); candidate >= 0; candidate -= 1) {
+    if (ringFitsInCircle(radius, candidate, ring)) {
+      offsetY = candidate;
+      break;
+    }
+  }
+  return { radius, offsetY };
+}
+
+function ringFitsInCircle(
+  radius: number,
+  offsetY: number,
+  ring: { readonly radiusX: number; readonly radiusY: number; readonly dy: number },
+): boolean {
+  for (let step = 0; step < 24; step += 1) {
+    const rad = (step * Math.PI * 2) / 24;
+    const x = ring.radiusX * Math.cos(rad);
+    const y = ring.dy + ring.radiusY * Math.sin(rad);
+    if (Math.hypot(x, y + offsetY) > radius) return false;
+  }
+  return true;
 }
 
 export interface BattleLayout {

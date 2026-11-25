@@ -56,7 +56,7 @@ import {
   isAdjacentSlot,
 } from '../battle/core/slots';
 import { buildPreviewState, type BattlePreviewPhase } from '../battle/core/preview';
-import { planBattleLayout, slotHitCircle, type BattleLayout } from '../battle/layout';
+import { planBattleLayout, slotHitCircle, slotRingSize, type BattleLayout } from '../battle/layout';
 import { CH01_FIRST_BATTLE_ID } from '../battle/data/ch01-first';
 import { resolveBattleSetup } from '../battle/data/ch01-kitchen';
 import { getSkill, resolveSkill } from '../battle/data/skills';
@@ -2498,12 +2498,17 @@ export class BattleCh01Scene extends UIScene {
     slot: SlotId,
     color: number,
   ): void {
+    // 圈的尺寸跟 `slotHitCircle` 共用一套（短屏间距变小时一起收），
+    // 否则会出现「圈画得比点击区还宽」——用户 2026-11-25 实测：点黄圈没反应、要往上点。
+    const ring = slotRingSize(this.layout.spacing);
     drawSlotRing(graphics, this.layout.slots[slot], {
       color,
       alpha: 0.88,
       fillColor: color,
       fillAlpha: 0.08,
       lineWidth: 3,
+      radiusX: ring.radiusX,
+      radiusY: ring.radiusY,
     });
   }
 
