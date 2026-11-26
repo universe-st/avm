@@ -12,18 +12,18 @@ import type { InquiryScript } from './inquiry';
  * intro（醒来 + 编号之争）→ 提问菜单（三选一，顺序随意）
  *   → 每个分支播完回到菜单（问过的消失）
  *   → 三个都问完：菜单只剩「你想让我做什么。」
- *   → closing（收尾段：杀不杀、为什么是我、黑屏胁迫）→ handoff（征召与命名）→ 结束卡
+ *   → closing（收尾段：杀不杀、为什么是我、黑屏胁迫）→ handoff（三个条件与定名）→ 结束卡
  * ```
  *
- * 为什么 `handoff` 不在新稿原文里：新稿停在「我等待你的抉择。」，
- * 但第二节《御膳房》里它已经被叫作「小白」，且「解」必须在进入梦域前交给他。
- * 这一段沿用上一版已落地的**独有桥段**（不重复新稿已经说过的「征召/寿命/适配性」），
- * 只保留「接受任务 → 命名小白 → 许诺「解」」。要砍掉它只需把 `CH01_AFTER_FINALE`
- * 改成 `CH01_AFTER_CLOSING`（见 docs/CUE-CONTRACT.md 与收工说明）。
+ * `handoff` 是 2026-11-26 用户给的新稿：周全提三个条件（名字 / 别再整我 / 叫小白），
+ * 小白在「小白」这个名字上做了一次肉眼可见的内部运算（银白光雾 → 数学符号 → 坍塌 →
+ * 平息），随后接受定名并约定下次带他再进梦域。新稿停在「我会带你再次进入郑卿的梦域空间」，
+ * 与第二节《御膳房》（已经叫「小白」，并在那里授予「解」）正好接上。
  *
  * 演出提示（括号里的舞台指示、BGM 切换、鼾声、黑屏）都落在行 cue 上：
  * - 状态型 `bgm` 走归约，跳过也不丢；
- * - 表现型 `cg` / `fx` / `emotion` / `sfx` / `blackout` / `dark` 只在被看见时执行，跳过不补播。
+ * - 表现型 `cg` / `fx` / `emotion` / `sfx` / `blackout` / `dark` 只在被看见时执行，跳过不补播；
+ * - `cg: null` 是「主动收起 CG」（光雾平息），省略 `cg` 才是「这一行不管 CG」。
  *
  * 「黑屏胁迫」那一段的六拍（`dark: 'onset'|'grip'|'squeeze'|'verdict'|'crush'|'release'`）
  * 的数值表在 `src/story/ch01-dark-scene.ts`，表现层在 `src/ui/dark-pressure.ts`：
@@ -35,11 +35,22 @@ import type { InquiryScript } from './inquiry';
  *
  * 时间点在「周全给它取名小白」之前，所以照新稿用「白色小精灵」；
  * 语义色/逐字音/立绘只认 `role: 'xiaobai'`，改名不用动声线。
+ * 命名被接受后换成 {@link CH01_AFTER_NAMED_SPEAKER}，角色 id 不变。
  */
 export const CH01_AFTER_XIAOBAI_SPEAKER = '白色小精灵';
 
+/** 定名之后（「代号更新确认」起）的显示名。 */
+export const CH01_AFTER_NAMED_SPEAKER = '小白';
+
 const xiaobai = (text: string): DialogueLine => ({
   speaker: CH01_AFTER_XIAOBAI_SPEAKER,
+  role: 'xiaobai',
+  text,
+});
+
+/** 定名之后的小白台词：显示名换成「小白」，`role` 仍是同一个身份。 */
+const xiaobaiNamed = (text: string): DialogueLine => ({
+  speaker: CH01_AFTER_NAMED_SPEAKER,
   role: 'xiaobai',
   text,
 });
@@ -212,19 +223,86 @@ export const CH01_AFTER_CLOSING: readonly DialogueLine[] = [
 ];
 
 /**
- * 衔接段：沿用上一版独有的「接受任务 → 命名小白 → 许诺「解」」。
+ * 衔接段：接受任务 → 三个条件 → 定名「小白」→ 约定下次进入梦域。
  *
- * 新稿停在这里会留下两个断点：第二节里它已经叫「小白」，「解」也必须在进梦域前交给他。
- * 所以把旧稿里**新稿没有重复的部分**接在后面；旧稿里与新稿重复的
- * （征召条款 / 150 天 / 为什么找我 / 杀死精神体）一律不再出现。
+ * 2026-11-26 用户给了这一段的完整新稿（蓝本仍是原文第 2 章「命名」那场）：
+ * 周全提三个条件（名字 / 别再整我 / 叫小白），小白在「小白」这个名字上做了
+ * 一次肉眼可见的内部运算 —— 银白光雾翻涌成数学符号、扭曲坍塌，再平息。
+ * 这里逐句照新稿落地，并把「光雾」做成 CG + 故障/白闪三拍。
+ *
+ * 为什么还留在这里：新稿停在「我会带你再次进入郑卿的梦域空间」，
+ * 第二节《御膳房》里它已经被叫作「小白」，且「解」按原文第 3 章在御膳房授予，
+ * 这一段正好把「定名」与「下次进梦域」接上。
  */
 export const CH01_AFTER_HANDOFF: readonly DialogueLine[] = [
-  { speaker: '周全', text: '……行吧。不过得答应我几个条件。第一，我们有名字，我叫周全，他叫郑卿。' },
-  { speaker: '小白', role: 'xiaobai', text: '允许。' },
-  { speaker: '周全', text: '第二，别笑得那么瘆人。第三，你叫小白。', emotion: 'annoyed', emotionBy: 'zhou', portraitEmotion: 'frown' },
-  { speaker: '小白', role: 'xiaobai', text: '「小白」……采纳。下一次进入梦域，我会赋予你「解」。' },
-  { speaker: '旁白', text: '床上的郑卿翻了个身，呼噜声重新响起。' },
-  { speaker: '周全', text: '老郑，等我。' },
+  { speaker: '周全', text: '行吧。不过，你得答应我三个条件。' },
+  xiaobai('允许。'),
+  { speaker: '周全', text: '首先，我们是有名字的，我叫周全，他叫郑卿，你不要拿那一串代号来称呼我们。' },
+  xiaobai('没有问题。'),
+  { speaker: '周全', text: '还有，不要一言不合就对我使用刚才那招啊！', portraitEmotion: 'frown' },
+  xiaobai('理解，下次我会提前予以警告。'),
+  {
+    speaker: '周全',
+    text: '警告不听还是要整我是吧？！',
+    emotion: 'angry',
+    emotionBy: 'zhou',
+    portraitEmotion: 'frown',
+  },
+  // 「一阵冷风从脖颈吹过」：冷蓝一闪 + 贴耳的风声，把上一段的压迫感带回来一拍。
+  {
+    speaker: '旁白',
+    text: '你只感觉一阵冷风从脖颈吹过。记忆中那压抑的感觉仿佛又涌上心头。',
+    fx: 'chill',
+    sfx: CH01_ASSET_KEYS.audio.coldWind,
+  },
+  {
+    speaker: '周全',
+    text: '好……好吧……那么第三个条件。你的那个名字，TEAR什么的，我不会念。以后我就叫你小白吧。',
+    portraitEmotion: 'awkward',
+  },
+  xiaobai('小白……'),
+  // 命名 CG：银白光雾在头顶翻涌，凝成数学符号又坍塌。
+  // 同一张 CG 在「但……」那行再抖一次；「光雾平息」用 `cg: null` 明确收图。
+  {
+    speaker: '旁白',
+    text: '这白色的小家伙似乎陷入了思索，银白色的光雾瞬间在小天使头顶剧烈翻涌，凝聚成几个不断扭曲、坍塌的复杂数学符号，又猛地消散。',
+    cg: CH01_ASSET_KEYS.cg.xiaobaiFog,
+    fx: 'glitch',
+    sfx: CH01_ASSET_KEYS.audio.xiaobaiCompute,
+  },
+  // 命名 CG 期间的每一句都要显式带 `cg`：立绘对位靠「这一行有没有 CG」判断，
+  // 省略就会在光雾上叠一张半身像（2026-11-26 真机截图确认过）。
+  {
+    ...xiaobai(
+      '“小白”发音与“TEAR-27”相似度低于7%。该称谓在哺乳动物生物学中具有特定指代，存在误导性……',
+    ),
+    cg: CH01_ASSET_KEYS.cg.xiaobaiFog,
+  },
+  { speaker: '周全', text: '用得着这么严肃吗……', cg: CH01_ASSET_KEYS.cg.xiaobaiFog },
+  {
+    ...xiaobai(
+      '但……根据碳基文明非正式命名行为对“亲和力”及“合作意愿”存在正向加成的数据模型……采纳此命名造成的效率损失……处于可容忍阈值内。',
+    ),
+    // 光雾再次翻腾、符号闪得更快：同一张 CG 再抖一记（CgOverlay 同 key 也会重放 fx）。
+    cg: CH01_ASSET_KEYS.cg.xiaobaiFog,
+    fx: 'glitch',
+  },
+  // 光雾平息：收起 CG + 白闪，画面回到寝室。
+  { speaker: '旁白', text: '光雾平息。小天使平静地悬浮着。', cg: null, fx: 'flash' },
+  xiaobaiNamed('代号更新确认。‘小白’，接受此非正式命名。'),
+  {
+    speaker: '周全',
+    text: '好耶！',
+    emotion: 'happy',
+    emotionBy: 'zhou',
+    portraitEmotion: 'happy',
+  },
+  {
+    speaker: '旁白',
+    text: '你不知道为何，有些激动。或许是你的恶趣味得逞，又或者是因为你竟然在和一个比你强大的多的生物的博弈中取得了些微优势……也许吧。',
+  },
+  { speaker: '周全', text: '咳……那么，我们什么时候开始？', portraitEmotion: 'awkward' },
+  xiaobaiNamed('你可以做一些准备。准备完成之后，在这里跟我对话。我会带你再次进入郑卿的梦域空间。'),
 ];
 
 /**

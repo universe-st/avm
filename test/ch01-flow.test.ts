@@ -118,9 +118,18 @@ describe('Ch01Flow', () => {
   it('supports preview phases and falls back to opening', () => {
     expect(normalizeCh01PreviewPhase('explore')).toBe('explore');
     expect(normalizeCh01PreviewPhase('after')).toBe('after');
+    // 两个战后单点预览都归一成 after：流程语义复用，场景自己切台词。
+    expect(normalizeCh01PreviewPhase('dark')).toBe('after');
+    expect(normalizeCh01PreviewPhase('naming')).toBe('after');
     expect(normalizeCh01PreviewPhase('complete')).toBe('complete');
     expect(normalizeCh01PreviewPhase('nope')).toBe('opening');
     expect(CH01_PREVIEW_PHASES).toContain('opening');
+    expect(CH01_PREVIEW_PHASES).toContain('naming');
+
+    const naming = new Ch01Flow({ previewPhase: 'naming' });
+    expect(types(naming.start())).toEqual(['objective', 'dialogue']);
+    expect(naming.state.phase).toBe('after');
+    expect(naming.state.currentNode).toBe('after');
 
     const explore = new Ch01Flow({ previewPhase: 'explore' });
     expect(types(explore.start())).toEqual(['objective']);

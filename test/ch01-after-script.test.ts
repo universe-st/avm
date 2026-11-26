@@ -104,12 +104,38 @@ const CLOSING: readonly Say[] = [
 ];
 
 const HANDOFF: readonly Say[] = [
-  ['周全', '……行吧。不过得答应我几个条件。第一，我们有名字，我叫周全，他叫郑卿。'],
-  ['小白', '允许。'],
-  ['周全', '第二，别笑得那么瘆人。第三，你叫小白。'],
-  ['小白', '「小白」……采纳。下一次进入梦域，我会赋予你「解」。'],
-  ['旁白', '床上的郑卿翻了个身，呼噜声重新响起。'],
-  ['周全', '老郑，等我。'],
+  ['周全', '行吧。不过，你得答应我三个条件。'],
+  [XIAOBAI, '允许。'],
+  ['周全', '首先，我们是有名字的，我叫周全，他叫郑卿，你不要拿那一串代号来称呼我们。'],
+  [XIAOBAI, '没有问题。'],
+  ['周全', '还有，不要一言不合就对我使用刚才那招啊！'],
+  [XIAOBAI, '理解，下次我会提前予以警告。'],
+  ['周全', '警告不听还是要整我是吧？！'],
+  ['旁白', '你只感觉一阵冷风从脖颈吹过。记忆中那压抑的感觉仿佛又涌上心头。'],
+  ['周全', '好……好吧……那么第三个条件。你的那个名字，TEAR什么的，我不会念。以后我就叫你小白吧。'],
+  [XIAOBAI, '小白……'],
+  [
+    '旁白',
+    '这白色的小家伙似乎陷入了思索，银白色的光雾瞬间在小天使头顶剧烈翻涌，凝聚成几个不断扭曲、坍塌的复杂数学符号，又猛地消散。',
+  ],
+  [
+    XIAOBAI,
+    '“小白”发音与“TEAR-27”相似度低于7%。该称谓在哺乳动物生物学中具有特定指代，存在误导性……',
+  ],
+  ['周全', '用得着这么严肃吗……'],
+  [
+    XIAOBAI,
+    '但……根据碳基文明非正式命名行为对“亲和力”及“合作意愿”存在正向加成的数据模型……采纳此命名造成的效率损失……处于可容忍阈值内。',
+  ],
+  ['旁白', '光雾平息。小天使平静地悬浮着。'],
+  ['小白', '代号更新确认。‘小白’，接受此非正式命名。'],
+  ['周全', '好耶！'],
+  [
+    '旁白',
+    '你不知道为何，有些激动。或许是你的恶趣味得逞，又或者是因为你竟然在和一个比你强大的多的生物的博弈中取得了些微优势……也许吧。',
+  ],
+  ['周全', '咳……那么，我们什么时候开始？'],
+  ['小白', '你可以做一些准备。准备完成之后，在这里跟我对话。我会带你再次进入郑卿的梦域空间。'],
 ];
 
 function saysOf(lines: readonly DialogueLine[]): Say[] {
@@ -139,7 +165,7 @@ describe('战后剧本 · 原文与顺序', () => {
     expect(CH01_AFTER_CLOSING.at(-1)?.text).toBe('我等待你的抉择。');
   });
 
-  it('衔接段沿用旧稿独有桥段（命名小白 + 许诺「解」），与新稿不重复', () => {
+  it('衔接段（三个条件与定名）逐字一致，与新稿不重复', () => {
     expect(saysOf(CH01_AFTER_HANDOFF)).toEqual(HANDOFF);
     // 新稿里已经说过的内容不再抄一遍（150 天 / 为什么找我 / 杀死精神体）。
     const newText = CH01_AFTER_ALL_LINES.slice(
@@ -194,7 +220,7 @@ describe('战后剧本 · 原文与顺序', () => {
 });
 
 describe('战后剧本 · 演出 cue', () => {
-  it('小白的每一句都带 role，显示名统一是「白色小精灵」（不冒「？？？」）', () => {
+  it('小白的每一句都带 role；定名前叫「白色小精灵」，定名后叫「小白」', () => {
     const xiaobaiLines = CH01_AFTER_ALL_LINES.filter(
       (line) => line.speaker === XIAOBAI || line.speaker === '小白',
     );
@@ -202,6 +228,13 @@ describe('战后剧本 · 演出 cue', () => {
     for (const line of xiaobaiLines) {
       expect(line.role, `小白台词缺 role：${line.text}`).toBe('xiaobai');
     }
+    // 显示名只在「接受此非正式命名」那一句之后才变成「小白」。
+    const acceptAt = CH01_AFTER_HANDOFF.findIndex((line) => line.text.startsWith('代号更新确认'));
+    expect(acceptAt).toBeGreaterThan(0);
+    expect(CH01_AFTER_HANDOFF.slice(0, acceptAt).every((line) => line.speaker !== '小白')).toBe(
+      true,
+    );
+    expect(CH01_AFTER_HANDOFF.slice(acceptAt).some((line) => line.speaker === '小白')).toBe(true);
     expect(
       CH01_AFTER_ALL_LINES.some((line) => line.speaker === '？？？'),
       '这一段不该再出现「？？？」',
@@ -221,12 +254,58 @@ describe('战后剧本 · 演出 cue', () => {
     );
   });
 
-  it('两处愤怒气泡都挂在周全头上', () => {
+  it('三处愤怒气泡都挂在周全头上', () => {
     const angry = CH01_AFTER_ALL_LINES.filter((line) => line.emotion === 'angry');
-    expect(angry.map((line) => line.text)).toEqual(['他有名字！他叫郑卿！', '你让我杀人？！那不可能！']);
+    expect(angry.map((line) => line.text)).toEqual([
+      '他有名字！他叫郑卿！',
+      '你让我杀人？！那不可能！',
+      '警告不听还是要整我是吧？！',
+    ]);
     for (const line of angry) {
       expect(line.emotionBy).toBe('zhou');
     }
+  });
+
+  it('命名段的三拍演出：冷风 → 光雾 CG 抖动两次 → 光雾平息收图', () => {
+    const fogKey = CH01_ASSET_KEYS.cg.xiaobaiFog;
+    const fogLines = CH01_AFTER_HANDOFF.filter((line) => line.cg === fogKey);
+    // CG 挂着的四句：旁白「陷入思索」→ 小白「相似度低于7%」→ 周全「用得着这么严肃」→ 小白「但……」。
+    // 中间两句也必须显式带 cg，否则立绘会对位到光雾上（真机截图确认过）。
+    expect(fogLines.map((line) => line.text.slice(0, 6))).toEqual([
+      '这白色的小家',
+      '“小白”发音',
+      '用得着这么严',
+      '但……根据碳',
+    ]);
+    expect(fogLines.map((line) => line.fx)).toEqual(['glitch', undefined, undefined, 'glitch']);
+    expect(fogLines[0]?.text).toContain('光雾瞬间在小天使头顶剧烈翻涌');
+    expect(fogLines[3]?.text.startsWith('但……')).toBe(true);
+
+    // 「光雾平息」必须明确收图，否则命名 CG 会一直压到结束卡。
+    const clear = CH01_AFTER_HANDOFF.find((line) => line.text.startsWith('光雾平息'));
+    expect(clear?.cg).toBeNull();
+    expect(clear?.fx).toBe('flash');
+
+    // 冷风那一行：冷蓝一闪 + 一次性风声。
+    const chill = CH01_AFTER_HANDOFF.find((line) => line.fx === 'chill');
+    expect(chill?.text).toContain('一阵冷风从脖颈吹过');
+    expect(chill?.sfx).toBe(CH01_ASSET_KEYS.audio.coldWind);
+
+    // 光雾运算声只挂在 CG 第一拍。
+    const compute = CH01_AFTER_HANDOFF.filter(
+      (line) => line.sfx === CH01_ASSET_KEYS.audio.xiaobaiCompute,
+    );
+    expect(compute).toHaveLength(1);
+    expect(compute[0]).toBe(fogLines[0]);
+  });
+
+  it('「好耶！」给周全挂笑气泡；最后一句是小白让他做好准备', () => {
+    const cheer = CH01_AFTER_HANDOFF.find((line) => line.text === '好耶！');
+    expect(cheer?.emotion).toBe('happy');
+    expect(cheer?.emotionBy).toBe('zhou');
+    expect(cheer?.portraitEmotion).toBe('happy');
+    expect(CH01_AFTER_HANDOFF.at(-1)?.speaker).toBe('小白');
+    expect(CH01_AFTER_HANDOFF.at(-1)?.text).toContain('准备完成之后，在这里跟我对话');
   });
 
   it('分支 2 的鼾声行真的挂了鼾声音效，且只挂一次', () => {
@@ -275,6 +354,15 @@ describe('场景接线（源码护栏）', () => {
     const playAt = scene.indexOf('this.startDialogue(question.lines)');
     expect(markAt).toBeGreaterThanOrEqual(0);
     expect(playAt).toBeGreaterThan(markAt);
+  });
+
+  it('命名 CG 的「收图」与冷风闪接在场景 applyLineCue 上', () => {
+    // `cg: null` 是主动收图（光雾平息）；漏了就会把 CG 压到结束卡。
+    expect(scene).toContain('if (line.cg === null)');
+    // 冷风是冷蓝一闪，不是白闪。
+    expect(scene).toContain("line.fx === 'chill'");
+    // 有 CG 的行由 CgOverlay 播 fx；只有没有 CG 的行才抖镜头。
+    expect(scene).toContain('line.cg == null');
   });
 });
 

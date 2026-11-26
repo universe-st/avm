@@ -91,6 +91,21 @@
   攥紧 24%、释压 26%，外放能听见「嗡嗡压下来 / 攥紧 / 松开」。
 - 复核：上架前按火山引擎商用条款复核，商店页注明「AI 生成音频」。
 
+### 4.3 命名段（三个条件与「小白」，2026-11-26）
+
+- 用途：`src/story/ch01-after.ts` 的衔接段，行 cue `sfx`（跳过不补播）。
+- 来源：游戏素材大师 · 音效生成（火山引擎 Seed-Audio，`seed-audio-1.0`），auto 审核；后期 ffmpeg。
+
+| 文件 | job / take | 提示词（摘要） | 原始时长 | 成品 |
+| --- | --- | --- | --- | --- |
+| `ch01_cold_wind.mp3` | `fmwxfm8kke09418` / `kmwxfmvy38efc7b` | 深夜宿舍，一阵阴冷的风从脖颈后掠过：贴耳冷风，短促克制，约 2s；不要人声/音乐；后半秒迅速收干，带低频空洞回响 | 3.50s | 3.00s |
+| `ch01_xiaobai_compute.mp3` | `fmwxfmg3ubb7389` / `kmwxfmzw17d8e7e` | 外星能量生命体高速运算：细碎电子脉冲、光雾翻涌的沙沙声、数据流滴答与电流嗡鸣，从稀疏迅速变密，约 3s，最后戛然而止；无人声/音乐/旋律 | 4.50s | 4.10s |
+
+- 后期（ffmpeg）：冷风 `atrim=0:3.0` + 0.05s 淡入 / 0.65s 淡出；运算 `atrim=0:4.1` + 0.03s 淡入 / 0.2s 淡出；两条都 `loudnorm I=-18 TP=-3` 后再 `volume=-1dB` 留头，单声道 44.1kHz / 128kbps mp3。
+- 实测：冷风峰值 −3.0 dBFS / 平均 −18.0 dB；运算峰值 −1.3 dBFS / 平均 −18.5 dB（`astats`）。
+- 原始件：`assets-src/audio/ch01/ch01_cold_wind_source.wav`、`assets-src/audio/ch01/ch01_xiaobai_compute_source.wav`。
+- 复核：上架前按火山引擎商用条款复核，商店页注明「AI 生成音频」。
+
 ## 5. 程序生成的位图与图标
 
 | 文件 | 生成方式 | 说明 |
@@ -345,10 +360,12 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
 | 小白登场 | `public/assets/img/cg/ch01/xiaobai.webp` | `imvn5g41n4c67a2` | 宿舍里小白悬浮、前景少年；当前只作 CG 预览，剧情主线使用手机/醒来两张 |
 | 醒来 | `public/assets/img/cg/ch01/wake.webp` | `imvn5gis58f0193` | 周全趴地、小白悬浮、郑卿在床；首次下载失败，重跑 1 次成功 |
 | 沉睡症新闻（黑白回忆） | `public/assets/img/cg/ch01/news.webp` | `imvtezcbo6fb98e` | 夜晚客厅，老式电视占画面上半部；屏幕里两名新闻主持人（左男右女）播报，屏幕下方字幕条留空；整体黑白胶片、扫描线、暗角 |
+| 命名 · 光雾与数学符号 | `public/assets/img/cg/ch01/xiaobai_fog.webp` | `imwxfl9fb05b968` | 深夜宿舍，小白悬浮；头顶银白光雾翻涌成 ∑/∫/√/∂/∞/≠ 等数学符号，符号碎裂、倾斜、坍塌，光粒四散；右下角少年背影虚焦。参考图：`portrait_xiaobai.png`（角色形制）+ `wake.webp`（宿舍光照） |
 
 - 来源：游戏素材大师 · 图片生成（参考 `character-sheet.png`），1584×2816 → 9:16 → 1080×1920 → WebP q88。
-- 源图：`assets-src/cg/ch01/{phone,xiaobai,wake,news}-source.jpg`。
+- 源图：`assets-src/cg/ch01/{phone,xiaobai,wake,news}-source.jpg`；命名 CG 源图 `assets-src/cg/ch01/xiaobai_fog-source.png`（生成器第二批 `img-00.png`）。
 - 新闻 CG 后期：整图转灰度 + 1% 自动对比 + 亮度 1.10 / 对比 1.06，保证手机上暗部不糊；无文字、无水印。
+- 命名 CG 后期：Seedream 5.5 二次生成（第一版眼睛偏绿、符号太像贴图，改提示词重跑）；全分辨率把虹膜绿色（398 像素）替换为近黑中性灰，保留原明暗层次与高光，回到设定图的纯黑圆眼；WebP q90（165 KB），1080×1920 RGB。
 
 ### 11.7 音频
 

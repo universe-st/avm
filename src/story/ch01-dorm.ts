@@ -53,7 +53,7 @@ export const CH01_END_CARD = {
   kicker: '第一章 · 权力之梦',
   title: '第一节 · 寝室',
   subtitle: '第一节 · 完',
-  hint: '下一次，小白会给他「解」。',
+  hint: '下一次，小白会带他再次进入郑卿的梦域。',
 } as const;
 
 export const CH01_INTERACTABLE_PROMPTS = {

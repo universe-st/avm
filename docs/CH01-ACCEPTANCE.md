@@ -54,14 +54,14 @@
 ## 3. 舞台预览
 
 ```text
-/?stage=scene.ch01.dorm&phase=opening|explore|after|complete&hud=0
+/?stage=scene.ch01.dorm&phase=opening|explore|after|dark|naming|complete&hud=0
 /?stage=scene.ch01.dorm&phase=explore&debug=1&hud=0
 /?stage=battle.ch01.first&phase=opening|mid|defeat&hud=0
 /?stage=battle.ch01.kitchen&phase=opening|mid|victory|defeat&hud=0
 ```
 
 - `phase=explore` 跳过章节卡与开场对话，直接自由探索。
-- `phase=after` 从战后「从宫殿逃出之后」第一段（醒来与编号之争）开始；`phase=complete` 直接结束卡。
+- `phase=after` 从战后「从宫殿逃出之后」第一段（醒来与编号之争）开始；`phase=dark` 直接从黑场胁迫那一拍开始；`phase=naming` 直接从「三个条件与定名」（含命名 CG）开始；`phase=complete` 直接结束卡。
 - `battle.ch01.first&phase=defeat` 直接显示剧情战败覆盖层；预览显示「重开战斗 / 返回标题」。
 - `battle.ch01.first` 的 `victory` 会回退 `mid`（那场不能赢）；`battle.ch01.kitchen` 的 `victory` 是真胜利卡。
 - 八向：`&skip=1&facing=up|upRight|right|downRight|down|downLeft|left|upLeft`（`phase=mid` 会模拟回合、怪物可能转向）。

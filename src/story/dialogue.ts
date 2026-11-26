@@ -6,7 +6,15 @@ import type { BgmId } from '../audio/bgm-tracks';
  * 不依赖 Phaser：场景只负责把 `DialoguePlayer` 的事件画出来。
  */
 
-export type DialogueFx = 'flash' | 'shake' | 'glitch';
+/**
+ * 台词/镜头的一次性画面特效。
+ *
+ * - `flash`：白闪（压迫解除、硬切换画面）；
+ * - `shake`：轻震屏；
+ * - `glitch`：故障抖动（CG 上的符号扭曲、记忆闪回）；
+ * - `chill`：冷蓝色一闪（「一阵冷风从脖颈吹过」这类发毛瞬间，比白闪更冷）。
+ */
+export type DialogueFx = 'flash' | 'shake' | 'glitch' | 'chill';
 
 /**
  * 「黑场胁迫」演出的节拍词汇（见 `ch01-dark-scene.ts` 的强度表）。
@@ -43,8 +51,14 @@ export interface DialogueLine {
   /** 稳定角色 id；省略时按显示名推断。 */
   readonly role?: DialogueRole;
   readonly text: string;
-  /** 本句显示的全屏 CG key；没有就隐藏上一张 CG。 */
-  readonly cg?: string;
+  /**
+   * 本句显示的全屏 CG key；`null` = **主动收起**当前 CG（回到场景画面）。
+   *
+   * 省略（`undefined`）与 `null` 不是一回事：省略是「这一行不管 CG」——
+   * 战后寝室整段都压在醒来 CG 上，中途不能因为某句没写 `cg` 就把画面掀开；
+   * `null` 是剧本明确说「光雾散了 / 回忆结束」，必须收图。
+   */
+  readonly cg?: string | null;
   /** 本句附带的镜头/画面特效。 */
   readonly fx?: DialogueFx;
   /** 本句切换 BGM（`BGM_TRACKS` 的 id）；省略时保持当前曲目。 */

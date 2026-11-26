@@ -161,6 +161,16 @@ describe('reducePortraitForLine：谁开口谁上脸', () => {
       action: 'hide',
     });
   });
+
+  it('cg: null 是「收起 CG」而不是「挂着 CG」：说话人可以重新上脸', () => {
+    expect(
+      reducePortraitForLine({ speaker: '小白', cg: null }, null),
+    ).toEqual({
+      action: 'show',
+      key: 'img.char.portrait.xiaobai',
+      side: 'right',
+    });
+  });
 });
 
 describe('战斗对话与剧情对话共用同一套面板', () => {
