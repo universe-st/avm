@@ -57,6 +57,26 @@ describe('Ch01Flow · 可序列化快照（正式存档用）', () => {
     expect(flow.state.phoneFound).toBe(true);
   });
 
+  it('prep 快照回到准备阶段（不重播战后征召，也不再进结束卡）', () => {
+    const flow = new Ch01Flow({
+      snapshot: {
+        phase: 'prep',
+        objective: CH01_OBJECTIVES.prepare,
+        talkedZheng: true,
+        phoneFound: true,
+      },
+    });
+    const events = flow.start();
+    expect(types(events)).toEqual(['objective']);
+    expect(flow.state.phase).toBe('prep');
+    expect(flow.state.currentNode).toBeNull();
+    expect(flow.state.objective).toBe(CH01_OBJECTIVES.prepare);
+    // 准备阶段只有小白可交互，其它对象不响应。
+    expect(flow.interact('zheng')).toEqual([]);
+    expect(types(flow.interact('xiaobai'))).toEqual(['complete']);
+    expect(flow.state.phase).toBe('complete');
+  });
+
   it('complete 快照直接出结束卡', () => {
     const flow = new Ch01Flow({
       snapshot: {

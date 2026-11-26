@@ -350,6 +350,13 @@ export interface CreateSaveInput {
   /** **房间局部**坐标（见 `SavePlayerV1`）。 */
   readonly player: SavePlayerV1;
   readonly dorm: SaveDormV1;
+  /**
+   * 写盘时的检查点覆盖（默认取 `SAVE_SCENES`）。
+   *
+   * 寝室准备阶段（`prep`）写的是 `dorm.after`：这一段属于「战后征召」，
+   * 标题「继续游戏」应该回到战后，而不是回到寝室开头重新叫醒郑卿。
+   */
+  readonly checkpoint?: CheckpointId;
   /** 预留通用桶；M1a 传 `{}`。 */
   readonly flags?: SaveFlags;
   readonly now?: number;
@@ -370,7 +377,7 @@ export function createSaveData(input: CreateSaveInput): SaveDataV1 {
     slot: input.slot,
     chapter: SAVE_CHAPTER,
     module: input.module,
-    checkpoint: scene.checkpoint,
+    checkpoint: input.checkpoint ?? scene.checkpoint,
     sceneLabel: scene.sceneLabel,
     chapterLabel: scene.chapterLabel,
     objective: text(input.objective, scene.sceneLabel),

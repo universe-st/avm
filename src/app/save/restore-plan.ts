@@ -110,9 +110,14 @@ export function planBgmRestore(input: BgmRestoreInput): BgmRestorePlan {
  */
 export function flowSnapshotFromSave(save: SaveDataV1): Ch01FlowSnapshot | null {
   if (save.module !== 'ch01Dorm') return null;
+  /**
+   * 寝室现在有两个自由活动 phase：`explore` 与 `prep`（命名后、还没跟小白开口）。
+   * `prep` 用 `flags.prep` 记（存档 v1 没有 phase 字段；flags 本来就是预留的通用桶），
+   * 读回来必须回到「准备阶段」，否则会把玩家扔回寝室开头。
+   */
+  const prep = save.flags.prep === true;
   return {
-    // 存档只在自由探索时写入，所以恢复的 phase 恒为 explore（见 `docs/SAVE-SYSTEM.md` §3）。
-    phase: 'explore',
+    phase: prep ? 'prep' : 'explore',
     objective: save.objective,
     talkedZheng: save.dorm.talkedZheng,
     phoneFound: save.dorm.phoneFound,

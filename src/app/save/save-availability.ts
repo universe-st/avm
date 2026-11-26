@@ -68,10 +68,16 @@ export const SAVE_BLOCK_ORDER: readonly SaveBlockReason[] = [
   'not-free-roam',
 ];
 
-/** 各模块的「自由活动」phase 名称。 */
-export const FREE_ROAM_PHASES: Readonly<Record<SaveModule, string>> = {
-  ch01Dorm: 'explore',
-  ch01Kitchen: 'explore',
+/**
+ * 各模块的「自由活动」phase 名称。
+ *
+ * 寝室多一个 `prep`：命名完了、还没跟小白开口的那段自由活动（2026-11-27 用户拍板
+ * 「能存档」）。它不是 `explore`——回去摸书桌/叫郑卿都说不通——但玩家确实在自由走动，
+ * 所以存进去要恢复成「准备阶段」而不是回到寝室开头（见 `flowSnapshotFromSave`）。
+ */
+export const FREE_ROAM_PHASES: Readonly<Record<SaveModule, readonly string[]>> = {
+  ch01Dorm: ['explore', 'prep'],
+  ch01Kitchen: ['explore'],
 };
 
 export function isSaveModuleId(value: string): value is SaveModule {
@@ -81,7 +87,7 @@ export function isSaveModuleId(value: string): value is SaveModule {
 /** 该模块 + phase 是否处在允许存档的自由探索段。 */
 export function isFreeRoamPhase(module: SaveContextModule, phase: string): boolean {
   if (!isSaveModuleId(module)) return false;
-  return FREE_ROAM_PHASES[module] === phase;
+  return FREE_ROAM_PHASES[module].includes(phase);
 }
 
 export interface SaveAvailabilityContext {

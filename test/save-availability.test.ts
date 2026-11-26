@@ -91,9 +91,11 @@ describe('存档可用性 · 自由活动判定表', () => {
     }
   });
 
-  it('isFreeRoamPhase 只认两个模块的 explore', () => {
+  it('isFreeRoamPhase 认两个模块的 explore + 寝室的 prep', () => {
     expect(isFreeRoamPhase('ch01Dorm', 'explore')).toBe(true);
+    expect(isFreeRoamPhase('ch01Dorm', 'prep')).toBe(true);
     expect(isFreeRoamPhase('ch01Kitchen', 'explore')).toBe(true);
+    expect(isFreeRoamPhase('ch01Kitchen', 'prep')).toBe(false);
     expect(isFreeRoamPhase('ch01Dorm', 'after')).toBe(false);
     expect(isFreeRoamPhase('ch01Palace', 'explore')).toBe(false);
   });

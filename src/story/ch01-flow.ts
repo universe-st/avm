@@ -199,9 +199,15 @@ export class Ch01Flow {
       this.objectiveValue = CH01_OBJECTIVES.complete;
       return [{ type: 'complete' }];
     }
-    // `prep` 是「命名完了、还没跟小白开口」的定格；它本来就不该进存档
-    //（`save-availability` 只认 explore），万一读到就退回战后征召整段重演。
-    if (snapshot.phase === 'after' || snapshot.phase === 'prep') {
+    // `prep` = 命名完了、还没跟小白开口的自由活动；2026-11-27 起可存档，
+    // 读回来直接落在准备阶段（`layoutPrep` 会把小白放回玩家身边）。
+    if (snapshot.phase === 'prep') {
+      this.phase = 'prep';
+      this.currentNodeId = null;
+      this.objectiveValue = snapshot.objective || CH01_OBJECTIVES.prepare;
+      return [{ type: 'objective', text: this.objectiveValue }];
+    }
+    if (snapshot.phase === 'after') {
       this.phase = 'after';
       return this.enterNode('after');
     }

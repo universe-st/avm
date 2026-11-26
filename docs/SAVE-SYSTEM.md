@@ -15,7 +15,7 @@
 
 | 能存 | 不能存 |
 | --- | --- |
-| 第一章第一节《寝室》· 自由探索 | 寝室的开场演出/对话/梦域入梦/战后征召/结束卡 |
+| 第一章第一节《寝室》· 自由探索（`explore`）与准备阶段（`prep`，命名后、还没跟小白开口） | 寝室的开场演出/对话/梦域入梦/战后征召/结束卡 |
 | 第一章第二节《御膳房》· 自由探索（`explore` 幕） | 御膳房的门卫/躲藏/配对/草堆/结束与失败 |
 | — | 金殿（纯演出）、剧情战（回合制） |
 
@@ -68,9 +68,9 @@ Phaser 侧只剩「把字段抄出来 / 抄回去」。
 
 模块 × phase 矩阵（✅ = 可存）：
 
-| 模块 | intro | explore | dream/battle | after | gate/hide/pair/haystack | done/failed/complete |
-| --- | --- | --- | --- | --- | --- | --- |
-| `ch01Dorm`（寝室） | ❌ | ✅ | ❌ | ❌ | — | ❌ |
+| 模块 | intro | explore | prep | dream/battle | after | gate/hide/pair/haystack | done/failed/complete |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `ch01Dorm`（寝室） | ❌ | ✅ | ✅ | ❌ | ❌ | — | ❌ |
 | `ch01Kitchen`（御膳房） | ❌ | ✅ | — | — | ❌ | ❌ |
 | `ch01Palace`（金殿） | ❌（模块级拒绝，与 phase 无关） | | | | | |
 | `battleCh01`（金殿剧情战） | ❌（同上） | | | | | |
@@ -105,7 +105,7 @@ Phaser 侧只剩「把字段抄出来 / 抄回去」。
 | `player.facing` | `Facing`（八向） | 读档后朝向一致 | 同上；非法朝向回落出生朝向 |
 | `dorm.talkedZheng` | boolean | 寝室：郑卿是否已被叫醒（决定能否查看手机/目标） | 进 `Ch01Flow({ snapshot })` |
 | `dorm.phoneFound` | boolean | 寝室：手机是否已找到（决定目标/结局推进） | 同上 |
-| `flags` | `Record<string, string｜number｜boolean>` | 预留通用桶（M1a 无道具，写 `{}`） | 目前不消费；解析只放行标量 |
+| `flags` | `Record<string, string｜number｜boolean>` | 预留通用桶；寝室准备阶段写 `{ prep: true }` | `flowSnapshotFromSave()` 读 `flags.prep` → 恢复成 `prep`（否则回 `explore`）；解析只放行标量 |
 
 **为什么坐标存房间局部**：设计高度随设备比例变化（`app/viewport.ts` 的 `designHeight`），寝室的
 `room.origin.y` 会跟着变。存世界坐标会在换视口/换设备后整体偏移，局部坐标与视口无关。
@@ -114,6 +114,11 @@ Phaser 侧只剩「把字段抄出来 / 抄回去」。
 
 **御膳房档的 `dorm` 字段**：写 `{ talkedZheng: true, phoneFound: true }`。能进第二节就说明第一节
 已经打完，这是状态事实；读档时不会拿它恢复寝室流程（`flowSnapshotFromSave()` 只认寝室档）。
+
+**准备阶段（`phase=prep`）的存档（2026-11-27 用户拍板「能存档」）**：存档 v1 没有 phase 字段，
+用 `flags.prep = true` 标记；`createSaveData` 的 `checkpoint` 覆盖成 `dorm.after`
+（这一段属于战后征召，标题「继续游戏」应回战后，而不是回寝室开头重新叫醒郑卿）。
+读档后 `Ch01Flow` 直接落 `prep`，场景 `layoutPrep()` 把小白放回玩家右上方并点亮「跟小白对话」提示。
 
 ## 5. 格式、版本与损坏兜底
 

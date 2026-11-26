@@ -170,6 +170,22 @@ describe('读档恢复 · 寝室流程快照', () => {
     });
   });
 
+  it('寝室准备阶段（flags.prep）恢复成 prep，而不是回到寝室开头', () => {
+    const snapshot = flowSnapshotFromSave(
+      save({
+        objective: '准备好后，跟小白对话',
+        dorm: { talkedZheng: true, phoneFound: true },
+        flags: { prep: true },
+      }),
+    );
+    expect(snapshot).toEqual({
+      phase: 'prep',
+      objective: '准备好后，跟小白对话',
+      talkedZheng: true,
+      phoneFound: true,
+    });
+  });
+
   it('御膳房档不恢复寝室流程', () => {
     expect(
       flowSnapshotFromSave(

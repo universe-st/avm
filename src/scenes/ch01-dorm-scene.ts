@@ -1110,6 +1110,8 @@ export class Ch01DormScene extends UIScene {
             this.startExploreAudio();
             saveProgress('dorm.explore', { preview: this.preview });
           }
+          // 准备阶段：读档回来时小白还停在手机/书桌那边，要放回玩家身边才能交互。
+          if (this.flow?.state.phase === 'prep') this.layoutPrep();
           break;
         case 'dialogue':
           // 空台词节点（现在的 `dream`）只用来把流程推进到下一拍。
@@ -1287,7 +1289,15 @@ export class Ch01DormScene extends UIScene {
       if (this.xiaobai && this.player) {
         const anchorY =
           this.player.position.y - CH01_STAND_HEAD_CENTER_OFFSET + CH01_XIAOBAI_HEAD_OFFSET_PX;
+        /**
+         * 先把常态浮动停掉再落位：`showXiaobai()` 会在她**原来的位置**（手机/书桌那边）
+         * 起步一条 `y → baseY-8` 的循环 tween，这条 tween 每帧都会把 y 拉回去——
+         * 2026-11-27 实测：直接 `setPosition` 后她会被那条 bob 一路拽到书桌上方 315，
+         * 光雾图标也跟着飘到画面上半屏。
+         */
+        this.stopXiaobaiBob();
         this.xiaobai.setPosition(this.xiaobai.x + 65, anchorY);
+        this.startXiaobaiBob();
       }
       this.startDialogue(CH01_AFTER_HANDOFF);
       return;
@@ -1303,17 +1313,35 @@ export class Ch01DormScene extends UIScene {
    * 玩家自己走过去开口才进第二节。
    */
   private enterPrep(): void {
-    const events = this.flow.beginPrep();
-    this.handleEvents(events);
-    this.tutorialVisible.value = false;
-    // 小白留在原地（命名时就浮在主角右上方）：玩家要走过去才够得着提示。
-    // 不要把她重新贴到主角头上——那就是「小精灵戴在头上」的观感（2026-11-26 实测）。
-    if (this.xiaobai) {
-      this.showXiaobai();
-      this.stopXiaobaiBob();
-      this.startXiaobaiBob();
-    }
+    // 小白布局在 `handleEvents` 的 objective 分支里统一做（`layoutPrep`），
+    // 这样「命名完进入准备」与「读档回到准备」走同一条路。
+    this.handleEvents(this.flow.beginPrep());
     this.clearDialoguePanel();
+    this.tutorialVisible.value = false;
+    this.syncControls();
+    this.updateNear();
+  }
+
+  /**
+   * 准备阶段的构图：小白在玩家右上方浮动；离得太远（读档回来）就挪回来。
+   *
+   * 幂等：命名刚结束、小白本来就在旁边时不会跳位置，也就没有「小精灵戴在头上」的观感。
+   */
+  private layoutPrep(): void {
+    const xiaobai = this.xiaobai;
+    const player = this.player;
+    if (!xiaobai || !player) return;
+    this.tutorialVisible.value = false;
+    this.showXiaobai();
+    const anchorX = player.position.x + 62;
+    const anchorY =
+      player.position.y - CH01_STAND_HEAD_CENTER_OFFSET + CH01_XIAOBAI_HEAD_OFFSET_PX;
+    const far = Math.hypot(xiaobai.x - anchorX, xiaobai.y - anchorY) > 180;
+    if (far) {
+      this.stopXiaobaiBob();
+      xiaobai.setPosition(anchorX, anchorY).setVisible(true).setAlpha(1);
+    }
+    this.startXiaobaiBob();
     this.syncControls();
     this.updateNear();
   }
@@ -2795,7 +2823,10 @@ export class Ch01DormScene extends UIScene {
         talkedZheng: flow.state.talkedZheng,
         phoneFound: flow.state.phoneFound,
       },
-      flags: {},
+      // 准备阶段（命名后、还没跟小白开口）也允许存档：用 flags 记 phase，
+      // 检查点落 `dorm.after`，标题「继续游戏」回到战后而不是寝室开头。
+      ...(flow.state.phase === 'prep' ? { checkpoint: 'dorm.after' as const } : {}),
+      flags: flow.state.phase === 'prep' ? { prep: true } : {},
     });
     return writeSlot(save);
   }

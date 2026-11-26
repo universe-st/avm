@@ -78,7 +78,8 @@ pnpm android:release
       `ch01.portraits`（周全/小白/矿工，四个场景共用）、`ch01.kitchen`（老麦/老肯）、
       `cutscene.ch01palace`（郑卿/楚公公/侍卫/周全慌张）。key 统一 `img.char.portrait.*`。
     - 对话结束/跳过/进菜单必须 `portrait.hide()`，SHUTDOWN 必须 `destroy()`（场景实例会复用）。
-    - **情绪差分**（2026-11-25）：周全有平常/皱眉/震惊/快乐/尴尬五张，郑卿有平常/震惊/得意/尴尬四张；
+    - **情绪差分**（2026-11-25）：周全有平常/皱眉/震惊/快乐/尴尬五张，郑卿有平常/震惊/得意/尴尬四张，
+      小白有平常/思索（`thinking`，命名段运算时）两档；
       台词用 `DialogueLine.portraitEmotion`（行 cue，表现型）指定，缺省 = 角色默认脸。
       表在 `SPEAKER_PORTRAIT_EMOTIONS`，切换由 `reducePortraitForLine` 统一给出；**换表情是同一个人
       原地换图（`soft: true`，不播入场滑入），换人才播入场**。金殿周全用的是被按跪慌张特写，不套差分。
@@ -98,6 +99,7 @@ pnpm android:release
 - 改开幕/过场：完整走一遍「开始 → 全部 cue → 点击继续 → 第一章寝室」，再测「跳过」「返回键」和 `prefers-reduced-motion`；`?stage=scene.prologue` 直接进开幕。
 - 改第一章/地图：`?stage=scene.ch01.dorm&phase=explore&hud=0`；验移动/碰撞/交互/目标/对话/返回标题；`debug=1` 看碰撞格。
 - 改命名段（2026-11-26 新稿）：`?stage=scene.ch01.dorm&phase=naming&hud=0` 从「行吧。不过，你得答应我三个条件。」开始；
+  运算那几句（「小白……」/「相似度低于7%」/「但……」）换 `portraitEmotion: 'thinking'` 差分（`img.char.portrait.xiaobai_thinking`）；
   验光雾三拍（翻涌 → 坍塌 → 平息）、冷风（冷蓝闪 + 冷色暗角脉冲）、「好耶」星火、显示名在「代号更新确认」处切成「小白」、
   演完回到自由活动（`phase=prep`，目标「准备好后，跟小白对话」）、走到小白身边按交互 → 白闪 → 结束卡；
   再验「跳过」（第一句就点跳过 → 仍到 prep、光雾不残留）与 `prefers-reduced-motion`（静态光雾、能走到 prep）。
@@ -194,8 +196,9 @@ pnpm android:release
   （`src/ui/naming-fx.ts`：canvas 径向渐变雾团 + Georgia 数学符号环 + 光晕，27 个对象），镜头一格不动。
   三拍 `fx: 'naming' | 'naming-collapse' | 'naming-settle'` 都是**表现型**：跳过不补播，但
   `finishDialogue()` / `clearDialoguePanel()` / SHUTDOWN 必须 `namingFx?.destroy()`。
-  `phase=prep` 是命名完的自由活动，**不进存档**（`FREE_ROAM_PHASES` 只认 explore）：
-  玩家要自己走到小白身边开口（`flow.finishPrep()`）才会出结束卡。
+  `phase=prep` 是命名完的自由活动，**可存档**（2026-11-27 用户拍板；`FREE_ROAM_PHASES` 认 explore+prep）：
+  存档用 `flags.prep` 标记、检查点写 `dorm.after`，读回来直接落回 prep（`layoutPrep()` 把小白放回身边），
+  玩家走到小白身边开口（`flow.finishPrep()`）才出结束卡。
 
 ## 6. 提交
 
