@@ -171,8 +171,7 @@ function lineSuppressesPortrait(
   line: Pick<DialogueLine, 'cg' | 'blackout' | 'dark' | 'getUp'>,
 ): boolean {
   return (
-    // `cg: null` 是「主动收起 CG」，这一行起画面回到场景，立绘可以正常上脸。
-    line.cg != null ||
+    line.cg !== undefined ||
     line.blackout !== undefined ||
     line.dark !== undefined ||
     // 趴在地上喘气的那一行：人还没站起来，不能挂一张站姿半身像。

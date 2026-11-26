@@ -241,13 +241,6 @@ export const CH01_ASSET_KEYS = {
     xiaobai: 'img.cg.ch01.xiaobai',
     wake: 'img.cg.ch01.wake',
     news: 'img.cg.ch01.news',
-    /**
-     * 命名 CG（2026-11-26）：小白头顶银白光雾翻涌、凝成扭曲坍塌的数学符号。
-     *
-     * 用在 after 衔接段「这白色的小家伙似乎陷入了思索……」到「光雾平息」之间；
-     * 「光雾平息」那一行用 `cg: null` 主动收图。
-     */
-    xiaobaiFog: 'img.cg.ch01.xiaobai_fog',
   },
   battle: {
     /** 战斗专用舞台图（720×1280）：聚光、前景台阶、暗角，不是宫殿全景。 */
@@ -291,15 +284,6 @@ export const CH01_ASSET_KEYS = {
      * 不直接用金殿那条 3s 的原文件：它含两组，按 1s 节拍播会叠三层、变成心律不齐。
      */
     darkHeartbeat: 'audio.sfx.ch01_dark_heartbeat',
-    /**
-     * 命名段（2026-11-26）的两条一次性音：
-     *
-     * - `coldWind`：「一阵冷风从脖颈吹过」那一拍的贴耳冷风；
-     * - `xiaobaiCompute`：小白内部运算时银白光雾翻涌 + 数据流的细碎声。
-     * 都是行 cue `sfx`，跳过不补播。
-     */
-    coldWind: 'audio.sfx.ch01_cold_wind',
-    xiaobaiCompute: 'audio.sfx.ch01_xiaobai_compute',
   },
 } as const;
 

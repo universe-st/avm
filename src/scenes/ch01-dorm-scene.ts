@@ -56,7 +56,6 @@ import {
 } from '../story/ch01-dorm';
 import {
   CH01_AFTER_FINALE,
-  CH01_AFTER_HANDOFF,
   CH01_AFTER_INQUIRY,
   type Ch01AfterQuestionId,
 } from '../story/ch01-after';
@@ -288,8 +287,6 @@ export class Ch01DormScene extends UIScene {
   private getUpIndex = -1;
   /** 预览 `phase=dark`：直接从黑场胁迫那一拍开始，方便单点看这段演出。 */
   private previewDark = false;
-  /** 预览 `phase=naming`：直接从「行吧。不过，你得答应我三个条件。」开始。 */
-  private previewNaming = false;
   private bgmStarted = false;
   private card: TitleCard | null = null;
   private cardTimer: Phaser.Time.TimerEvent | null = null;
@@ -432,8 +429,6 @@ export class Ch01DormScene extends UIScene {
     this.previewPhase = normalizeCh01PreviewPhase(rawPhase);
     // `phase=dark` 归一成 after（流程从战后节点放），但场景要记住「直接跳到黑场那一段」。
     this.previewDark = rawPhase === 'dark';
-    // `phase=naming` 同理：从「三个条件与定名」那一拍开始。
-    this.previewNaming = rawPhase === 'naming';
     if (rawPhase !== undefined && !CH01_PREVIEW_PHASES.includes(rawPhase as Ch01PreviewPhase)) {
       console.warn(`[ch01-dorm] 未知 phase=${rawPhase}，回退 opening`);
     }
@@ -755,7 +750,7 @@ export class Ch01DormScene extends UIScene {
         : // 开局站在书桌下方、靠左侧床的一侧。
           opening
           ? { spawn: { at: [14, 12] as const, facing: 'down' as const } }
-          : this.previewDark || this.previewNaming
+          : this.previewDark
             ? { spawn: { at: CH01_SIT_TILE, facing: 'right' as const } }
             : {}),
     });
@@ -1202,26 +1197,6 @@ export class Ch01DormScene extends UIScene {
       this.startDialogue(start >= 0 ? CH01_AFTER_FINALE.slice(start) : CH01_AFTER_FINALE);
       return;
     }
-    /**
-     * 舞台预览 `phase=naming`：跳过前面所有对话，直接从「行吧。不过，你得答应我三个条件。」
-     * 开始演三个条件与定名（含命名 CG）。
-     *
-     * 与 `phase=dark` 同一套站位：主角站在房间中心、小白浮到头部中线偏右；
-     * `afterStage='closing'` 让说完直接进结束卡。
-     */
-    if (this.previewNaming) {
-      this.previewNaming = false;
-      this.afterStage = 'closing';
-      this.suppressWakeCg = true;
-      this.showXiaobai();
-      if (this.xiaobai && this.player) {
-        const anchorY =
-          this.player.position.y - CH01_STAND_HEAD_CENTER_OFFSET + CH01_XIAOBAI_HEAD_OFFSET_PX;
-        this.xiaobai.setPosition(this.xiaobai.x + 65, anchorY);
-      }
-      this.startDialogue(CH01_AFTER_HANDOFF);
-      return;
-    }
     this.startDialogue(lines);
   }
 
@@ -1604,10 +1579,7 @@ export class Ch01DormScene extends UIScene {
     // 后续 `cg: wake` 把画面重新盖上，否则坐→站的过程全在 CG 底下，玩家根本看不见。
     const suppressedWakeCg =
       this.suppressWakeCg && line.cg === CH01_ASSET_KEYS.cg.wake;
-    if (line.cg === null) {
-      // 剧本明确收图（「光雾平息」）：表现型，跳过不补演；收尾还会再 hide 一次兜底。
-      this.cg?.hide();
-    } else if (line.cg !== undefined && !suppressedWakeCg) {
+    if (line.cg !== undefined && !suppressedWakeCg) {
       this.cg?.show(line.cg, line.fx);
     } else if (this.flow?.state.currentNode !== 'after') {
       // 战后整段征召都在同一个画面里（醒来 CG → 坐起 → 起身）；中途切回站着的寝室会穿帮，
@@ -1623,12 +1595,9 @@ export class Ch01DormScene extends UIScene {
       this.emotionBubble?.hide();
     }
 
-    if (line.fx !== undefined && line.cg == null) {
+    if (line.fx !== undefined && line.cg === undefined) {
       if (line.fx === 'flash' && !this.reduced) this.cameras.main.flash(240, 255, 255, 255);
       else if (line.fx === 'shake' && !this.reduced) this.cameras.main.shake(140, 0.004);
-      // 冷蓝一闪：比白闪更「发毛」，给「一阵冷风从脖颈吹过」这类瞬间。
-      else if (line.fx === 'chill' && !this.reduced) this.cameras.main.flash(300, 150, 196, 255);
-      // `glitch` 只作用于 CG（由 CgOverlay 抖那张图）；没有 CG 时不抖镜头。
     }
   }
 
@@ -1728,10 +1697,7 @@ export class Ch01DormScene extends UIScene {
   private isWakeStart(): boolean {
     return (
       this.resumeMode === 'afterBattle' ||
-      (this.resumeMode === 'start' &&
-        this.previewPhase === 'after' &&
-        !this.previewDark &&
-        !this.previewNaming)
+      (this.resumeMode === 'start' && this.previewPhase === 'after' && !this.previewDark)
     );
   }
 

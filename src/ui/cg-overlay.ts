@@ -103,10 +103,6 @@ export class CgOverlay {
       if (!this.reduced) this.scene.cameras.main.shake(140, 0.004);
       return;
     }
-    if (fx === 'chill') {
-      if (!this.reduced) this.scene.cameras.main.flash(300, 150, 196, 255);
-      return;
-    }
     if (fx === 'glitch') this.glitch();
   }
 

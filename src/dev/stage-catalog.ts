@@ -109,7 +109,7 @@ export const STAGE_CATALOG: readonly StageDef[] = [
       'cutscene.ch01palace.sfx',
     ],
     description:
-      '寝室小地图：移动、碰撞、叫醒郑卿、找手机（播放手机 CG）、小白登场。phase=opening|explore|after|dark|naming|complete；dark 直接从战后黑场胁迫（小白问罪）那一拍开始，naming 直接从「三个条件与定名」（含命名 CG）开始，debug=1 显示碰撞。',
+      '寝室小地图：移动、碰撞、叫醒郑卿、找手机（播放手机 CG）、小白登场。phase=opening|explore|after|dark|complete；dark 直接从战后黑场胁迫（小白问罪）那一拍开始，debug=1 显示碰撞。',
     tags: ['ch01', 'map'],
   },
   {
@@ -297,15 +297,6 @@ export const STAGE_CATALOG: readonly StageDef[] = [
     requires: ['ch.01'],
     tags: ['ch01', 'cg'],
     frames: [{ key: CH01_ASSET_KEYS.cg.news, caption: '沉睡症新闻（黑白回忆）', holdMs: 3200 }],
-  },
-  {
-    id: 'cg.ch01.xiaobai-fog',
-    kind: 'cg',
-    title: 'CG · 命名 · 光雾与数学符号',
-    status: 'ready',
-    requires: ['ch.01'],
-    tags: ['ch01', 'cg'],
-    frames: [{ key: CH01_ASSET_KEYS.cg.xiaobaiFog, caption: '小白头顶的光雾与坍塌的数学符号', holdMs: 3200 }],
   },
   {
     id: 'battle.sandbox',
