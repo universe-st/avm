@@ -102,8 +102,17 @@ describe('Ch01Flow', () => {
     expect(flow.state.phase).toBe('after');
     expect(flow.state.objective).toBe(CH01_OBJECTIVES.afterBattle);
 
-    const complete = flow.nodeCompleted();
-    expect(types(complete)).toEqual(['objective', 'complete']);
+    // 命名段播完不再直接进结束卡：交回自由活动（prep），玩家找小白开口才结束。
+    const prep = flow.beginPrep();
+    expect(types(prep)).toEqual(['objective']);
+    expect(flow.state.phase).toBe('prep');
+    expect(flow.state.objective).toBe(CH01_OBJECTIVES.prepare);
+    expect(flow.state.currentNode).toBeNull();
+    // 准备阶段只有「跟小白对话」这一件事，其它交互一律忽略。
+    expect(flow.interact('zheng')).toEqual([]);
+    expect(flow.interact('phone')).toEqual([]);
+    const complete = flow.interact('xiaobai');
+    expect(types(complete)).toEqual(['complete']);
     expect(flow.state.phase).toBe('complete');
   });
 
@@ -119,6 +128,8 @@ describe('Ch01Flow', () => {
     expect(normalizeCh01PreviewPhase('explore')).toBe('explore');
     expect(normalizeCh01PreviewPhase('after')).toBe('after');
     expect(normalizeCh01PreviewPhase('complete')).toBe('complete');
+    // 命名段预览归一成 after（流程语义复用战后节点，场景自己跳到命名那一拍）。
+    expect(normalizeCh01PreviewPhase('naming')).toBe('after');
     expect(normalizeCh01PreviewPhase('nope')).toBe('opening');
     expect(CH01_PREVIEW_PHASES).toContain('opening');
 

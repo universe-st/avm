@@ -44,6 +44,7 @@ export const CH01_OBJECTIVES = {
   listen: '听听这个外星小东西怎么说',
   survive: '在梦里活下来',
   afterBattle: '听小白说完',
+  prepare: '准备好后，跟小白对话',
   complete: '第一节完成',
 } as const;
 
@@ -63,6 +64,14 @@ export const CH01_INTERACTABLE_PROMPTS = {
   window: '看向窗外',
   door: '试着开门',
 } as const;
+
+/**
+ * 准备阶段（命名完的自由活动）走到小白身边时的交互提示。
+ *
+ * 小白不是地图上的交互物（她是浮空角色、没有房间数据），所以不进
+ * `CH01_INTERACTABLE_PROMPTS`（那张表的 key 同时是流程节点 id 的取值域）。
+ */
+export const CH01_PREP_PROMPT = '跟小白对话';
 
 export type Ch01InteractableId = keyof typeof CH01_INTERACTABLE_PROMPTS;
 

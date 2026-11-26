@@ -182,13 +182,15 @@ private finishDialogue(): void {
 | --- | --- | --- |
 | `intro` | 回到提问菜单，**不推进节点** | 补该段状态型 cue：`ch01Dorm` |
 | `branch` | 回到提问菜单，**不推进节点** | 该段没有状态型 cue；已问记录在**点选项时**就写下了，跳过不会让问题“复活” |
-| `closing` | `flushStateCues()` → `setBlackout(false)` → `flow.nodeCompleted()` → 结束卡 | 补 `ch01Dorm`（归约取「闪开」那一行覆盖《危机降临》）；黑屏被清掉 |
+| `closing` | `flushStateCues()` → `setBlackout(false)` → `flow.beginPrep()` → 自由活动（`phase=prep`） | 补 `ch01Dorm`（归约取「闪开」那一行覆盖《危机降临》）；黑屏被清掉；命名段的光雾图层被拆 |
 
 两条机制上的硬约束（`test/dorm-stateful-cues.test.ts` + `test/ch01-after-script.test.ts` 有源码护栏）：
 
 1. **只有 `closing` 能推进节点**：`finishDialogue()` 里先判
    `currentNode === 'after' && afterStage !== 'closing'` → `openInquiryMenu()` 后 return；
-   `flow.nodeCompleted()` 必须排在这段判断之后。
+   `closing` 播完**不再直接 `nodeCompleted()` 进结束卡**（2026-11-26 新稿最后一句是
+   「准备完成之后，在这里跟我对话」），而是 `flow.beginPrep()` 交回自由活动：
+   玩家走到小白身边按交互 → `flow.finishPrep()` → 结束卡。
 2. **黑屏是无条件收尾**：`blackout` 是表现型（跳过不补演），但 `finishDialogue()` 无论走哪条路
    都会 `setBlackout(false)`，否则结束卡/下一节会压在黑屏上。黑屏块本身夹在
    `LAYERS.fog`(500) 与 `characters`(1000) 之间——这是「只留角色」的实现，不是隐藏整个场景。
@@ -255,6 +257,30 @@ private finishDialogue(): void {
 舞台预览：`?stage=scene.ch01.dorm&phase=dark`（从 `呃……` 那一拍直接开始）。
 护栏：`test/ch01-dark-scene.test.ts`（强度单调、release 归零、六拍顺序、起点行）、
 `test/dorm-stateful-cues.test.ts`（分类表）、`.evidence/tools/after-2026-11-21/verify-dark-scene.mjs`（实机 A–E）。
+
+### 4.8 命名段「光雾运算」（`naming*`，2026-11-26）
+
+`CH01_AFTER_HANDOFF`（三个条件 → 定名）里小白给自己算名字那一段，三拍全是**表现型**行 cue：
+
+| 行 | cue | 画面 |
+| --- | --- | --- |
+| 小白：「小白……」 | `fx: 'naming'` | 头顶光雾起、符号环由淡到亮 |
+| 旁白：「银白色的光雾瞬间……」 | `sfx: xiaobaiCompute` | 光雾数据流音 |
+| 小白：「……处于可容忍阈值内。」 | `fx: 'naming-collapse'` | 符号被吸向中心、扭曲坍塌 |
+| 旁白：「光雾平息。」 | `fx: 'naming-settle'` | 雾散、光晕收回 |
+
+- 表现层 `src/ui/naming-fx.ts`：canvas 径向渐变雾团（ADD）+ Georgia 数学符号环 + 光晕，
+  27 个 GameObject（`FX_MAX_OBJECTS` 40 以内）；`reduced` 下只留静态构图。
+- **不要用整屏 CG**：2026-11-26 第一版给这段做了整屏命名 CG，把房间/光照/角色比例全换掉，
+  用户当场回滚；这一段的主角只是寝室里一只 43px 的小精灵，特效必须围着她头顶做。
+- 清理契约：`finishDialogue()` / `skipDialogue()`（走同一个收尾）/ `clearDialoguePanel()` / SHUTDOWN
+  都 `namingFx?.destroy()`；跳过时三拍都不补播（表现型），但**已经建出来的图层必须拆干净**。
+- 冷风那一拍（「一阵冷风从脖颈吹过」）是 `fx: 'chill'` + `coldWind`：冷蓝闪 + 轻震 +
+  冷色暗角脉冲（只闪 320ms 的白光在实机上几乎看不出来）。
+- 舞台预览：`?stage=scene.ch01.dorm&phase=naming`（从「行吧。不过，你得答应我三个条件。」开始）。
+- 护栏：`test/ch01-after-script.test.ts`（三拍顺序 / 音效挂点 / 显示名切换）、
+  `.evidence/scripts/verify-naming-2026-11-26.mjs`（逐拍截图 + prep 交互 + 结束卡）、
+  `.evidence/scripts/verify-naming-flow-2026-11-26.mjs`（正式 after 流程 / 跳过 / reduced）。
 
 ---
 

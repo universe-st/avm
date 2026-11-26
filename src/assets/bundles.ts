@@ -1028,6 +1028,31 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         label: '表情气泡冒出「啵」',
         tags: ['sfx'],
       },
+      // 命名段（2026-11-26 新稿）：冷风 / 光雾运算 / 代号更新确认。
+      {
+        key: 'audio.sfx.ch01_cold_wind',
+        kind: 'audio',
+        url: 'assets/audio/sfx/ch01_cold_wind.mp3',
+        required: false,
+        label: '命名段 · 脖颈后的一阵冷风',
+        tags: ['sfx'],
+      },
+      {
+        key: 'audio.sfx.ch01_xiaobai_compute',
+        kind: 'audio',
+        url: 'assets/audio/sfx/ch01_xiaobai_compute.mp3',
+        required: false,
+        label: '命名段 · 小白内部运算（光雾数据流）',
+        tags: ['sfx'],
+      },
+      {
+        key: 'audio.sfx.ch01_naming_confirm',
+        kind: 'audio',
+        url: 'assets/audio/sfx/ch01_naming_confirm.mp3',
+        required: false,
+        label: '命名段 · 代号更新确认',
+        tags: ['sfx'],
+      },
       // 战后黑场胁迫段（2026-11-21）：压迫底噪（10.55s 无缝循环）+ 攥紧 + 释压。
       // 三条都补了 200–4kHz 中频，原始 take 95% 能量在 120Hz 以下，手机外放听不见。
       {

@@ -14,7 +14,7 @@ import type { DialogueLine } from './dialogue';
  * 第一章第一节的纯状态机。
  *
  * 场景只消费事件；这里不 import Phaser，也不碰输入/渲染。
- * 目标顺序：章节卡 → 叫醒郑卿 → 找手机 → 小白说明 → 战斗 → 战后征召 → 结束。
+ * 目标顺序：章节卡 → 叫醒郑卿 → 找手机 → 小白说明 → 战斗 → 战后征召 → 准备（自由活动）→ 结束。
  */
 
 export const CH01_PHASES = [
@@ -23,6 +23,7 @@ export const CH01_PHASES = [
   'dream',
   'battle',
   'after',
+  'prep',
   'complete',
 ] as const;
 
@@ -102,18 +103,25 @@ export interface Ch01FlowOptions {
   readonly snapshot?: Ch01FlowSnapshot;
 }
 
-export const CH01_PREVIEW_PHASES = ['opening', 'explore', 'after', 'dark', 'complete'] as const;
+export const CH01_PREVIEW_PHASES = [
+  'opening',
+  'explore',
+  'after',
+  'dark',
+  'naming',
+  'complete',
+] as const;
 export type Ch01PreviewPhase = (typeof CH01_PREVIEW_PHASES)[number];
 
 /**
- * `phase=dark` 是「战后黑场胁迫」的单点预览：流程仍从 after 节点进（见 `scene` 的
- * `previewDark`），只是场景把对话切片直接跳到黑场那一拍。归一成 `after` 是有意的：
- * 「从战后回来」的全部流程语义（坐姿/存档检查点/结束卡）都复用 after，不需要第二套节点。
+ * `phase=dark` 是「战后黑场胁迫」的单点预览、`phase=naming` 是「命名段」的单点预览：
+ * 流程仍从 after 节点进（见 `scene` 的 `previewDark` / `previewNaming`），只是场景把对话
+ * 切片直接跳到那一拍。归一成 `after` 是有意的：「从战后回来」的全部流程语义
+ * （坐姿/存档检查点/准备阶段）都复用 after，不需要第二套节点。
  */
 export function normalizeCh01PreviewPhase(value: string | undefined): Ch01PreviewPhase {
-  if (value === 'explore' || value === 'after' || value === 'dark' || value === 'complete') {
-    return value === 'dark' ? 'after' : value;
-  }
+  if (value === 'explore' || value === 'after' || value === 'complete') return value;
+  if (value === 'dark' || value === 'naming') return 'after';
   return 'opening';
 }
 
@@ -191,7 +199,9 @@ export class Ch01Flow {
       this.objectiveValue = CH01_OBJECTIVES.complete;
       return [{ type: 'complete' }];
     }
-    if (snapshot.phase === 'after') {
+    // `prep` 是「命名完了、还没跟小白开口」的定格；它本来就不该进存档
+    //（`save-availability` 只认 explore），万一读到就退回战后征召整段重演。
+    if (snapshot.phase === 'after' || snapshot.phase === 'prep') {
       this.phase = 'after';
       return this.enterNode('after');
     }
@@ -232,7 +242,10 @@ export class Ch01Flow {
   }
 
   /** 自由探索时与地图对象交互；对话中/非探索阶段一律忽略。 */
-  interact(objectId: string): Ch01Event[] {    if (this.phase !== 'explore' || this.currentNodeId !== null) return [];
+  interact(objectId: string): Ch01Event[] {
+    // 准备阶段（命名完的自由活动）只有「找小白开口」这一件事：它直接推进到结束卡。
+    if (this.phase === 'prep') return objectId === 'xiaobai' ? this.finishPrep() : [];
+    if (this.phase !== 'explore' || this.currentNodeId !== null) return [];
     if (!(objectId in CH01_INTERACTABLE_NODES)) return [];
 
     const id = objectId as Ch01InteractableId;
@@ -285,6 +298,29 @@ export class Ch01Flow {
     }
 
     return events;
+  }
+
+  /**
+   * 战后征召段（含命名）播完 → 回到自由活动，让玩家自己走到小白身边开口。
+   *
+   * 2026-11-26 用户新稿最后一句是「准备完成之后，在这里跟我对话」，
+   * 所以这里不能直接 `nodeCompleted()` 进结束卡；`prep` 是**不可存盘**的收尾状态
+   *（`FREE_ROAM_PHASES` 只认 explore），玩家点小白才 `finishPrep()`。
+   */
+  beginPrep(): Ch01Event[] {
+    if (this.phase !== 'after') return [];
+    this.currentNodeId = null;
+    this.phase = 'prep';
+    this.objectiveValue = CH01_OBJECTIVES.prepare;
+    return [{ type: 'objective', text: this.objectiveValue }];
+  }
+
+  /** 玩家在准备阶段跟小白开口：交棒给第二节（结束卡）。 */
+  finishPrep(): Ch01Event[] {
+    if (this.phase !== 'prep') return [];
+    this.phase = 'complete';
+    this.objectiveValue = CH01_OBJECTIVES.complete;
+    return [{ type: 'complete' }];
   }
 
   /** 剧情战失败后回寝室。 */

@@ -284,6 +284,18 @@ export const CH01_ASSET_KEYS = {
      * 不直接用金殿那条 3s 的原文件：它含两组，按 1s 节拍播会叠三层、变成心律不齐。
      */
     darkHeartbeat: 'audio.sfx.ch01_dark_heartbeat',
+    /**
+     * 命名段（2026-11-26 新稿）三条：
+     * - `coldWind`：「一阵冷风从脖颈吹过」的贴耳风声；
+     * - `xiaobaiCompute`：光雾运算/数据流（数学符号翻涌那几句的底噪）；
+     * - `namingConfirm`：「代号更新确认」的玻璃质一记（短、克制）。
+     *
+     * 三条都是游戏素材大师 Seed-Audio 生成，源文件在 `assets-src/audio/ch01/`，
+     * 登记见 `docs/ASSET-CREDITS.md`。
+     */
+    coldWind: 'audio.sfx.ch01_cold_wind',
+    xiaobaiCompute: 'audio.sfx.ch01_xiaobai_compute',
+    namingConfirm: 'audio.sfx.ch01_naming_confirm',
   },
 } as const;
 

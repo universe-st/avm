@@ -104,12 +104,26 @@ const CLOSING: readonly Say[] = [
 ];
 
 const HANDOFF: readonly Say[] = [
-  ['周全', '……行吧。不过得答应我几个条件。第一，我们有名字，我叫周全，他叫郑卿。'],
-  ['小白', '允许。'],
-  ['周全', '第二，别笑得那么瘆人。第三，你叫小白。'],
-  ['小白', '「小白」……采纳。下一次进入梦域，我会赋予你「解」。'],
-  ['旁白', '床上的郑卿翻了个身，呼噜声重新响起。'],
-  ['周全', '老郑，等我。'],
+  ['周全', '行吧。不过，你得答应我三个条件。'],
+  [XIAOBAI, '允许。'],
+  ['周全', '首先，我们是有名字的，我叫周全，他叫郑卿，你不要拿那一串代号来称呼我们。'],
+  [XIAOBAI, '没有问题。'],
+  ['周全', '还有，不要一言不合就对我使用刚才那招啊！'],
+  [XIAOBAI, '理解，下次我会提前予以警告。'],
+  ['周全', '警告不听还是要整我是吧？！'],
+  ['旁白', '你只感觉一阵冷风从脖颈吹过。记忆中那压抑的感觉仿佛又涌上心头。'],
+  ['周全', '好……好吧……那么第三个条件。你的那个名字，TEAR什么的，我不会念。以后我就叫你小白吧。'],
+  [XIAOBAI, '小白……'],
+  ['旁白', '这白色的小家伙似乎陷入了思索，银白色的光雾瞬间在小天使头顶剧烈翻涌，凝聚成几个不断扭曲、坍塌的复杂数学符号，又猛地消散。'],
+  [XIAOBAI, '“小白”发音与“TEAR-27”相似度低于7%。该称谓在哺乳动物生物学中具有特定指代，存在误导性……'],
+  ['周全', '用得着这么严肃吗……'],
+  [XIAOBAI, '但……根据碳基文明非正式命名行为对“亲和力”及“合作意愿”存在正向加成的数据模型……采纳此命名造成的效率损失……处于可容忍阈值内。'],
+  ['旁白', '光雾平息。小天使平静地悬浮着。'],
+  ['小白', '代号更新确认。‘小白’，接受此非正式命名。'],
+  ['周全', '好耶！'],
+  ['旁白', '你不知道为何，有些激动。或许是你的恶趣味得逞，又或者是因为你竟然在和一个比你强大的多的生物的博弈中取得了些微优势……也许吧。'],
+  ['周全', '咳……那么，我们什么时候开始？'],
+  ['小白', '你可以做一些准备。准备完成之后，在这里跟我对话。我会带你再次进入郑卿的梦域空间。'],
 ];
 
 function saysOf(lines: readonly DialogueLine[]): Say[] {
@@ -139,8 +153,15 @@ describe('战后剧本 · 原文与顺序', () => {
     expect(CH01_AFTER_CLOSING.at(-1)?.text).toBe('我等待你的抉择。');
   });
 
-  it('衔接段沿用旧稿独有桥段（命名小白 + 许诺「解」），与新稿不重复', () => {
+  it('衔接段逐字照 2026-11-26 新稿（三个条件 → 定名 → 约定下次进梦域）', () => {
     expect(saysOf(CH01_AFTER_HANDOFF)).toEqual(HANDOFF);
+    // 显示名只在「代号更新确认」那一行切成「小白」：之前一律是「白色小精灵」。
+    const namedAt = CH01_AFTER_HANDOFF.findIndex((line) => line.speaker === '小白');
+    expect(namedAt).toBeGreaterThan(0);
+    expect(CH01_AFTER_HANDOFF[namedAt]?.text).toContain('代号更新确认');
+    for (const line of CH01_AFTER_HANDOFF.slice(0, namedAt)) {
+      expect(line.speaker).not.toBe('小白');
+    }
     // 新稿里已经说过的内容不再抄一遍（150 天 / 为什么找我 / 杀死精神体）。
     const newText = CH01_AFTER_ALL_LINES.slice(
       0,
@@ -194,7 +215,7 @@ describe('战后剧本 · 原文与顺序', () => {
 });
 
 describe('战后剧本 · 演出 cue', () => {
-  it('小白的每一句都带 role，显示名统一是「白色小精灵」（不冒「？？？」）', () => {
+  it('小白的每一句都带 role（显示名会从「白色小精灵」变成「小白」，身份不变）', () => {
     const xiaobaiLines = CH01_AFTER_ALL_LINES.filter(
       (line) => line.speaker === XIAOBAI || line.speaker === '小白',
     );
@@ -221,12 +242,47 @@ describe('战后剧本 · 演出 cue', () => {
     );
   });
 
-  it('两处愤怒气泡都挂在周全头上', () => {
+  it('三处愤怒气泡都挂在周全头上', () => {
     const angry = CH01_AFTER_ALL_LINES.filter((line) => line.emotion === 'angry');
-    expect(angry.map((line) => line.text)).toEqual(['他有名字！他叫郑卿！', '你让我杀人？！那不可能！']);
+    expect(angry.map((line) => line.text)).toEqual([
+      '他有名字！他叫郑卿！',
+      '你让我杀人？！那不可能！',
+      '警告不听还是要整我是吧？！',
+    ]);
     for (const line of angry) {
       expect(line.emotionBy).toBe('zhou');
     }
+  });
+
+  it('命名段的演出 cue：冷风 / 光雾三拍 / 星火 / 确认音各就各位', () => {
+    const chill = CH01_AFTER_HANDOFF.find((line) => line.fx === 'chill');
+    expect(chill?.sfx).toBe(CH01_ASSET_KEYS.audio.coldWind);
+    expect(chill?.text).toContain('一阵冷风');
+
+    const naming = CH01_AFTER_HANDOFF.filter((line) =>
+      ['naming', 'naming-collapse', 'naming-settle'].includes(line.fx ?? ''),
+    );
+    expect(naming.map((line) => line.fx)).toEqual(['naming', 'naming-collapse', 'naming-settle']);
+    // 翻涌从「小白……」那一行起，坍塌在「但……」那行，平息在「光雾平息」旁白。
+    expect(naming[0]?.text).toBe('小白……');
+    expect(naming[1]?.text).toContain('可容忍阈值');
+    expect(naming[2]?.text).toContain('光雾平息');
+    // 光雾数据流音效只挂在描述光雾的旁白上，且只挂一次。
+    const compute = CH01_AFTER_ALL_LINES.filter(
+      (line) => line.sfx === CH01_ASSET_KEYS.audio.xiaobaiCompute,
+    );
+    expect(compute).toHaveLength(1);
+    expect(compute[0]?.speaker).toBe('旁白');
+
+    // 「好耶！」= 星火 + 开心气泡；确认音挂在「代号更新确认」那一行。
+    const happy = CH01_AFTER_HANDOFF.find((line) => line.fx === 'sparkle');
+    expect(happy?.text).toBe('好耶！');
+    expect(happy?.emotion).toBe('happy');
+    const confirm = CH01_AFTER_HANDOFF.filter(
+      (line) => line.sfx === CH01_ASSET_KEYS.audio.namingConfirm,
+    );
+    expect(confirm).toHaveLength(1);
+    expect(confirm[0]?.text).toContain('代号更新确认');
   });
 
   it('分支 2 的鼾声行真的挂了鼾声音效，且只挂一次', () => {
@@ -265,6 +321,16 @@ describe('场景接线（源码护栏）', () => {
     // 自然过完 / 跳过 / 切场都要收：setBlackout(false) 与 SHUTDOWN/resetState。
     expect(scene).toContain('this.releaseDarkPressure()');
     expect(scene).toContain('this.dark?.destroy()');
+  });
+
+  it('命名段光雾运算接在场景生命周期上（建 / 收 / 拆同一处）', () => {
+    expect(scene).toContain("from '../ui/naming-fx'");
+    expect(scene).toContain('new NamingFxRig(');
+    // 自然播完 / 跳过 / 切场都要拆：finishDialogue 与 SHUTDOWN 各一处。
+    expect(scene).toContain('this.namingFx?.destroy()');
+    // 命名播完交回自由活动，玩家自己找小白开口才进结束卡。
+    expect(scene).toContain('this.flow.beginPrep()');
+    expect(scene).toContain('this.flow.finishPrep()');
   });
 
   it('三个问题都问完才播收尾段（afterStage 只有 closing 才推进节点）', () => {

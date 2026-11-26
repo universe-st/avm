@@ -6,7 +6,26 @@ import type { BgmId } from '../audio/bgm-tracks';
  * 不依赖 Phaser：场景只负责把 `DialoguePlayer` 的事件画出来。
  */
 
-export type DialogueFx = 'flash' | 'shake' | 'glitch';
+/**
+ * 台词/镜头的一次性画面特效（表现型 cue，跳过不补播）。
+ *
+ * - `flash`：白闪（硬切画面、压迫解除）；
+ * - `shake`：轻震屏；
+ * - `glitch`：故障抖动（CG 上的符号扭曲、记忆闪回）；
+ * - `chill`：冷蓝一闪（「一阵冷风从脖颈吹过」这种发毛瞬间，比白闪更冷）；
+ * - `naming` / `naming-collapse` / `naming-settle`：命名段光雾运算的三拍
+ *   （翻涌凝聚 → 扭曲坍塌 → 平息），表现层是 `src/ui/naming-fx.ts`；
+ * - `sparkle`：一小圈星火（「好耶！」这种纯开心的瞬间）。
+ */
+export type DialogueFx =
+  | 'flash'
+  | 'shake'
+  | 'glitch'
+  | 'chill'
+  | 'naming'
+  | 'naming-collapse'
+  | 'naming-settle'
+  | 'sparkle';
 
 /**
  * 「黑场胁迫」演出的节拍词汇（见 `ch01-dark-scene.ts` 的强度表）。

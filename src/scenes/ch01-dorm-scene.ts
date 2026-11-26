@@ -52,15 +52,18 @@ import {
   CH01_CHAPTER_CARD,
   CH01_INTERACTABLE_PROMPTS,
   CH01_OBJECTIVES,
+  CH01_PREP_PROMPT,
   type Ch01InteractableId,
 } from '../story/ch01-dorm';
 import {
   CH01_AFTER_FINALE,
+  CH01_AFTER_HANDOFF,
   CH01_AFTER_INQUIRY,
   type Ch01AfterQuestionId,
 } from '../story/ch01-after';
 import { firstDarkLineIndex, type DarkBeat } from '../story/ch01-dark-scene';
 import { DarkPressureRig } from '../ui/dark-pressure';
+import { NamingFxRig } from '../ui/naming-fx';
 import {
   initialInquiryState,
   inquiryMenuItems,
@@ -127,7 +130,7 @@ import { DialoguePortrait } from '../ui/dialogue-portrait';
 import { openGameMenu } from '../ui/game-menu';
 import { openStoryChoice } from '../ui/story-choice';
 import { TitleCard, GOLD, makeSceneText } from '../ui/cinematic';
-import { addDustMotes, addLightShaft, addVignette } from '../ui/fx-kit';
+import { addDustMotes, addLightShaft, addVignette, sparkBurst } from '../ui/fx-kit';
 import { addStageFrame, type StageFrameHandle } from '../ui/stage-frame';
 import { VirtualJoystick } from '../ui/joystick';
 import { isPointerOnUiControl } from '../ui/ui-pointer-guard';
@@ -287,6 +290,17 @@ export class Ch01DormScene extends UIScene {
   private getUpIndex = -1;
   /** 预览 `phase=dark`：直接从黑场胁迫那一拍开始，方便单点看这段演出。 */
   private previewDark = false;
+  /** 预览 `phase=naming`：直接从「行吧。不过，你得答应我三个条件。」开始。 */
+  private previewNaming = false;
+  /**
+   * 命名段的光雾运算演出（`fx: 'naming' / 'naming-collapse' / 'naming-settle'`）。
+   *
+   * 表现型：跳过不补演；但**已经建出来的图层**必须收干净，
+   * `finishDialogue()` / 跳过 / SHUTDOWN 都 `destroy()`。
+   */
+  private namingFx: NamingFxRig | null = null;
+  /** 准备阶段（命名完的自由活动）：玩家此刻是否站在小白身边。 */
+  private nearXiaobai = false;
   private bgmStarted = false;
   private card: TitleCard | null = null;
   private cardTimer: Phaser.Time.TimerEvent | null = null;
@@ -429,6 +443,8 @@ export class Ch01DormScene extends UIScene {
     this.previewPhase = normalizeCh01PreviewPhase(rawPhase);
     // `phase=dark` 归一成 after（流程从战后节点放），但场景要记住「直接跳到黑场那一段」。
     this.previewDark = rawPhase === 'dark';
+    // `phase=naming` 同理：从「行吧。不过，你得答应我三个条件。」开始。
+    this.previewNaming = rawPhase === 'naming';
     if (rawPhase !== undefined && !CH01_PREVIEW_PHASES.includes(rawPhase as Ch01PreviewPhase)) {
       console.warn(`[ch01-dorm] 未知 phase=${rawPhase}，回退 opening`);
     }
@@ -485,7 +501,7 @@ export class Ch01DormScene extends UIScene {
       this.handleDialogueEvents(this.dialogue.tick(holdingEmotion ? 0 : dt));
       return;
     }
-    if (this.flow?.state.phase === 'explore' && !this.transitioning && !this.ended) {
+    if (this.isFreeRoam() && !this.transitioning && !this.ended) {
       this.updateMovement(dt);
     }
     this.updateNear();
@@ -595,6 +611,10 @@ export class Ch01DormScene extends UIScene {
     // 压迫演出（暗角/黑边/丝线/循环音/心跳定时器）同样不能带进下一轮。
     this.dark?.destroy();
     this.dark = null;
+    // 命名段的光雾图层不能带进下一轮（表现型，跳过不补演，但留下的图层要拆干净）。
+    this.namingFx?.destroy();
+    this.namingFx = null;
+    this.nearXiaobai = false;
     // 趴地贴图与喘气 tween 也不能带进下一轮（此时 player 已置空，只清理对象本身）。
     this.proneTween?.remove();
     this.proneTween = null;
@@ -750,7 +770,7 @@ export class Ch01DormScene extends UIScene {
         : // 开局站在书桌下方、靠左侧床的一侧。
           opening
           ? { spawn: { at: [14, 12] as const, facing: 'down' as const } }
-          : this.previewDark
+          : this.previewDark || this.previewNaming
             ? { spawn: { at: CH01_SIT_TILE, facing: 'right' as const } }
             : {}),
     });
@@ -908,6 +928,11 @@ export class Ch01DormScene extends UIScene {
   }
 
   private updateNear(): void {
+    // 准备阶段只有「跟小白对话」一处可交互，别让书桌/窗/门把提示抢走。
+    if (this.flow?.state.phase === 'prep') {
+      this.updateNearXiaobai();
+      return;
+    }
     const active =
       this.flow?.state.phase === 'explore' &&
       !this.dialogue &&
@@ -939,6 +964,47 @@ export class Ch01DormScene extends UIScene {
       this.promptText.setVisible(false);
       this.highlightRing?.setVisible(false);
     }
+  }
+
+  /**
+   * 准备阶段（`phase === 'prep'`）的交互提示：只有小白。
+   *
+   * 小白浮在头部高度，所以「站到她身边」不能按地面距离算——把她的落点投影回地面
+   * （脚底 = 小白 y + 站立头高中线），再量玩家脚底到那个点的距离。
+   */
+  private updateNearXiaobai(): void {
+    const active = !this.dialogue && !this.cardVisible && !this.ended && !this.performing;
+    const near = active && this.isNearXiaobai();
+    this.nearXiaobai = near;
+    this.near = null;
+    this.interactAvailable.value = near;
+    this.interactLabel.value = near ? CH01_PREP_PROMPT : '交互';
+
+    if (!this.promptText) return;
+    const xiaobai = this.xiaobai;
+    if (near && xiaobai) {
+      this.promptText
+        .setText(`[${INTERACT_KEY}] ${CH01_PREP_PROMPT}`)
+        .setPosition(xiaobai.x + 40, xiaobai.y - 54)
+        .setVisible(!this.tutorialVisible.value);
+      this.highlightRing?.setVisible(false);
+    } else {
+      this.promptText.setVisible(false);
+    }
+  }
+
+  private isNearXiaobai(): boolean {
+    const xiaobai = this.xiaobai;
+    const player = this.player;
+    if (!xiaobai || !player || !xiaobai.visible) return false;
+    const floorY = xiaobai.y + CH01_STAND_HEAD_CENTER_OFFSET;
+    return Math.hypot(player.position.x - xiaobai.x, player.position.y - floorY) <= 124;
+  }
+
+  /** 自由活动：正常探索 + 命名之后的准备阶段（两段都能走动）。 */
+  private isFreeRoam(): boolean {
+    const phase = this.flow?.state.phase;
+    return phase === 'explore' || phase === 'prep';
   }
 
   private onInteractKey(event: KeyboardEvent): void {
@@ -1007,6 +1073,15 @@ export class Ch01DormScene extends UIScene {
     }
     if (this.dialogue) {
       this.advanceDialogue();
+      return;
+    }
+    if (this.flow.state.phase === 'prep') {
+      if (!this.nearXiaobai) return;
+      this.nearXiaobai = false;
+      this.near = null;
+      this.interactAvailable.value = false;
+      this.promptText?.setVisible(false);
+      this.finishPrep();
       return;
     }
     if (this.flow.state.phase !== 'explore' || !this.near) return;
@@ -1197,7 +1272,64 @@ export class Ch01DormScene extends UIScene {
       this.startDialogue(start >= 0 ? CH01_AFTER_FINALE.slice(start) : CH01_AFTER_FINALE);
       return;
     }
+    /**
+     * 舞台预览 `phase=naming`：跳过前面所有对话，直接从
+     * 「行吧。不过，你得答应我三个条件。」开始演三个条件与定名（含光雾运算）。
+     *
+     * 站位与 `phase=dark` 同一套：主角站在房间中心、小白浮到头部中线偏右；
+     * 依然走 `afterStage = 'closing'`，说完交回 prep 自由活动。
+     */
+    if (this.previewNaming) {
+      this.previewNaming = false;
+      this.afterStage = 'closing';
+      this.suppressWakeCg = true;
+      this.showXiaobai();
+      if (this.xiaobai && this.player) {
+        const anchorY =
+          this.player.position.y - CH01_STAND_HEAD_CENTER_OFFSET + CH01_XIAOBAI_HEAD_OFFSET_PX;
+        this.xiaobai.setPosition(this.xiaobai.x + 65, anchorY);
+      }
+      this.startDialogue(CH01_AFTER_HANDOFF);
+      return;
+    }
     this.startDialogue(lines);
+  }
+
+  /**
+   * 命名段播完 → 交回自由活动（`phase === 'prep'`）。
+   *
+   * 新稿最后一句是「准备完成之后，在这里跟我对话」，所以这里**不进结束卡**：
+   * 目标改成「准备好后，跟小白对话」，小白留在原地（就在主角右上方）继续浮动，
+   * 玩家自己走过去开口才进第二节。
+   */
+  private enterPrep(): void {
+    const events = this.flow.beginPrep();
+    this.handleEvents(events);
+    this.tutorialVisible.value = false;
+    // 小白留在原地（命名时就浮在主角右上方）：玩家要走过去才够得着提示。
+    // 不要把她重新贴到主角头上——那就是「小精灵戴在头上」的观感（2026-11-26 实测）。
+    if (this.xiaobai) {
+      this.showXiaobai();
+      this.stopXiaobaiBob();
+      this.startXiaobaiBob();
+    }
+    this.clearDialoguePanel();
+    this.syncControls();
+    this.updateNear();
+  }
+
+  /** 跟小白开口：一记白闪推进到结束卡（第二节入口）。 */
+  private finishPrep(): void {
+    this.stopXiaobaiBob();
+    this.namingFx?.destroy();
+    this.namingFx = null;
+    const events = this.flow.finishPrep();
+    const runId = this.lifecycle.runId;
+    if (!this.reduced) this.cameras.main.flash(360, 255, 255, 255);
+    this.time.delayedCall(this.reduced ? 80 : 360, () => {
+      if (!this.lifecycle.isLive(runId)) return;
+      this.handleEvents(events);
+    });
   }
 
   /**
@@ -1252,7 +1384,9 @@ export class Ch01DormScene extends UIScene {
     this.dialogueHint.value = '继续';
     this.dialoguePageIndex.value = 0;
     this.dialoguePageCount.value = 1;
-    // 对话结束/进菜单/回探索：最后一张脸不能继续挂在画面上。
+    // 对话结束/进菜单/回探索：最后一张脸、最后一片光雾都不能继续挂在画面上。
+    this.namingFx?.destroy();
+    this.namingFx = null;
     this.portrait?.hide();
     this.cg?.hide();
     this.emotionBubble?.hide();
@@ -1463,6 +1597,9 @@ export class Ch01DormScene extends UIScene {
 
   private finishDialogue(): void {
     this.cancelAutoAdvance();
+    // 光雾运算（表现型）不管自然播完还是跳过，图层都必须收干净。
+    this.namingFx?.destroy();
+    this.namingFx = null;
     // 先补状态型 cue（BGM…），再推进节点：
     // - 跳过时那些行从没显示过，但它们改的状态必须生效；
     // - 自然过完时游标已在末尾，这里什么也不做（行为与改动前一致）；
@@ -1493,6 +1630,16 @@ export class Ch01DormScene extends UIScene {
       this.updateNear();
       return;
     }
+    /**
+     * 命名段（`afterStage === 'closing'`）播完 → 交回自由活动（prep），**不进结束卡**。
+     *
+     * 新稿最后一句是「准备完成之后，在这里跟我对话，我会带你再次进入郑卿的梦域空间」；
+     * 玩家要自己走到小白身边开口，第二节才开（`finishPrep()`）。
+     */
+    if (this.afterStage === 'closing') {
+      this.enterPrep();
+      return;
+    }
     // 回忆段一旦开始，《危机来临》就保持到离开寝室（梦域战斗会接手切曲）；
     // 即使玩家中途点「跳过」也不切回日常，情绪不能断。
     const next = this.flow.nodeCompleted();
@@ -1505,7 +1652,7 @@ export class Ch01DormScene extends UIScene {
 
   private syncControls(): void {
     const canExplore =
-      this.flow?.state.phase === 'explore' &&
+      this.isFreeRoam() &&
       this.dialogue === null &&
       !this.cardVisible &&
       !this.ended &&
@@ -1514,7 +1661,10 @@ export class Ch01DormScene extends UIScene {
     this.joystick?.setEnabled(canExplore);
     if (canExplore) {
       this.startExploreAudio();
-      if (!this.tutorialDismissed) this.tutorialVisible.value = true;
+      // 新手指引只在正常探索里弹；准备阶段是收尾，玩家已经会走了。
+      if (!this.tutorialDismissed && this.flow?.state.phase === 'explore') {
+        this.tutorialVisible.value = true;
+      }
     } else {
       this.tutorialVisible.value = false;
       this.promptText?.setVisible(false);
@@ -1595,10 +1745,114 @@ export class Ch01DormScene extends UIScene {
       this.emotionBubble?.hide();
     }
 
-    if (line.fx !== undefined && line.cg === undefined) {
-      if (line.fx === 'flash' && !this.reduced) this.cameras.main.flash(240, 255, 255, 255);
-      else if (line.fx === 'shake' && !this.reduced) this.cameras.main.shake(140, 0.004);
+    // 有 CG 的行由 `CgOverlay` 自己吃 flash/glitch（它知道图什么时候换），
+    // 这里只处理「没有 CG」时的画面特效。
+    if (line.fx !== undefined && line.cg === undefined) this.playLineFx(line.fx);
+  }
+
+  /**
+   * 表现型画面特效：只有这一行真的被看见才播，跳过不补。
+   *
+   * - `flash` / `shake`：原来的白闪与轻震；
+   * - `chill`：冷蓝一闪 + 一下轻震（「一阵冷风从脖颈吹过」）；
+   * - `naming*`：命名段光雾运算三拍（`src/ui/naming-fx.ts`）；
+   * - `sparkle`：主角头顶一小圈星火（「好耶！」）。
+   */
+  private playLineFx(fx: NonNullable<DialogueLine['fx']>): void {
+    const camera = this.cameras.main;
+    switch (fx) {
+      case 'flash':
+        if (!this.reduced) camera.flash(240, 255, 255, 255);
+        return;
+      case 'shake':
+        if (!this.reduced) camera.shake(140, 0.004);
+        return;
+      case 'chill': {
+        // 冷风 ≠ 一闪就没的白光：冷蓝闪 + 一下轻震 **再加** 一层冷色暗角脉冲，
+        // 亮度只维持 260ms 的闪光很难被眼睛抓住（2026-11-26 实机截图确认只剩「没变化」）。
+        const vignette = addVignette(this, {
+          color: 0x0a1a33,
+          alpha: 0.55,
+          depth: LAYERS.cinematic - 10,
+        });
+        if (this.reduced) {
+          vignette.setAlpha(0.26);
+          this.time.delayedCall(520, () => vignette.destroy());
+          return;
+        }
+        camera.flash(320, 150, 196, 255);
+        camera.shake(220, 0.0024);
+        vignette.setAlpha(0);
+        this.tweens.add({
+          targets: vignette,
+          alpha: { from: 0, to: 0.55 },
+          duration: 260,
+          hold: 240,
+          yoyo: true,
+          ease: 'Sine.easeOut',
+          onComplete: () => vignette.destroy(),
+        });
+        return;
+      }
+      case 'glitch':
+        // 没有 CG 可抖时不抖镜头：屏幕抖动留给更重的拍子（起身/压迫）。
+        return;
+      case 'naming':
+        this.playNamingFx('flourish');
+        return;
+      case 'naming-collapse':
+        this.playNamingFx('collapse');
+        return;
+      case 'naming-settle':
+        this.playNamingFx('settle');
+        return;
+      case 'sparkle': {
+        const head = this.player?.headPoint;
+        if (!head) return;
+        // 让开心气泡先冒出来（它挂在同一个头顶），星火晚 140ms 再从四周炸开，
+        // 否则星火会被气泡整个盖住（实测只剩气泡）。
+        const runId = this.lifecycle.runId;
+        this.time.delayedCall(this.reduced ? 0 : 140, () => {
+          if (!this.lifecycle.isLive(runId)) return;
+          sparkBurst(this, head.x, head.y - 26, {
+            color: 0xffe9a8,
+            count: 14,
+            reduced: this.reduced,
+          });
+        });
+        return;
+      }
     }
+  }
+
+  /** 命名段光雾：三拍共用一只 rig；`settle` 之后把小白恢复常态浮动。 */
+  private playNamingFx(stage: 'flourish' | 'collapse' | 'settle'): void {
+    const xiaobai = this.xiaobai;
+    if (stage === 'flourish') {
+      if (!xiaobai || !xiaobai.visible) return;
+      // 小白常态浮动会和光雾锚点抢构图，运算期间先停。
+      this.stopXiaobaiBob();
+      if (!this.namingFx) {
+        this.namingFx = new NamingFxRig({
+          scene: this,
+          xiaobai,
+          reduced: this.reduced,
+          seed: this.seed,
+        });
+      }
+      this.namingFx.flourish();
+      return;
+    }
+    if (stage === 'settle') {
+      this.namingFx?.settle();
+      const runId = this.lifecycle.runId;
+      this.time.delayedCall(this.reduced ? 0 : 620, () => {
+        if (!this.lifecycle.isLive(runId)) return;
+        this.startXiaobaiBob();
+      });
+      return;
+    }
+    this.namingFx?.collapse();
   }
 
   private showEmotion(
@@ -1697,7 +1951,10 @@ export class Ch01DormScene extends UIScene {
   private isWakeStart(): boolean {
     return (
       this.resumeMode === 'afterBattle' ||
-      (this.resumeMode === 'start' && this.previewPhase === 'after' && !this.previewDark)
+      (this.resumeMode === 'start' &&
+        this.previewPhase === 'after' &&
+        !this.previewDark &&
+        !this.previewNaming)
     );
   }
 
@@ -2623,6 +2880,9 @@ export class Ch01DormScene extends UIScene {
     this.collapseTimer = null;
     this.proneSprite?.destroy();
     this.proneSprite = null;
+    // 光雾运算的原生图层（表现型）不能跟着场景实例留到下一轮。
+    this.namingFx?.destroy();
+    this.namingFx = null;
     this.xiaobaiBob?.remove();
     this.xiaobaiBob = null;
     this.walkTween?.stop();

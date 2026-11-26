@@ -46,22 +46,28 @@
      reduced-motion 下两者一起减半到 260ms（位置变化不是装饰，不省略）。
    - 战后这一段按 2026-11-20 新稿重写（`src/story/ch01-after.ts`）：醒来与编号之争 → 提问菜单
      （「1. 郑卿怎么了？」「2. 刚才是怎么回事？」「3. 你是谁？」，任意顺序、问过移除）→ 三个问完后只剩
-     「你想让我做什么。」→ 收尾段（BGM 校园日常 → 黑屏《危机降临》→ 闪开回到校园日常）→ 衔接段（征召、命名小白）。
-   - 两处愤怒气泡（「他有名字！他叫郑卿！」「你让我杀人？！那不可能！」）；分支 2 的鼾声旁白真出呼噜声。
-8. 结束卡：第一节 · 寝室 / 第一章《天子》未完待续；「重看本节」「返回标题」。
+     「你想让我做什么。」→ 收尾段（BGM 校园日常 → 黑屏《危机降临》→ 闪开回到校园日常）→ 衔接段（三个条件与定名，2026-11-26 新稿）。
+   - 衔接段：周全提三个条件（名字 / 别再整我 / 叫小白）→ 冷风一拍（冷蓝闪 + 冷色暗角脉冲 + 风声）→
+     小白头顶起**光雾运算**（雾团翻涌 + 数学符号环凝聚 → 扭曲坍塌 → 平息）→ 显示名在「代号更新确认」处
+     从「白色小精灵」切成「小白」→「好耶！」星火 + 开心气泡。
+   - 命名演完**不进结束卡**：回到自由活动，目标「准备好后，跟小白对话」；走到小白身边按交互 → 白闪 → 结束卡。
+   - 三处愤怒气泡（「他有名字！他叫郑卿！」「你让我杀人？！那不可能！」「警告不听还是要整我是吧？！」）；
+     分支 2 的鼾声旁白真出呼噜声。
+8. 结束卡：第一节 · 寝室 / 第一章《权力之梦》未完待续；「进入第二节 · 御膳房」「重看本节」「返回标题」。
 9. 返回键：弹「返回标题？」确认；取消可继续。
 
 ## 3. 舞台预览
 
 ```text
-/?stage=scene.ch01.dorm&phase=opening|explore|after|complete&hud=0
+/?stage=scene.ch01.dorm&phase=opening|explore|after|dark|naming|complete&hud=0
 /?stage=scene.ch01.dorm&phase=explore&debug=1&hud=0
 /?stage=battle.ch01.first&phase=opening|mid|defeat&hud=0
 /?stage=battle.ch01.kitchen&phase=opening|mid|victory|defeat&hud=0
 ```
 
 - `phase=explore` 跳过章节卡与开场对话，直接自由探索。
-- `phase=after` 从战后「从宫殿逃出之后」第一段（醒来与编号之争）开始；`phase=complete` 直接结束卡。
+- `phase=after` 从战后「从宫殿逃出之后」第一段（醒来与编号之争）开始；`phase=dark` 从黑场胁迫那一拍开始；
+  `phase=naming` 从「行吧。不过，你得答应我三个条件。」开始（光雾运算 + 定名）；`phase=complete` 直接结束卡。
 - `battle.ch01.first&phase=defeat` 直接显示剧情战败覆盖层；预览显示「重开战斗 / 返回标题」。
 - `battle.ch01.first` 的 `victory` 会回退 `mid`（那场不能赢）；`battle.ch01.kitchen` 的 `victory` 是真胜利卡。
 - 八向：`&skip=1&facing=up|upRight|right|downRight|down|downLeft|left|upLeft`（`phase=mid` 会模拟回合、怪物可能转向）。
@@ -103,6 +109,8 @@
 | [战斗 v2 390×844](images/ch01-battle-v2-390x844.png) | **v2 历史图**：六站位、跑条、意图、攻击禁用；v3.1 需重拍 |
 | [背袭 390×844](images/ch01-battle-backstab-390x844.png) | **v2 历史图**：御膳房背后站位、攻击预览 24 |
 | [解离突刺 390×844](images/ch01-battle-kitchen-390x844.png) | **v2 历史图**：御膳房舞台、命中（-16）、光刃补全 |
+| [命名段光雾 390×844](images/ch01-naming-fog-390x844.png) | 小白头顶光雾运算（数学符号环），2026-11-26 |
+| [准备阶段 390×844](images/ch01-naming-prep-390x844.png) | 命名完的自由活动：「准备好后，跟小白对话」+ 交互提示 |
 | [结束卡 390×844](images/ch01-end-390x844.png) | 第一节完、重看/返回 |
 | [寝室 1200×648](images/ch01-dorm-1200x648.png) | 横屏居留边 |
 | [战斗 1200×648](images/ch01-battle-1200x648.png) | 横屏战败覆盖层 |

@@ -83,6 +83,10 @@
     "bytes": 27316,
     "mtimeMs": 1793528194854
   },
+  "assets/audio/sfx/ch01_cold_wind.mp3": {
+    "bytes": 48945,
+    "mtimeMs": 1795704083071
+  },
   "assets/audio/sfx/ch01_dark_grip.mp3": {
     "bytes": 17901,
     "mtimeMs": 1795231189382
@@ -139,6 +143,10 @@
     "bytes": 6627,
     "mtimeMs": 1792886910856
   },
+  "assets/audio/sfx/ch01_naming_confirm.mp3": {
+    "bytes": 41004,
+    "mtimeMs": 1795704575522
+  },
   "assets/audio/sfx/ch01_phone.mp3": {
     "bytes": 10076,
     "mtimeMs": 1792886910883
@@ -158,6 +166,10 @@
   "assets/audio/sfx/ch01_step_wood_b.mp3": {
     "bytes": 8877,
     "mtimeMs": 1793528194381
+  },
+  "assets/audio/sfx/ch01_xiaobai_compute.mp3": {
+    "bytes": 66499,
+    "mtimeMs": 1795704083072
   },
   "assets/audio/sfx/palace_blade_spin.mp3": {
     "bytes": 19053,
