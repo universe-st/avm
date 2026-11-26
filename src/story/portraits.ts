@@ -82,6 +82,11 @@ export const SPEAKER_PORTRAIT_EMOTIONS: Readonly<
     happy: PORTRAIT_ASSET_KEYS.zhengHappy,
     awkward: PORTRAIT_ASSET_KEYS.zhengAwkward,
   },
+  // 小白的显示名会变（？？？ / 白色小精灵 / 小白），这里按「角色 id」登记。
+  xiaobai: {
+    neutral: PORTRAIT_ASSET_KEYS.xiaobai,
+    thinking: PORTRAIT_ASSET_KEYS.xiaobaiThinking,
+  },
 };
 
 /** 反查一张立绘 key 属于哪个角色（表情差分原地换图用）。 */

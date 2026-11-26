@@ -52,6 +52,11 @@ export const PORTRAIT_ASSET_KEYS = {
   zhouAwkward: 'img.char.portrait.zhou_awkward',
   /** 小白（娃娃脸光团 + 兜帽 + 羽翼 + 胸口蓝核）：名字会变，按 role/名字统一归到这张。 */
   xiaobai: 'img.char.portrait.xiaobai',
+  /**
+   * 小白 · 思索/运算中（2026-11-27，t60）：命名段「小白……」到「……处于可容忍阈值内」
+   * 这几句用；眉心轻蹙、眼神偏上、脸侧有两道冷白数据光纹。构图/比例与常态一致，切换走原地 soft。
+   */
+  xiaobaiThinking: 'img.char.portrait.xiaobai_thinking',
   /** 矿工（铁皮骨架）：金殿「清除协议」与战斗「侍卫机器人」共用。 */
   miner: 'img.char.portrait.miner',
   /** 郑卿常态（平常/端着）：现有那张淡淡的得意脸。 */

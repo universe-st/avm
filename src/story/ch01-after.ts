@@ -267,15 +267,19 @@ export const CH01_AFTER_HANDOFF: readonly DialogueLine[] = [
     portraitEmotion: 'awkward',
   },
   // 「小白……」这一声之后她开始运算：光雾就在这一行起（下一句旁白正好描述它）。
-  { ...xiaobai('小白……'), fx: 'naming' },
+  // 这几句换「思索/运算中」差分（眉心轻蹙、眼神偏上、脸侧两道数据光纹）。
+  { ...xiaobai('小白……'), fx: 'naming', portraitEmotion: 'thinking' },
   {
     speaker: '旁白',
     text: '这白色的小家伙似乎陷入了思索，银白色的光雾瞬间在小天使头顶剧烈翻涌，凝聚成几个不断扭曲、坍塌的复杂数学符号，又猛地消散。',
     sfx: CH01_ASSET_KEYS.audio.xiaobaiCompute,
   },
-  xiaobai(
-    '“小白”发音与“TEAR-27”相似度低于7%。该称谓在哺乳动物生物学中具有特定指代，存在误导性……',
-  ),
+  {
+    ...xiaobai(
+      '“小白”发音与“TEAR-27”相似度低于7%。该称谓在哺乳动物生物学中具有特定指代，存在误导性……',
+    ),
+    portraitEmotion: 'thinking',
+  },
   { speaker: '周全', text: '用得着这么严肃吗……', portraitEmotion: 'awkward' },
   {
     ...xiaobai(
@@ -283,6 +287,7 @@ export const CH01_AFTER_HANDOFF: readonly DialogueLine[] = [
     ),
     // 「又猛地消散」：符号被吸向中心、扭曲坍塌。
     fx: 'naming-collapse',
+    portraitEmotion: 'thinking',
   },
   // 「光雾平息」：雾散、光晕收回，画面回到寝室。
   { speaker: '旁白', text: '光雾平息。小天使平静地悬浮着。', fx: 'naming-settle' },

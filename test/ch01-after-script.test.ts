@@ -274,6 +274,15 @@ describe('战后剧本 · 演出 cue', () => {
     expect(compute).toHaveLength(1);
     expect(compute[0]?.speaker).toBe('旁白');
 
+    // 运算那几句用「思索/运算中」差分，定名后回到默认脸。
+    const thinking = CH01_AFTER_HANDOFF.filter((line) => line.portraitEmotion === 'thinking');
+    expect(thinking).toHaveLength(3);
+    expect(thinking[0]?.text).toBe('小白……');
+    expect(thinking[1]?.text).toContain('相似度低于7%');
+    expect(thinking[2]?.text).toContain('可容忍阈值');
+    expect(thinking.every((line) => line.role === 'xiaobai')).toBe(true);
+    expect(CH01_AFTER_HANDOFF.find((line) => line.text.includes('代号更新确认'))?.portraitEmotion).toBeUndefined();
+
     // 「好耶！」= 星火 + 开心气泡；确认音挂在「代号更新确认」那一行。
     const happy = CH01_AFTER_HANDOFF.find((line) => line.fx === 'sparkle');
     expect(happy?.text).toBe('好耶！');

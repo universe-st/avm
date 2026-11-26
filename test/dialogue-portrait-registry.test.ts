@@ -225,9 +225,16 @@ describe('情绪差分立绘：按台词内容换脸', () => {
       'img.char.portrait.zheng_happy',
     );
     expect(portraitForSpeaker('周全')?.key).toBe('img.char.portrait.zhou');
-    // 小白没有差分：写了情绪也还是那张小白立绘。
+    // 小白只登记了「思索/运算中」一档差分；其它情绪回落默认脸。
+    expect(portraitForSpeaker('小白', undefined, 'thinking')?.key).toBe(
+      'img.char.portrait.xiaobai_thinking',
+    );
     expect(portraitForSpeaker('小白', undefined, 'shocked')?.key).toBe(
       'img.char.portrait.xiaobai',
+    );
+    // 按 role 走也认（显示名会变，身份不变）。
+    expect(portraitForSpeaker('白色小精灵', 'xiaobai', 'thinking')?.key).toBe(
+      'img.char.portrait.xiaobai_thinking',
     );
     // 机器人没有差分。
     expect(portraitForSpeaker('矿工', undefined, 'happy')?.key).toBe('img.char.portrait.miner');

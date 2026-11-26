@@ -103,6 +103,9 @@ interface AssetDef {
   为让寝室/御膳房/战斗也能挂脸，立绘 key 从 `img.char.palace.portrait_*` 统一改成 `img.char.portrait.*`，并按角色共用程度拆 bundle：**新增 `ch01.portraits`**（周全/小白/矿工，budget 3072；寝室、御膳房、金殿、两场战斗的 `requires` 都带上它），`ch01.kitchen` 收老麦/老肯（budget 12288 → 14336），`cutscene.ch01palace` 只留郑卿/楚公公/侍卫/周全慌张（budget 10240 → 8192）。`SPEC` 的注册护栏在 `test/palace-five-items.test.ts` 的「全部半身立绘」表里按 `文件 → key → bundle` 三元组逐张校验。
 
 
+- 2026-11-27（t60 小白「思索/运算中」差分）：`ch01.portraits` 新增 `img.char.portrait.xiaobai_thinking`
+  （`assets/img/character/palace/portrait_xiaobai_thinking.png`，720×900 RGBA、约 660 KB，budget 不变）；
+  命名段三句用 `portraitEmotion: 'thinking'` 触发，见 `docs/ASSET-CREDITS.md` §11.21。
 - 2026-11-25（t58 情绪差分立绘）：周全 4 张（`img.char.portrait.zhou` 换成新画的平常图，原皱眉图改名 `portrait_zhou_frown.png` 并赐 key `img.char.portrait.zhou_frown`；新增 `zhou_shocked / zhou_happy / zhou_awkward`），全部在共享 `ch01.portraits`（budget 3072 → 6144，实测约 5.5 MB）；郑卿 3 张（`zheng_shocked / zheng_happy / zheng_awkward`）在 `cutscene.ch01palace`（budget 保持 8192，实测约 6 MB）。文件：`assets/img/character/ch01/portrait_zhou_{neutral,frown,shocked,happy,awkward}.png`、`assets/img/character/palace/portrait_zheng_{shocked,happy,awkward}.png`，都是 720×900 RGBA 透明底。切换由台词行 cue `DialogueLine.portraitEmotion` + `SPEAKER_PORTRAIT_EMOTIONS` 决定，见 `docs/ASSET-CREDITS.md` §11.19。
 - 2026-11-25（立绘去绿边）：全部 16 张半身立绘用 `tools/despill-portrait.py` 重做一次去绿边（key/文件名/bundle 不变，只是像素修正，体积略有变化），并重跑 `assets:scan`。根因与做法见 `docs/ASSET-CREDITS.md` §11.19 末尾。
 - 2026-11-25（t59 立绘全量重出，原生透明 Alpha）：16 张立绘改用 Seedream 5.5 原生 Alpha 重出（`keyBackdrop=transparent`，不再绿幕+抠像），key/文件名/bundle 不变，仅替换像素；每张仍裁到 720×900 RGBA，实测绿色主导像素≈0。来源任务见 `docs/ASSET-CREDITS.md` §11.20。

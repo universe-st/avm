@@ -673,6 +673,23 @@ v2 起改成每人一张、纯绿幕底（方便抠像），替换原来的 2×2
   `capture-emotions-2026-11-25.mjs`（情绪差分/旁白收脸）全通过。
 - 复核：上架前按火山方舟商用条款复核，商店页注明「AI 生成美术」。
 
+## 11.21 小白「思索/运算中」差分立绘（2026-11-27，t60）
+
+- 用途：命名段「小白……」→「相似度低于7%……」→「但……处于可容忍阈值内。」三句
+  （`src/story/ch01-after.ts` 的 `portraitEmotion: 'thinking'`）。眉心轻蹙、眼神偏上、
+  脸侧与兜帽边缘各一道极淡冷白数据光纹；其余构图像素级沿用常态立绘。
+- 来源：游戏素材大师 · Seedream 5.5 原生 Alpha（`imageProvider=ark`、`doubao-seedream-5-5-261028`、
+  `keyBackdrop=transparent`），参考图＝`palace/portrait_xiaobai.png`，1024×1280、2 张、auto 审核。
+  job `imwy2uf9s024961`，采用第 1 张（第 2 张兜帽上那道折线更像裂纹，弃用）。
+- 后期：`tools/make-palace-portrait.py --margin-x 12` → 720×900；
+  `tools/despill-portrait.py` 兜底（0.03% 绿主导像素 → 0）。
+- 产物：`public/assets/img/character/palace/portrait_xiaobai_thinking.png`（约 660 KB），
+  key `img.char.portrait.xiaobai_thinking`，进 `ch01.portraits`。
+- 登记：`SPEAKER_PORTRAIT_EMOTIONS.xiaobai = { neutral, thinking }`；`PortraitEmotion` 新增 `thinking`。
+- 验收：`test/dialogue-portrait-registry.test.ts`（差分登记 / 按 role 识别 / 其它情绪回落默认脸）、
+  `.evidence/scripts/verify-prep-save-2026-11-27.mjs`（实机断言 `portrait.currentKey` 在运算句切换、
+  定名句回到默认脸）。
+
 ## 12. 御膳房 P2 B1 地图风格样张（2026-10-31）
 
 - 生成：游戏素材大师 · 图片生成，`doubao-seedream-5-0-flash-260915`，自动审核；仅作 B2 拼合风格基准，未直接进游戏。

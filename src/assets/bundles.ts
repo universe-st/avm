@@ -815,6 +815,14 @@ export const BUNDLES: Record<BundleId, BundleDef> = {
         tags: ['character', 'portrait'],
       },
       {
+        // 「小白……」那几句的思索/运算差分：同一张脸、同一件衣服，只改表情与两道数据光纹。
+        key: 'img.char.portrait.xiaobai_thinking',
+        kind: 'image',
+        url: 'assets/img/character/palace/portrait_xiaobai_thinking.png',
+        label: '小白 · 半身立绘（思索/运算中）',
+        tags: ['character', 'portrait'],
+      },
+      {
         // 矿工（铁皮骨架）：金殿清除协议与战斗「侍卫机器人」共用。
         key: 'img.char.portrait.miner',
         kind: 'image',

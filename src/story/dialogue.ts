@@ -46,7 +46,14 @@ export type EmotionTarget = 'zhou' | 'zheng' | 'xiaobai';
  *
  * - `neutral` 平常 / `frown` 皱眉 / `shocked` 震惊 / `happy` 快乐 / `awkward` 尴尬
  */
-export type PortraitEmotion = 'neutral' | 'frown' | 'shocked' | 'happy' | 'awkward';
+export type PortraitEmotion =
+  | 'neutral'
+  | 'frown'
+  | 'shocked'
+  | 'happy'
+  | 'awkward'
+  /** 思索/运算中（小白在给自己算名字时的差分，2026-11-27）。 */
+  | 'thinking';
 
 /**
  * 稳定角色 id：显示名会变，身份不变。
