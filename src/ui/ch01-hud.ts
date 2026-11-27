@@ -1,5 +1,6 @@
 import { Branch, Button, Column, Panel, Row, Spacer, Text } from '@phaser-mvvm/widgets/compose';
 import type { Ref } from '@phaser-mvvm/core';
+import type { Label } from '@phaser-mvvm/widgets';
 import type { SpeakerTone } from '../story/dialogue';
 import { buildDialoguePanel, buildStageHeader } from './hud-kit';
 
@@ -38,6 +39,11 @@ export interface Ch01HudModel {
   readonly onAuto: () => void;
   readonly onHistory: () => void;
   readonly onInteract: () => void;
+  /**
+   * 说话人标签实体：给「名字从白色小精灵变成小白」的 `rename` 演出当锚点
+   * （特效是 Label 的子对象，见 `src/ui/name-rename-fx.ts`）。
+   */
+  readonly onSpeakerLabel?: (label: Label) => void;
 }
 
 /**
@@ -114,6 +120,7 @@ export function buildCh01Hud(model: Ch01HudModel): void {
               pageIndex: model.dialoguePageIndex,
               pageCount: model.dialoguePageCount,
               visible: model.dialogueVisible,
+              ...(model.onSpeakerLabel ? { onSpeakerLabel: model.onSpeakerLabel } : {}),
             });
           },
           card: () => {

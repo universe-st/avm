@@ -15,7 +15,9 @@ import type { BgmId } from '../audio/bgm-tracks';
  * - `chill`：冷蓝一闪（「一阵冷风从脖颈吹过」这种发毛瞬间，比白闪更冷）；
  * - `naming` / `naming-collapse` / `naming-settle`：命名段光雾运算的三拍
  *   （翻涌凝聚 → 扭曲坍塌 → 平息），表现层是 `src/ui/naming-fx.ts`；
- * - `sparkle`：一小圈星火（「好耶！」这种纯开心的瞬间）。
+ * - `sparkle`：一小圈星火（「好耶！」这种纯开心的瞬间）；
+ * - `rename`：说话人名字从「白色小精灵」换成「小白」——白光划过 + 马赛克数据渐变
+ *   （表现层 `src/ui/name-rename-fx.ts`，只改对话面板左上角那行小字）。
  */
 export type DialogueFx =
   | 'flash'
@@ -25,7 +27,8 @@ export type DialogueFx =
   | 'naming'
   | 'naming-collapse'
   | 'naming-settle'
-  | 'sparkle';
+  | 'sparkle'
+  | 'rename';
 
 /**
  * 「黑场胁迫」演出的节拍词汇（见 `ch01-dark-scene.ts` 的强度表）。

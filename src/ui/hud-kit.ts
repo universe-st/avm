@@ -1,5 +1,6 @@
 import { Branch, Button, Column, Panel, Rect, Row, Text } from '@phaser-mvvm/widgets/compose';
 import type { Ref } from '@phaser-mvvm/core';
+import type { Label } from '@phaser-mvvm/widgets';
 import type { SpeakerTone } from '../story/dialogue';
 import { settings } from '../app/settings';
 
@@ -188,6 +189,14 @@ export interface DialoguePanelModel {
   readonly pageIndex: Ref<number>;
   readonly pageCount: Ref<number>;
   readonly visible: Ref<boolean>;
+  /**
+   * 说话人标签的实体（`Label`），只在需要给它挂特效时用。
+   *
+   * 目前只有「名字从白色小精灵变成小白」的 `rename` 演出要（`src/ui/name-rename-fx.ts`）：
+   * 特效是作为这个 Label 的子对象画的，所以坐标天然跟着面板走。
+   * 不传就是纯文字面板，行为与以前完全一致。
+   */
+  readonly onSpeakerLabel?: (label: Label) => void;
 }
 
 /**
@@ -211,10 +220,11 @@ export function buildDialoguePanel(model: DialoguePanelModel): void {
     () => {
       Row({ width: 628, justifyContent: 'space-between', alignItems: 'center' }, () => {
         Row({ gap: 8, alignItems: 'center' }, () => {
-          Text(() => model.speaker.value, {
+          const speakerLabel = Text(() => model.speaker.value, {
             size: 'sm',
             style: { color: TONE_TEXT_COLOR.zheng },
           });
+          model.onSpeakerLabel?.(speakerLabel);
           Text(() => (model.pageCount.value > 1
             ? `${model.pageIndex.value + 1}/${model.pageCount.value}`
             : ''), { size: 'xs', tone: 'muted' });

@@ -196,6 +196,13 @@ pnpm android:release
   （`src/ui/naming-fx.ts`：canvas 径向渐变雾团 + Georgia 数学符号环 + 光晕，27 个对象），镜头一格不动。
   三拍 `fx: 'naming' | 'naming-collapse' | 'naming-settle'` 都是**表现型**：跳过不补播，但
   `finishDialogue()` / `clearDialoguePanel()` / SHUTDOWN 必须 `namingFx?.destroy()`。
+  **名字从「白色小精灵」变成「小白」那一拍另有特效**（2026-11-27 用户要求）：`fx: 'rename'`，
+  白光划过说话人标签 + 名字按块降采样成马赛克、逐列覆写成新名字再收敛回文字
+  （`src/ui/name-rename-fx.ts`，挂在 `buildDialoguePanel` 交出来的 `Label` 上，所以坐标跟面板走、任何视口自动对齐）。
+  两个坑：① 缩放比例要用**临摹字自己的宽度**算，演出一开始 Compose 还没把新名字写进标签，`labelText.width` 是 0；
+  ② 噪点块只能画在字形上（先采 alpha），撒到透明区会变成名字右边一串漂着的白点。
+  表现型，跳过/收尾必须 `destroy()`（`clearDialoguePanel()` / `finishDialogue()` / `finishPrep()` / SHUTDOWN 四处）。
+  取证 `.evidence/scripts/capture-name-rename-2026-11-27.mjs`（screencast 抓帧 + 390/360/1200 三视口 + reduced + 演到一半跳过）。
   `phase=prep` 是命名完的自由活动，**可存档**（2026-11-27 用户拍板；`FREE_ROAM_PHASES` 认 explore+prep）：
   存档用 `flags.prep` 标记、检查点写 `dorm.after`，读回来直接落回 prep（`layoutPrep()` 把小白放回身边），
   玩家走到小白身边开口（`flow.finishPrep()`）才出结束卡。

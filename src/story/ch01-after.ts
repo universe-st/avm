@@ -230,7 +230,8 @@ export const CH01_AFTER_CLOSING: readonly DialogueLine[] = [
  * - 「光雾运算」三拍：`naming`（翻涌凝聚）→ `naming-collapse`（扭曲坍塌）→
  *   `naming-settle`（平息），表现层 `src/ui/naming-fx.ts`；
  * - 「好耶！」：星火 + 开心气泡；
- * - 「代号更新确认」：显示名从「白色小精灵」切成「小白」，一记玻璃质确认音。
+ * - 「代号更新确认」：显示名从「白色小精灵」切成「小白」，一记玻璃质确认音；
+ *   名字标签同时演 `fx: 'rename'`（白光划过 + 马赛克数据渐变，`src/ui/name-rename-fx.ts`）。
  *
  * 新稿停在「我会带你再次进入郑卿的梦域空间」，随后是自由活动：
  * 这一段播完**不进结束卡**，流程走 `beginPrep()`（phase `prep`），
@@ -293,6 +294,9 @@ export const CH01_AFTER_HANDOFF: readonly DialogueLine[] = [
   { speaker: '旁白', text: '光雾平息。小天使平静地悬浮着。', fx: 'naming-settle' },
   {
     ...xiaobaiNamed('代号更新确认。‘小白’，接受此非正式命名。'),
+    // 名字这一刻从「白色小精灵」变成「小白」：白光划过 + 马赛克数据渐变
+    // （表现型，跳过不补演；表现层 `src/ui/name-rename-fx.ts`）。
+    fx: 'rename',
     sfx: CH01_ASSET_KEYS.audio.namingConfirm,
   },
   {

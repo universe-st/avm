@@ -268,6 +268,7 @@ private finishDialogue(): void {
 | 旁白：「银白色的光雾瞬间……」 | `sfx: xiaobaiCompute` | 光雾数据流音 |
 | 小白：「……处于可容忍阈值内。」 | `fx: 'naming-collapse'` | 符号被吸向中心、扭曲坍塌 |
 | 旁白：「光雾平息。」 | `fx: 'naming-settle'` | 雾散、光晕收回 |
+| 小白：「代号更新确认。」 | `fx: 'rename'` | 说话人名字白光划过 + 马赛克渐变（白色小精灵 → 小白） |
 
 - 表现层 `src/ui/naming-fx.ts`：canvas 径向渐变雾团（ADD）+ Georgia 数学符号环 + 光晕，
   27 个 GameObject（`FX_MAX_OBJECTS` 40 以内）；`reduced` 下只留静态构图。

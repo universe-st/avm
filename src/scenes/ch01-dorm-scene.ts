@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { ref } from '@phaser-mvvm/core';
+import type { Label } from '@phaser-mvvm/widgets';
 import { UIScene, type ModalHandle } from '@phaser-mvvm/phaser';
 
 import {
@@ -64,6 +65,7 @@ import {
 import { firstDarkLineIndex, type DarkBeat } from '../story/ch01-dark-scene';
 import { DarkPressureRig } from '../ui/dark-pressure';
 import { NamingFxRig } from '../ui/naming-fx';
+import { NameRenameFxRig } from '../ui/name-rename-fx';
 import {
   initialInquiryState,
   inquiryMenuItems,
@@ -299,6 +301,15 @@ export class Ch01DormScene extends UIScene {
    * `finishDialogue()` / 跳过 / SHUTDOWN 都 `destroy()`。
    */
   private namingFx: NamingFxRig | null = null;
+  /**
+   * 说话人名字改名演出（`fx: 'rename'`：白色小精灵 → 小白，白光划过 + 马赛克渐变）。
+   *
+   * 表现型：跳过不补演；但图层与「藏起来的真字」必须收干净，
+   * `clearDialoguePanel()` / `finishDialogue()` / `finishPrep()` / SHUTDOWN 都 `destroy()`。
+   */
+  private nameFx: NameRenameFxRig | null = null;
+  /** 对话面板左上角那个说话人标签（`rename` 演出的锚点，面板重建时会换）。 */
+  private speakerNameLabel: Label | null = null;
   /** 准备阶段（命名完的自由活动）：玩家此刻是否站在小白身边。 */
   private nearXiaobai = false;
   private bgmStarted = false;
@@ -523,6 +534,9 @@ export class Ch01DormScene extends UIScene {
       performanceActive: this.performanceActive,
       choiceActive: this.choiceActive,
       tutorialVisible: this.tutorialVisible,
+      onSpeakerLabel: (label) => {
+        this.speakerNameLabel = label;
+      },
       onMenu: () => {
         audioDirector.playClick();
         this.openMenu();
@@ -614,6 +628,8 @@ export class Ch01DormScene extends UIScene {
     // 命名段的光雾图层不能带进下一轮（表现型，跳过不补演，但留下的图层要拆干净）。
     this.namingFx?.destroy();
     this.namingFx = null;
+    this.nameFx?.destroy();
+    this.nameFx = null;
     this.nearXiaobai = false;
     // 趴地贴图与喘气 tween 也不能带进下一轮（此时 player 已置空，只清理对象本身）。
     this.proneTween?.remove();
@@ -1351,6 +1367,8 @@ export class Ch01DormScene extends UIScene {
     this.stopXiaobaiBob();
     this.namingFx?.destroy();
     this.namingFx = null;
+    this.nameFx?.destroy();
+    this.nameFx = null;
     const events = this.flow.finishPrep();
     const runId = this.lifecycle.runId;
     if (!this.reduced) this.cameras.main.flash(360, 255, 255, 255);
@@ -1415,6 +1433,8 @@ export class Ch01DormScene extends UIScene {
     // 对话结束/进菜单/回探索：最后一张脸、最后一片光雾都不能继续挂在画面上。
     this.namingFx?.destroy();
     this.namingFx = null;
+    this.nameFx?.destroy();
+    this.nameFx = null;
     this.portrait?.hide();
     this.cg?.hide();
     this.emotionBubble?.hide();
@@ -1628,6 +1648,8 @@ export class Ch01DormScene extends UIScene {
     // 光雾运算（表现型）不管自然播完还是跳过，图层都必须收干净。
     this.namingFx?.destroy();
     this.namingFx = null;
+    this.nameFx?.destroy();
+    this.nameFx = null;
     // 先补状态型 cue（BGM…），再推进节点：
     // - 跳过时那些行从没显示过，但它们改的状态必须生效；
     // - 自然过完时游标已在末尾，这里什么也不做（行为与改动前一致）；
@@ -1834,6 +1856,9 @@ export class Ch01DormScene extends UIScene {
       case 'naming-settle':
         this.playNamingFx('settle');
         return;
+      case 'rename':
+        this.playNameRename();
+        return;
       case 'sparkle': {
         const head = this.player?.headPoint;
         if (!head) return;
@@ -1851,6 +1876,26 @@ export class Ch01DormScene extends UIScene {
         return;
       }
     }
+  }
+
+  /**
+   * 名字改名演出：白光划过 + 马赛克数据渐变（`src/ui/name-rename-fx.ts`）。
+   *
+   * 锚点是对话面板里的说话人标签；面板还没渲染出来（战斗插入对话等）就什么都不演，
+   * 名字照旧直接切换——演出是表现型，绝不能因为缺锚点挡住流程。
+   */
+  private playNameRename(): void {
+    if (this.reduced) return;
+    const label = this.speakerNameLabel;
+    if (!label || !label.scene) return;
+    this.nameFx?.destroy();
+    this.nameFx = new NameRenameFxRig({
+      scene: this,
+      label,
+      reduced: this.reduced,
+      seed: this.seed,
+    });
+    this.nameFx.play();
   }
 
   /** 命名段光雾：三拍共用一只 rig；`settle` 之后把小白恢复常态浮动。 */
@@ -2914,6 +2959,8 @@ export class Ch01DormScene extends UIScene {
     // 光雾运算的原生图层（表现型）不能跟着场景实例留到下一轮。
     this.namingFx?.destroy();
     this.namingFx = null;
+    this.nameFx?.destroy();
+    this.nameFx = null;
     this.xiaobaiBob?.remove();
     this.xiaobaiBob = null;
     this.walkTween?.stop();
