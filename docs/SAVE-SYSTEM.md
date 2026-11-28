@@ -120,6 +120,18 @@ Phaser 侧只剩「把字段抄出来 / 抄回去」。
 （这一段属于战后征召，标题「继续游戏」应回战后，而不是回寝室开头重新叫醒郑卿）。
 读档后 `Ch01Flow` 直接落 `prep`，场景 `layoutPrep()` 把小白放回玩家右上方并点亮「跟小白对话」提示。
 
+**准备阶段的构图必须是纯函数，不能靠「她之前在哪」**（2026-11-28 用户报的 bug）：正常流程（命名段播完）
+与读档回 `prep` 原来落在两个不同坐标，玩家恰好在书桌旁存档时她甚至留在手机位置上。规则：
+
+- 落点唯一真值 `prepXiaobaiSpot(player.position, tileSize)`（`src/story/ch01-performance.ts`）——
+  正常流程、读档、以及 `phase=dark/naming` 的舞台预览都只调它，不许再手写 `+62 / +65` 这类像素；
+- 场景摆位唯一入口 `placeXiaobaiForPrep()`：**先 `killTweensOf(xiaobai)` 再落位**——黑场收尾
+  （`DarkPressureRig.restoreActors`）与起身漂浮的 tween 会在进入 `prep` 之后继续跑，不杀就会把
+  刚摆好的构图拉回旧位置；已经在画面里时用 260ms 滑行（`prepSettle`，期间浮动 tween 让位），
+  不可见/减弱动效时直接落位；
+- 不许再用「离锚点超过 N px 才挪」的距离阈值：它既挡不住上面那条补间，也会让「离得不够远」的读档
+  原地不动。
+
 ## 5. 格式、版本与损坏兜底
 
 - **存储**：每槽一份 JSON，key `avm.save.v1.slot1` / `slot2` / `slot3`（`SAVE_KEY_PREFIX`）。
@@ -191,12 +203,17 @@ this.applyRestoredBgm();       // 2. 存档里的 BGM 显式补播
 | flow 快照往返 / 快照优先 resume / 非法快照回退 / 旧调用兼容 | `test/ch01-flow-snapshot.test.ts`（7） |
 | 落点精确/越界/压墙回退、两种脚盒、BGM 恢复决策、寝室快照、标题读档路由 | `test/save-restore-plan.test.ts`（16） |
 | 场景生命周期闩（读档 `restart` 后回调不许失效、旧轮回调不许串进新局） | `test/scene-lifecycle.test.ts`（8） |
+| 准备阶段构图唯一真值 + 场景摆位护栏（不许距离阈值、必须先杀位移 tween） | `test/ch01-prep-layout.test.ts`（8） |
 
 ```bash
 pnpm vitest run test/save-schema.test.ts test/save-store.test.ts test/save-availability.test.ts \
-  test/ch01-flow-snapshot.test.ts test/save-restore-plan.test.ts test/scene-lifecycle.test.ts
+  test/ch01-flow-snapshot.test.ts test/save-restore-plan.test.ts test/scene-lifecycle.test.ts \
+  test/ch01-prep-layout.test.ts
 pnpm typecheck
 ```
+
+读档构图（`prep`）另有真浏览器冒烟：`pnpm smoke:prep-layout`（标题「继续游戏」→ 战后段 → `prep`、
+原地存读档、走到书桌旁存读档三条路，断言小白的相对主角偏移完全一致；自起 vite，缺 Chromium 会明确报错）。
 
 浏览器验收（2026-11-17，自起 `pnpm dev --port 5201`，用独立 Chromium 脚本走真实指针/键盘，
 390×844 与 1200×648 两档；取证截图在 `.evidence/docs/screenshots/2026-11-17-five-items/save-menu/`，
@@ -218,12 +235,13 @@ pnpm typecheck
 | 11b | 场景内读档 | 菜单 → 读取存档 → 第 1 槽 → 二次确认（「读档会离开当前场景」）→ `scene.restart({restore})` 回寝室探索 |
 | 12 | 控制台 | 寝室/御膳房/标题/金殿/战斗各流程 **0 error**（验收期间另一次金殿预览曾报 2 个竖版立绘缺图，是对面并行工程当时还没落 png，随后已补上） |
 
-## 10. 验收中发现并修掉的两个真问题（留档）
+## 10. 验收中发现并修掉的真问题（留档）
 
 | 现象 | 根因 | 修法 |
 | --- | --- | --- |
 | 御膳房点菜单"没反应"（其实弹窗已打开，只是画在屏幕外） | 御膳房的相机跟随玩家滚动，而 `mvvm.modal` 生成的模态层默认走 world 空间；`appliedRect` 是层内坐标，点到的是屏幕上的空处 | `openGameMenu()` / `openLoadSlotsModal()` 打开后 `modal.widget.setScrollFactor(0)`（与 `kitchen-modals.ts` 既有做法一致） |
 | 寝室读档后目标/叫醒状态/BGM 全是默认值 | `init()` 读到 `restore`，但 `create()` 开头 `resetState()` 把 `this.restore = null` 清掉了 | `resetState()` 不再清 `restore`（`init()` 每轮都会重新赋值）；仓里注释写明原因，防回归 |
+| 进入御膳房前的自由活动（`prep`）：正常流程与读档后小白站的位置不同（正常流程停在主角 +100px，读档停在 +65px；玩家在书桌旁存档时读档甚至停在手机位置） | ① `layoutPrep()` 用「离锚点 >180px 才挪」的距离启发式，挡不住黑场收尾/起身漂浮的 tween 在进入 `prep` 之后把她拉回旧构图；② 读档时锚点离手机位置「不够远」，她根本不会被挪；③ 锚点像素在场景里写了两份（+62 / +65） | 落点收敛到纯函数 `prepXiaobaiSpot()`；场景只留一个 `placeXiaobaiForPrep()`（先 `killTweensOf(xiaobai)` 再落位，已可见时 260ms 滑行、浮动 tween 让位），`phase=dark/naming` 预览也改调同一函数。护栏 `test/ch01-prep-layout.test.ts` + 真浏览器 `pnpm smoke:prep-layout`（A 正式流程 / B 原地读档 / C 书桌旁读档，三条路偏移必须一致；把旧的距离启发式临时塞回去跑，A vs B 会红） |
 | 读档后「查看手机」：CG 播完不接小白台词，一直自由行动（小白也不出现） | `scene.restart()`（菜单读档走的就是它）复用同一个场景实例；`SHUTDOWN` 里置位的 `shuttingDown = true` 从未在下一轮 `create()` 复位 → 手机 CG 的 `onDone` 被 `if (this.shuttingDown) return` 永久吞掉。同一个闩还吞掉了战后「坐 → 站」起身表演（离开寝室去金殿时寝室已经 SHUTDOWN） | 生命周期闩改由 `src/app/scene-lifecycle.ts` 的 `SceneLifecycle` 管理：`create()`（寝室是 `resetState()`）里 `beginRun()` 换 runId、SHUTDOWN 里 `close()`、异步回调先 `isLive(runId)`；`phoneCutsceneSeen` 一并按轮清零（读档后重走手机节点要重新播 CG）。顺手修了金殿：清理原本写在场景子类 `shutdown()` 里（Phaser 只派发 SHUTDOWN 事件，不调用该方法，等于没写），现注册到 SHUTDOWN 事件。护栏 `test/scene-lifecycle.test.ts` |
 
 后续加"任意场景菜单"或新的跨帧回调（视频/CG/延时表演）时，这三条都会原样复现——尤其第二条：**`init()` 读到的启动数据不要在 `create()` 里清**；第三条：**重新 `create()` 之后，上一轮排的回调还该生效吗？**

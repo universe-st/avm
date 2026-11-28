@@ -46,6 +46,37 @@ export const CH01_XIAOBAI_OFFSET = [3, -2.5] as const;
 export const CH01_XIAOBAI_HEAD_OFFSET_PX = 0;
 
 /**
+ * 站立角色「头部中线」的世界 y（给小白对齐用）。
+ *
+ * 与 `CH01_WAKE_PERFORMANCE` / `CH01_GETUP_PERFORMANCE` 的 `float-actor(anchor: 'head')`
+ * 同一个口径：脚底往上量 `CH01_STAND_HEAD_CENTER_OFFSET`。
+ */
+export function xiaobaiHeadAnchorY(feetY: number): number {
+  return feetY - CH01_STAND_HEAD_CENTER_OFFSET;
+}
+
+/**
+ * 准备阶段（`phase === 'prep'`，命名完的自由活动）小白该站的世界坐标。
+ *
+ * **唯一真值**：正常流程（命名段播完进 prep）与读档（`restore` 回 prep）必须落在同一坐标。
+ * 2026-11-28 的 bug 就是这里没有唯一真值：场景用「离锚点超过 180px 才挪」的距离启发式，
+ * 于是一来黑场收尾的补间会把小白拉回旧构图（正常流程停在主角 +100px），
+ * 二来玩家恰好在书桌旁存档时读档回来她还留在手机位置（离得「不够远」）。
+ * 现在两条路都只调这个函数 + 场景的 `placeXiaobaiForPrep()`（总是收敛到锚点）。
+ *
+ * 语义：主角**右上方**（横向沿用 `CH01_XIAOBAI_OFFSET` 的「右 3 格」），纵向与主角头部中线齐平。
+ */
+export function prepXiaobaiSpot(
+  feet: { readonly x: number; readonly y: number },
+  tileSize: number,
+): { x: number; y: number } {
+  return {
+    x: feet.x + CH01_XIAOBAI_OFFSET[0] * tileSize,
+    y: xiaobaiHeadAnchorY(feet.y) + CH01_XIAOBAI_HEAD_OFFSET_PX,
+  };
+}
+
+/**
  * 坐地之后角色应有的**显示**高度（设计 px）。
  *
  * 站立 Q 帧显示高 = 400 × 0.6138 ≈ 245；坐地约 2/3 高度、与现有 `zhou_sit`

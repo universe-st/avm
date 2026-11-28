@@ -91,11 +91,11 @@ import {
   CH01_STAND_HEAD_CENTER_OFFSET,
   CH01_STAND_UP_SEQUENCE,
   CH01_WAKE_PERFORMANCE,
-  CH01_XIAOBAI_HEAD_OFFSET_PX,
   CH01_XIAOBAI_OFFSET,
   flashInMs,
   flashOutMs,
   planPerformance,
+  prepXiaobaiSpot,
   resolveSittingKey,
   sittingScaleFor,
   standUpFrameAt,
@@ -103,6 +103,7 @@ import {
   standUpToIdleFadeMs,
   stepDurationMs,
   timelineDurationMs,
+  xiaobaiHeadAnchorY,
   type FlashStep,
   type FloatActorStep,
   type FrameSequenceStep,
@@ -191,10 +192,20 @@ const ZHOU_SIT_OFFSET_Y = 0;
  *
  * 键就是 `FloatActorStep['anchor']`：以后加「贴着肩膀 / 心口」这类锚点，这里少写一个键
  * 会直接 typecheck 失败，不会静默飘到脚底。
+ *
+ * 头高与 `prepXiaobaiSpot()` 同源（都走 `xiaobaiHeadAnchorY`），别在两边各写一份减法。
  */
 const XIAOBAI_FLOAT_ANCHOR_Y: Record<FloatActorStep['anchor'], (feetY: number) => number> = {
-  head: (feetY) => feetY - CH01_STAND_HEAD_CENTER_OFFSET,
+  head: (feetY) => xiaobaiHeadAnchorY(feetY),
 };
+
+/**
+ * 进入 prep 时小白从旧位置滑到锚点的时长（ms）。
+ *
+ * 只影响「已经在画面里」的那条路；读档/减弱动效是直接落位。
+ * 保持短：这段时间里 `startXiaobaiBob()` 会主动让位（见 `prepSettle`）。
+ */
+const PREP_XIAOBAI_SETTLE_MS = 260;
 
 /**
  * 第一章第一节 · 寝室。
@@ -210,6 +221,13 @@ export class Ch01DormScene extends UIScene {
   private xiaobai: Phaser.GameObjects.Image | null = null;
   /** 小白的上下漂浮；移动位置前必须停掉，否则两个 tween 会抢同一个 y。 */
   private xiaobaiBob: Phaser.Tweens.Tween | null = null;
+  /**
+   * 准备阶段「小白滑到锚点」的补间。
+   *
+   * 它在跑的时候不许起 bob：两条 tween 同时改 y，落点就不确定了。
+   * 收尾/重开/切场都要 remove 并置空（场景实例会被 `restart()` 复用）。
+   */
+  private prepSettle: Phaser.Tweens.Tween | null = null;
   /**
    * 表演走位的 tween。
    *
@@ -608,6 +626,8 @@ export class Ch01DormScene extends UIScene {
     this.player = null;
     this.xiaobai = null;
     this.xiaobaiBob = null;
+    this.prepSettle?.remove();
+    this.prepSettle = null;
     this.walkTween = null;
     // 起身过渡层只在极短融合时存在（当前 0ms 不建）；重开本节时兜底清掉，别留一张浮空贴图。
     this.standUpCrossFade?.destroy();
@@ -1278,13 +1298,13 @@ export class Ch01DormScene extends UIScene {
       this.showXiaobai();
       /**
        * 预览直接从黑场开始，但**小白的位置要对齐正式流程此刻的位置**：
-       * 正式流程刚经历完起身飘齐，她停在主角头部中线高度、偏右约 65px；
+       * 正式流程刚经历完起身飘齐，她停在主角头部中线高度、偏右约 3 格；
        * 预览若留在手机/书桌的位置，收尾会从画面顶部飞下来、正好压过周全的头（用户实测反馈）。
+       * 坐标只从 `prepXiaobaiSpot()` 取——与 prep 的构图同一个真值，别再手写 +65。
        */
       if (this.xiaobai && this.player) {
-        const anchorY =
-          this.player.position.y - CH01_STAND_HEAD_CENTER_OFFSET + CH01_XIAOBAI_HEAD_OFFSET_PX;
-        this.xiaobai.setPosition(this.xiaobai.x + 65, anchorY);
+        const spot = prepXiaobaiSpot(this.player.position, this.room.tileSize);
+        this.xiaobai.setPosition(spot.x, spot.y);
       }
       const start = firstDarkLineIndex(CH01_AFTER_FINALE);
       this.startDialogue(start >= 0 ? CH01_AFTER_FINALE.slice(start) : CH01_AFTER_FINALE);
@@ -1303,8 +1323,7 @@ export class Ch01DormScene extends UIScene {
       this.suppressWakeCg = true;
       this.showXiaobai();
       if (this.xiaobai && this.player) {
-        const anchorY =
-          this.player.position.y - CH01_STAND_HEAD_CENTER_OFFSET + CH01_XIAOBAI_HEAD_OFFSET_PX;
+        const spot = prepXiaobaiSpot(this.player.position, this.room.tileSize);
         /**
          * 先把常态浮动停掉再落位：`showXiaobai()` 会在她**原来的位置**（手机/书桌那边）
          * 起步一条 `y → baseY-8` 的循环 tween，这条 tween 每帧都会把 y 拉回去——
@@ -1312,7 +1331,7 @@ export class Ch01DormScene extends UIScene {
          * 光雾图标也跟着飘到画面上半屏。
          */
         this.stopXiaobaiBob();
-        this.xiaobai.setPosition(this.xiaobai.x + 65, anchorY);
+        this.xiaobai.setPosition(spot.x, spot.y);
         this.startXiaobaiBob();
       }
       this.startDialogue(CH01_AFTER_HANDOFF);
@@ -1339,27 +1358,70 @@ export class Ch01DormScene extends UIScene {
   }
 
   /**
-   * 准备阶段的构图：小白在玩家右上方浮动；离得太远（读档回来）就挪回来。
+   * 准备阶段的构图：小白在玩家右上方浮动。
    *
-   * 幂等：命名刚结束、小白本来就在旁边时不会跳位置，也就没有「小精灵戴在头上」的观感。
+   * 只做「进入 prep 的一次性收口」，落点全部交给 `placeXiaobaiForPrep()`。
+   * 幂等：命名刚结束、小白本来就在锚点上时什么都不做，也就没有「小精灵戴在头上」的观感。
    */
   private layoutPrep(): void {
     const xiaobai = this.xiaobai;
     const player = this.player;
     if (!xiaobai || !player) return;
     this.tutorialVisible.value = false;
-    this.showXiaobai();
-    const anchorX = player.position.x + 62;
-    const anchorY =
-      player.position.y - CH01_STAND_HEAD_CENTER_OFFSET + CH01_XIAOBAI_HEAD_OFFSET_PX;
-    const far = Math.hypot(xiaobai.x - anchorX, xiaobai.y - anchorY) > 180;
-    if (far) {
-      this.stopXiaobaiBob();
-      xiaobai.setPosition(anchorX, anchorY).setVisible(true).setAlpha(1);
-    }
-    this.startXiaobaiBob();
+    this.placeXiaobaiForPrep();
     this.syncControls();
     this.updateNear();
+  }
+
+  /**
+   * 把小白摆到准备阶段的唯一构图（`prepXiaobaiSpot`）。**幂等且收敛**。
+   *
+   * 三条路都走这里，因此正常流程（命名段播完）与读档（restore 回 prep）落在同一坐标：
+   * - 刚创建/不可见（读档、从手机那边登场）：直接落位再淡入，不从书桌飞过来；
+   * - 已经在画面里（命名段刚演完）：短滑行过去，不瞬移；
+   * - 已经在锚点上：不动，只恢复浮动。
+   *
+   * **必须先把挂在她身上的位移 tween 杀掉**：黑场收尾（`DarkPressureRig.restoreActors`）
+   * 与起身漂浮都可能在进入 prep 之后才跑完，它们会把刚摆好的构图拉回旧位置。
+   * 2026-11-28 用户实测：正常流程停在主角 +100px（趴地收尾点），读档停在 +62px；
+   * 而玩家恰好在书桌旁存档时，读档回来她甚至留在手机位置（离锚点「不够远」，旧逻辑不挪）。
+   */
+  private placeXiaobaiForPrep(): void {
+    const xiaobai = this.xiaobai;
+    const player = this.player;
+    if (!xiaobai || !player) return;
+    const spot = prepXiaobaiSpot(player.position, this.room.tileSize);
+    const runId = this.lifecycle.runId;
+    this.tweens.killTweensOf(xiaobai);
+    this.stopXiaobaiBob();
+    const wasVisible = xiaobai.visible;
+    // `killTweensOf` 会连「淡入」一起杀掉：可见的人要保证不半透明地停在 prep 里。
+    if (wasVisible) xiaobai.setAlpha(1);
+    const offX = Math.abs(xiaobai.x - spot.x);
+    const offY = Math.abs(xiaobai.y - spot.y);
+    // 不可见（读档）/减弱动效/本来就在锚点：直接落位，没有可看的过渡。
+    if (!wasVisible) {
+      xiaobai.setPosition(spot.x, spot.y);
+      this.showXiaobai();
+      return;
+    }
+    if (this.reduced || (offX <= 1 && offY <= 1)) {
+      xiaobai.setPosition(spot.x, spot.y);
+      this.startXiaobaiBob();
+      return;
+    }
+    this.prepSettle = this.tweens.add({
+      targets: xiaobai,
+      x: spot.x,
+      y: spot.y,
+      duration: PREP_XIAOBAI_SETTLE_MS,
+      ease: 'Sine.easeInOut',
+      onComplete: () => {
+        this.prepSettle = null;
+        if (!this.lifecycle.isLive(runId)) return;
+        this.startXiaobaiBob();
+      },
+    });
   }
 
   /** 跟小白开口：一记白闪推进到结束卡（第二节入口）。 */
@@ -2042,7 +2104,8 @@ export class Ch01DormScene extends UIScene {
 
   private startXiaobaiBob(): void {
     const xiaobai = this.xiaobai;
-    if (!xiaobai || this.reduced || this.xiaobaiBob) return;
+    // `prepSettle` 在跑时让位：两条 tween 同时改 y，落点就不确定了。
+    if (!xiaobai || this.reduced || this.xiaobaiBob || this.prepSettle) return;
     const baseY = xiaobai.y;
     this.xiaobaiBob = this.tweens.add({
       targets: xiaobai,
@@ -2963,6 +3026,8 @@ export class Ch01DormScene extends UIScene {
     this.nameFx = null;
     this.xiaobaiBob?.remove();
     this.xiaobaiBob = null;
+    this.prepSettle?.remove();
+    this.prepSettle = null;
     this.walkTween?.stop();
     this.walkTween = null;
     // 交叉淡入还在跑就退出/切场：临时层必须现在销毁，不能挂在已关闭的场景上。

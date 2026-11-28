@@ -105,6 +105,11 @@ pnpm android:release
   再验「跳过」（第一句就点跳过 → 仍到 prep、光雾不残留）与 `prefers-reduced-motion`（静态光雾、能走到 prep）。
   取证：`.evidence/scripts/verify-naming-2026-11-26.mjs`（逐拍截图 + 交互 + 结束卡）、
   `.evidence/scripts/verify-naming-flow-2026-11-26.mjs`（正式 after 流程 / 跳过 / reduced 三段）。
+- 改准备阶段（`prep`）构图 / 读档落点：`pnpm smoke:prep-layout`（自起 vite + 真 Chromium，缺依赖会明确报错）。
+  它跑三条路并只比「小白相对主角脚底的偏移」：A 正式流程（标题「继续游戏」→ 检查点 `dorm.after` → 战后段 → prep）、
+  B 在 A 的位置存档再读档、C 先走到书桌旁再存档读档（旧代码会把她留在手机位置）。A/B/C 横向偏移必须一致、
+  纵向一致到浮动幅度（±8px），且 `dx` 在 0..120、`dy` 在 −260..−140（头部高度）。
+  只改落点常量时也要跑：把旧的距离启发式临时塞回去，A vs B 会红（2026-11-28 实测）。
 - 改战斗（v3.3）：
   - 金殿剧情战：`?stage=battle.ch01.first&phase=opening|mid|defeat&hud=0`（`victory` 会回退 mid）；验攻击可点一次（触发教程对话后灰掉）、机器人先攻、第 4 次怪物行动后清除协议必败、战败回寝室、预览可重开/返回。
   - 御膳房双怪：`?stage=battle.ch01.kitchen&phase=opening|mid|victory|defeat&hud=0`；验「攻击」按钮基础只显示“攻击”（不带目标名/伤害）→ 先弹技能窗 → 选好技能后点敌人选目标（可取消，取消键是移动键）→ **选中有效目标后按钮变红色发光的「确认攻击」** → 点确认发动；选目标阶段顶部红字「请选择攻击目标」，与落点红字「请选择移动位置」同款同位置；**可选的相邻目标脚下黄圈闪烁**（选中后变绿圈，其他可选仍黄圈）；**选中目标头顶显示名字 + 红色血条，取消/死亡/胜负后隐藏**；点非法目标（距离不够）时脚下红圈闪 3 次 + 顶部红字闪「距离不够」，随后红圈消失、保持未选中；场上除选目标黄/绿/红圈和选中目标头顶名字/血条外无圈、无常规名牌、无 HP、未知怪不显示预计伤害、命中后非背袭进入落点选择、背袭留在原地、平减防御、只杀一只不结束、全灭胜利、回御膳房（不写 `dorm.after`）。正常进战斗时开场卡期间战斗曲不提前起，`intro` 关闭后 `ch01Battle` 从 0 起播。
@@ -206,6 +211,20 @@ pnpm android:release
   `phase=prep` 是命名完的自由活动，**可存档**（2026-11-27 用户拍板；`FREE_ROAM_PHASES` 认 explore+prep）：
   存档用 `flags.prep` 标记、检查点写 `dorm.after`，读回来直接落回 prep（`layoutPrep()` 把小白放回身边），
   玩家走到小白身边开口（`flow.finishPrep()`）才出结束卡。
+
+- **准备阶段的角色构图必须由纯函数推导，不能用距离启发式（2026-11-28）**：用户报「正常流程走到进入御膳房前
+  的自由活动」与「读档到这里」小白站的位置不一样。三个坑叠在一起：
+  ① `layoutPrep()` 原来只在「离锚点 >180px」时才挪人 —— 黑场收尾（`DarkPressureRig.restoreActors`）和起身
+  漂浮的 tween 会在进入 `prep` 之后才跑完，于是正常流程停在主角 +100px（趴地收尾点），读档停在 +62px；
+  ② 玩家恰好在书桌旁存档时，读档后的锚点离手机位置「不够远」，她根本不会被挪走（留在书桌上）；
+  ③ 锚点像素在场景里写了两份（layoutPrep 的 +62、dark/naming 预览的 `xiaobai.x + 65`，后者还是相对她自己的 x）。
+  现在落点唯一真值 `prepXiaobaiSpot(player.position, tileSize)`（`src/story/ch01-performance.ts`，横向沿用
+  `CH01_XIAOBAI_OFFSET` 的「右 3 格」、纵向 `xiaobaiHeadAnchorY()` 的头部中线），场景只留一个
+  `placeXiaobaiForPrep()`：**先 `killTweensOf(xiaobai)` 再落位**（不杀 = 补间把构图拉回去），已经在画面里时
+  260ms 滑行（`prepSettle` 在跑时 `startXiaobaiBob()` 主动让位，两条 tween 不能抢同一个 y），不可见/减弱动效
+  直接落位。`resetState()` / `onShutdown()` 都要 `prepSettle?.remove()`。
+  **推广**：任何「读档回来要摆在哪」的世界状态都只能由（玩家位置 + 阶段）算出来，不能用「现在离得远不远」兜底；
+  自由漂浮/补间中的对象，摆位前必须先收掉在跑的 tween。
 
 ## 6. 提交
 

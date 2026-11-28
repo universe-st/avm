@@ -229,8 +229,10 @@ private finishDialogue(): void {
   的 `releaseSpot` 把她落到「趴着的头」右侧（脚底 +100 / 抬高 78），起身时再由
   `float-actor` 随他飘回站立头高。收尾顺序必须是 `clearPronePose()` → `setBlackout(false)`，
   否则收尾时趴姿已清、落点判断却还看得见 prone，她会被留在低位。
-- **预览对齐**：`phase=dark` 要把小白摆到正式流程此刻的位置（站立头高、偏右 65px），
+- **预览对齐**：`phase=dark` 要把小白摆到正式流程此刻的位置（站立头高、主角右侧约 3 格），
   否则她停在手机/书桌处，收尾会从画面顶部飞下来压过周全的头（用户实测反馈）。
+  坐标只从 `prepXiaobaiSpot()`（`src/story/ch01-performance.ts`）取，与 `prep` 的构图同一个真值——
+  预览与正式流程/读档各写一份像素（旧代码是 `xiaobai.x + 65`）就是 2026-11-28 那次位置不一致的来源。
 
 分工（改数值只动前两个文件）：
 
